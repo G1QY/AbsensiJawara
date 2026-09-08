@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
+import GoogleLocationPicker from '../../components/maps/GoogleLocationPicker';
 
 export interface GuestAttendanceRecord {
   occurredAt?: string;
@@ -744,8 +745,8 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
 
                 </div>
 
-                {/* Deteksi Lokasi GPS Live */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                {/* Deteksi Lokasi GPS Live & Peta */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <span
@@ -753,7 +754,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                           }`}
                       />
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                        Deteksi Lokasi GPS
+                        Deteksi Lokasi GPS & Peta
                       </span>
                     </div>
 
@@ -792,6 +793,30 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                       <p>{locLoading ? 'Mencari lokasi perangkat, maksimal 20 detik...' : locError || 'Menunggu deteksi lokasi...'}</p>
                     </div>
                   )}
+
+                  {/* Interactive Map Picker */}
+                  <div className="pt-1">
+                    <GoogleLocationPicker
+                      title="Peta Lokasi Kehadiran"
+                      address={address}
+                      latitude={lat !== null ? String(lat) : ''}
+                      longitude={lng !== null ? String(lng) : ''}
+                      onChange={(location) => {
+                        const nextLat = parseFloat(location.latitude);
+                        const nextLng = parseFloat(location.longitude);
+                        if (Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
+                          setLat(nextLat);
+                          setLng(nextLng);
+                          setLocSource('gps');
+                          setLocError('');
+                          if (accuracy === null) setAccuracy(10);
+                        }
+                        if (location.address && location.address.trim()) {
+                          setAddress(location.address.trim());
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Foto Selfie (Kamera Live) */}
