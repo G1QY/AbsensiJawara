@@ -87,7 +87,7 @@ export default function AdminAbsensi() {
     {error&&<p role="alert" className="text-sm bg-red-50 text-red-700 rounded-xl p-4">{error} Data belum lengkap. Muat ulang sebelum mengekspor.</p>}
     {notice&&<p role="status" className="text-sm bg-emerald-50 text-emerald-700 rounded-xl p-4">{notice}</p>}
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{metrics.map(([label,n])=><div key={label} className="rounded-xl p-4 bg-blue-50 text-blue-700"><p className="text-2xl font-bold">{loading?'...':n}</p><p className="text-xs mt-1">{label}</p></div>)}</div>
-    <p className="text-xs text-slate-600">Ringkasan dan Excel mengikuti seluruh filter di bawah. Lembur memakai jam penuh setelah jadwal selesai dan hanya mendapat bonus setelah disetujui. Potongan/bonus memakai tarif simulasi payroll aktif.</p>
+    <p className="text-xs text-slate-600">Ringkasan dan Excel mengikuti seluruh filter di bawah.</p>
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
       <label className="text-xs text-slate-600">Cari crew<input aria-label="Cari crew" value={filters.search} onChange={e=>filter('search',e.target.value)} className={control} placeholder="Nama, HP, email, lokasi..."/></label>
       <label className="text-xs text-slate-600">Tanggal kerja (WIB)<input aria-label="Tanggal kerja" type="date" value={filters.date} onChange={e=>filter('date',e.target.value)} className={control}/></label>

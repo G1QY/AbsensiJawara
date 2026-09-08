@@ -16,7 +16,7 @@
         Referrer-Policy no-referrer
         X-Frame-Options DENY
         Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://{$API_DOMAIN} https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com https://ipwho.is https://ipapi.co; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://{$API_DOMAIN} https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
     try_files {path} /index.html
     file_server

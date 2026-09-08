@@ -31,7 +31,7 @@ export function getGuestAttendances(): GuestAttendanceRecord[] {
   try {
     const raw = localStorage.getItem(GUEST_STORAGE_KEY);
     const data = raw ? JSON.parse(raw) : [];
-    return Array.isArray(data) ? data.filter(g => g && typeof g.id === 'string' && typeof g.nama === 'string' && typeof g.hp === 'string' && typeof g.foto === 'string' && ['Clock In','Clock Out'].includes(g.tipe)) : [];
+    return Array.isArray(data) ? data.filter(g => g && typeof g.id === 'string' && typeof g.nama === 'string' && typeof g.hp === 'string' && typeof g.foto === 'string' && ['Clock In', 'Clock Out'].includes(g.tipe)) : [];
   } catch {
     return [];
   }
@@ -51,7 +51,7 @@ export function markGuestSynced(record: GuestAttendanceRecord, serverId: string)
   } catch { /* Server remains authoritative; the original local record is not deleted. */ }
 }
 
-interface GuestOptions { stores: {id:string;name:string}[]; events: {id:string;event_name:string;event_date:string}[] }
+interface GuestOptions { stores: { id: string; name: string }[]; events: { id: string; event_name: string; event_date: string }[] }
 const GUEST_API = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/guest-attendance';
 
 // Generate random verification hash code
@@ -76,7 +76,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [hp, setHp] = useState(auth?.user?.phone || '');
   const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [locations, setLocations] = useState<GuestOptions>({stores:[],events:[]});
+  const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
   const [optionsError, setOptionsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submissionKey = useRef(crypto.randomUUID());
@@ -121,10 +121,10 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   }, [selectedLocation, jenis, locations]);
   useEffect(() => {
     let active = true;
-    fetch(GUEST_API + '/options').then(async res => {if(!res.ok)throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.');return res.json();}).then(data => {if(active){if(!Array.isArray(data.stores)||!Array.isArray(data.events))throw new Error('Respons lokasi tidak valid.');setLocations(data);}}).catch(error => {if(active)setOptionsError(error.message);});
-    return () => {active = false;};
+    fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations(data); } }).catch(error => { if (active) setOptionsError(error.message); });
+    return () => { active = false; };
   }, []);
-  useEffect(() => {setSelectedLocation('');}, [jenis]);
+  useEffect(() => { setSelectedLocation(''); }, [jenis]);
 
   // Realtime clock
   useEffect(() => {
@@ -166,7 +166,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         if (requestId !== locationRequest.current) return;
         const { latitude, longitude, accuracy: measuredAccuracy } = pos.coords;
         if (![latitude, longitude, measuredAccuracy].every(Number.isFinite) ||
-            Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || measuredAccuracy <= 0) {
+          Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || measuredAccuracy <= 0) {
           setLocLoading(false);
           setLocError('Perangkat mengirim lokasi tidak valid. Tekan Perbarui GPS.');
           return;
@@ -194,7 +194,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
           const data = await res.json();
           if (requestId !== locationRequest.current) return;
           setAddress(typeof data.display_name === 'string' && data.display_name.trim()
-            ? 'Perkiraan alamat: ' + data.display_name
+            ? data.display_name
             : 'Alamat belum tersedia. Koordinat perangkat tetap tercatat.');
         } catch {
           if (requestId === locationRequest.current)
@@ -241,7 +241,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
+          videoRef.current.play().catch(() => { });
         }
       }, 100);
     } catch (err) {
@@ -252,7 +252,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
           }
         }, 100);
       } catch (fallbackErr) {
@@ -469,7 +469,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       setFormError('Pilih lokasi yang terdaftar di sistem.');
       return;
     }
-    if (lat === null || lng === null || locSource !== 'gps') {setFormError('Aktifkan GPS perangkat. Lokasi perkiraan jaringan tidak dapat digunakan untuk mengirim absensi.');return;}
+    if (lat === null || lng === null || locSource !== 'gps') { setFormError('Aktifkan GPS perangkat. Lokasi perkiraan jaringan tidak dapat digunakan untuk mengirim absensi.'); return; }
     if (!foto) {
       setFormError('Foto bukti kehadiran wajib diambil menggunakan kamera.');
       return;
@@ -499,23 +499,23 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       status: 'Menunggu Verifikasi Admin',
     };
 
-    if(submitting)return;
+    if (submitting) return;
     setSubmitting(true);
     try {
-      const fingerprint=JSON.stringify([nama,hp,jenis,selectedLocation,posisi,tipeAbsen,catatan,foto,lat,lng]);
-      if(fingerprint!==submissionFingerprint.current){submissionKey.current=crypto.randomUUID();submissionFingerprint.current=fingerprint;}
+      const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto, lat, lng]);
+      if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
       const form = new FormData();
-      for(const [key,value] of Object.entries({fullName:newRecord.nama,phone:newRecord.hp,crewType:jenis==='Crew Store'?'CREW_STORE':'CREW_EVENT',locationId:selectedLocation,position:posisi,clockType:tipeAbsen==='Clock In'?'IN':'OUT',latitude:lat,longitude:lng,accuracy:accuracy??'',address:newRecord.address,note:newRecord.catatan,locationSource:locSource,submissionKey:submissionKey.current}))form.append(key,String(value));
-      form.append('photo',await(await fetch(foto)).blob(),'guest-selfie.jpg');
-      const res=await fetch(GUEST_API,{method:'POST',headers:{'X-FotoSnaps-Request':'1'},body:form});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok||!data?.id)throw new Error(data?.message||'Absensi belum tersimpan di server. Coba lagi.');
-      setSubmittedRecord({...newRecord,id:data.id,occurredAt:data.occurred_at,timestamp:new Date(data.occurred_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})});
-      submissionKey.current=crypto.randomUUID();
-      setFoto('');setCatatan('');setSubmitSuccess(true);
-      add('Absensi diterima server','Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.');
-    } catch(error) {setFormError(error instanceof Error?error.message:'Pengiriman gagal. Coba lagi.');}
-    finally {setSubmitting(false);}
+      for (const [key, value] of Object.entries({ fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Store' ? 'CREW_STORE' : 'CREW_EVENT', locationId: selectedLocation, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: lat, longitude: lng, accuracy: accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
+      form.append('photo', await (await fetch(foto)).blob(), 'guest-selfie.jpg');
+      const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) throw new Error(data?.message || 'Absensi belum tersimpan di server. Coba lagi.');
+      setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) });
+      submissionKey.current = crypto.randomUUID();
+      setFoto(''); setCatatan(''); setSubmitSuccess(true);
+      add('Absensi diterima server', 'Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.');
+    } catch (error) { setFormError(error instanceof Error ? error.message : 'Pengiriman gagal. Coba lagi.'); }
+    finally { setSubmitting(false); }
   };
 
   const generateWhatsAppMessage = (rec: GuestAttendanceRecord) => {
@@ -560,11 +560,10 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
               type="button"
               aria-current={page === tab.id ? 'page' : undefined}
               onClick={() => onNavigate(tab.id)}
-              className={`flex-1 min-w-0 py-2.5 px-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all ${
-                page === tab.id
+              className={`flex-1 min-w-0 py-2.5 px-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all ${page === tab.id
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-50'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -679,11 +678,10 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                           key={t}
                           type="button"
                           onClick={() => setJenis(t)}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
-                            jenis === t
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${jenis === t
                               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                               : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                          }`}
+                            }`}
                         >
                           {t}
                         </button>
@@ -701,13 +699,12 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                           key={t}
                           type="button"
                           onClick={() => setTipeAbsen(t)}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
-                            tipeAbsen === t
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${tipeAbsen === t
                               ? t === 'Clock In'
                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                                 : 'bg-red-600 text-white border-red-600 shadow-sm'
                               : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                          }`}
+                            }`}
                         >
                           {t}
                         </button>
@@ -725,7 +722,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                     >
                       <option>Tenda</option>
-                  <option>Fotobox</option>
+                      <option>Fotobox</option>
                     </select>
                   </div>
                 </div>
@@ -741,8 +738,8 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     onChange={(e) => setSelectedLocation(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-medium"
                   >
-                    <option value="">Pilih lokasi dari sistem</option>
-                    {(jenis==='Crew Store'?locations.stores.map(s=>({id:s.id,name:s.name})):locations.events.map(e=>({id:e.id,name:e.event_name}))).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+                    <option value="">Pilih lokasi</option>
+                    {(jenis === 'Crew Store' ? locations.stores.map(s => ({ id: s.id, name: s.name })) : locations.events.map(e => ({ id: e.id, name: e.event_name }))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
 
                 </div>
@@ -752,9 +749,8 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
-                        }`}
+                        className={`w-2.5 h-2.5 rounded-full ${lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
+                          }`}
                       />
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
                         Deteksi Lokasi GPS
@@ -802,11 +798,8 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Foto Bukti Kehadiran (Kamera Live) <span className="text-red-500">*</span>
+                      Foto Bukti Kehadiran <span className="text-red-500">*</span>
                     </label>
-                    <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                      Watermark Otomatis
-                    </span>
                   </div>
 
                   {/* Hidden Canvas for Watermark Processing */}
@@ -817,10 +810,6 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 text-white space-y-4 border border-slate-800 shadow-2xl animate-fade-in">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-                            Viewfinder Kamera
-                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -951,10 +940,6 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                       )}
                     </div>
                   )}
-
-                  <p className="text-[11px] text-slate-400">
-                    *Pengambilan foto hanya dapat dilakukan melalui kamera langsung demi validitas data absensi.
-                  </p>
                 </div>
 
                 {/* Catatan / Keterangan Darurat */}
@@ -990,7 +975,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
         {activeTab === 'jadwal' && <div className="space-y-4">
           <div className="bg-white rounded-xl p-5 border border-slate-200"><h3 className="font-bold text-slate-900">Event Terdaftar</h3><p className="text-sm text-slate-600">Jadwal kerja pribadi tidak ditampilkan pada mode guest. Konfirmasikan jam tugas kepada admin.</p></div>
           {optionsError && <p role="alert" className="text-red-700">{optionsError}</p>}
-          {locations.events.map(ev=><div key={ev.id} className="bg-white rounded-xl p-5 border border-slate-200"><h4 className="font-semibold text-slate-900">{ev.event_name}</h4><p className="text-sm text-slate-600">Tanggal event: {ev.event_date}</p></div>)}
+          {locations.events.map(ev => <div key={ev.id} className="bg-white rounded-xl p-5 border border-slate-200"><h4 className="font-semibold text-slate-900">{ev.event_name}</h4><p className="text-sm text-slate-600">Tanggal event: {ev.event_date}</p></div>)}
           {!locations.events.length && !optionsError && <p className="text-sm text-slate-600">Belum ada event aktif dari sistem.</p>}
         </div>}
 

@@ -471,8 +471,7 @@ export default function KelolaCrew() {
           </p>
         )}
         <p className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100">
-          Menampilkan {filtered.length} dari {crew.length} crew. Kolom “Dari”
-          menampilkan penugasan aktif; jumlah event mencakup riwayat penugasan.
+          Menampilkan {filtered.length} dari {crew.length} crew.
         </p>
       </div>
       <Modal
