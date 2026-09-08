@@ -141,3 +141,27 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Backup database
+backups/
+*.dump
+*.backup
+*.sql.gz
+
+# Arsip proyek
+*.zip
+*.tar.gz
+
+# Berkas upload lokal
+/backend/uploads/
+/uploads/
+
+# File sementara Supabase
+supabase/.temp/
+
+# Hasil pengujian browser
+playwright-report/
+test-results/
+
+# Contoh konfigurasi boleh masuk Git
+!.env.sample
