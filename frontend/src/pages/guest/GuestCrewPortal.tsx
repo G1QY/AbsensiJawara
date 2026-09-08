@@ -91,7 +91,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [address, setAddress] = useState<string>('');
   const [locLoading, setLocLoading] = useState(false);
-  const [locSource, setLocSource] = useState<'gps' | 'network' | 'none'>('none');
+  const [locSource, setLocSource] = useState<'gps' | 'none'>('none');
   const [locError, setLocError] = useState('');
 
   // Camera & Photo State
@@ -147,127 +147,76 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     return () => clearInterval(interval);
   }, []);
 
-  // Reverse Geocoding Helper
-  const reverseGeocode = async (latitude: number, longitude: number) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=18&addressdetails=1`,
-        {
-          headers: { 'Accept-Language': 'id' },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const full = data.display_name;
-        if (full) {
-          setAddress(full);
-          return full;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return '';
-  };
+  // Device location only; never substitute a location inferred from IP.
+  const locationRequest = useRef(0);
+  const addressAbort = useRef<AbortController | null>(null);
 
-  // Network location is approximate and cannot be used to submit attendance.
-  const fetchIpLocation = async () => {
-    try {
-      // Try ipwho.is first
-      const res = await fetch('https://ipwho.is/');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.latitude && data.longitude) {
-          setLat(data.latitude);
-          setLng(data.longitude);
-          setAccuracy(150);
-          setLocSource('network');
-          setLocLoading(false);
-          setLocError('');
-
-          const locDetail = `${data.city || ''}, ${data.region || ''}, ${data.country || 'Indonesia'}`;
-          setAddress(locDetail);
-          reverseGeocode(data.latitude, data.longitude);
-          return true;
-        }
-      }
-    } catch {
-      // Try secondary backup ipapi.co
-      try {
-        const res2 = await fetch('https://ipapi.co/json/');
-        if (res2.ok) {
-          const data2 = await res2.json();
-          if (data2.latitude && data2.longitude) {
-            setLat(data2.latitude);
-            setLng(data2.longitude);
-            setAccuracy(200);
-            setLocSource('network');
-            setLocLoading(false);
-            setLocError('');
-            const locDetail = `${data2.city || ''}, ${data2.region || ''}, Indonesia`;
-            setAddress(locDetail);
-            reverseGeocode(data2.latitude, data2.longitude);
-            return true;
-          }
-        }
-      } catch {
-        // Fallback failed
-      }
-    }
-    return false;
-  };
-
-  // High-reliability location detection with zero timeout
   const detectLocation = useCallback(() => {
-    setLocLoading(true);
-    setLocError('');
-
-    if (!navigator.geolocation) {
-      fetchIpLocation();
+    const requestId = ++locationRequest.current;
+    addressAbort.current?.abort();
+    setLat(null); setLng(null); setAccuracy(null); setAddress('');
+    setLocSource('none'); setLocError(''); setLocLoading(true);
+    if (!window.isSecureContext || !navigator.geolocation) {
+      setLocLoading(false);
+      setLocError('Lokasi perangkat tidak tersedia. Buka melalui HTTPS dan izinkan akses lokasi.');
       return;
     }
-
-    let isResolved = false;
-
-    // Timeout safety fallback to IP Geolocation after 3.5 seconds
-    const timeoutFallback = setTimeout(() => {
-      if (!isResolved) {
-        fetchIpLocation();
-      }
-    }, 3500);
-
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        isResolved = true;
-        clearTimeout(timeoutFallback);
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
-        setAccuracy(Math.round(pos.coords.accuracy));
-        setLocSource('gps');
-        setLocLoading(false);
-        setLocError('');
-
-        reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-      },
-      async (_err) => {
-        isResolved = true;
-        clearTimeout(timeoutFallback);
-        const success = await fetchIpLocation();
-        if (!success) {
+      async (pos) => {
+        if (requestId !== locationRequest.current) return;
+        const { latitude, longitude, accuracy: measuredAccuracy } = pos.coords;
+        if (![latitude, longitude, measuredAccuracy].every(Number.isFinite) ||
+            Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || measuredAccuracy <= 0) {
           setLocLoading(false);
-          setLocError('Tidak dapat mendeteksi koordinat otomatis. Lokasi venue tetap tercatat.');
+          setLocError('Perangkat mengirim lokasi tidak valid. Tekan Perbarui GPS.');
+          return;
         }
+        setLat(latitude); setLng(longitude); setAccuracy(Math.ceil(measuredAccuracy));
+        // Existing API enum; the browser does not reveal its positioning sensor.
+        setLocSource('gps'); setLocLoading(false);
+        if (measuredAccuracy > 100) {
+          setLocError('Lokasi masih kurang akurat. Aktifkan lokasi presisi, pindah ke area terbuka, lalu tekan Perbarui GPS.');
+          setAddress('Alamat tidak ditampilkan karena perkiraan lokasi masih terlalu luas.');
+          return;
+        }
+        const controller = new AbortController();
+        addressAbort.current = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        setAddress('Mencari perkiraan alamat...');
+        try {
+          const params = new URLSearchParams({
+            lat: String(latitude), lon: String(longitude),
+            format: 'json', zoom: '18', addressdetails: '1',
+          });
+          const res = await fetch('https://nominatim.openstreetmap.org/reverse?' + params,
+            { headers: { 'Accept-Language': 'id' }, signal: controller.signal });
+          if (!res.ok) throw new Error('Address unavailable');
+          const data = await res.json();
+          if (requestId !== locationRequest.current) return;
+          setAddress(typeof data.display_name === 'string' && data.display_name.trim()
+            ? 'Perkiraan alamat: ' + data.display_name
+            : 'Alamat belum tersedia. Koordinat perangkat tetap tercatat.');
+        } catch {
+          if (requestId === locationRequest.current)
+            setAddress('Alamat belum tersedia. Koordinat perangkat tetap tercatat.');
+        } finally { window.clearTimeout(timeout); }
       },
-      {
-        enableHighAccuracy: false, // Prevents Windows Location Service hang
-        timeout: 5000,
-        maximumAge: 60000,
-      }
+      (error) => {
+        if (requestId !== locationRequest.current) return;
+        setLocLoading(false);
+        setLocError(error.code === 1
+          ? 'Izin lokasi ditolak. Izinkan lokasi presisi pada browser dan perangkat, lalu tekan Perbarui GPS.'
+          : error.code === 2
+            ? 'Lokasi perangkat belum tersedia. Aktifkan layanan lokasi dan coba di area terbuka.'
+            : 'Pencarian lokasi melewati batas waktu. Aktifkan lokasi presisi lalu tekan Perbarui GPS.');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }, []);
 
   useEffect(() => {
     detectLocation();
+    return () => { ++locationRequest.current; addressAbort.current?.abort(); };
   }, [detectLocation]);
 
   // Camera Management
@@ -804,7 +753,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     <div className="flex items-center gap-2">
                       <span
                         className={`w-2.5 h-2.5 rounded-full ${
-                          lat && lng ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
+                          lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
                         }`}
                       />
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
@@ -832,9 +781,10 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                           {lat.toFixed(6)}, {lng.toFixed(6)}
                         </span>
                         <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {locSource === 'gps' ? 'Lokasi GPS perangkat' : 'Perkiraan jaringan, aktifkan GPS'} (±{accuracy ?? 0}m)
+                          Lokasi perangkat · estimasi akurasi ±{accuracy ?? 0} m
                         </span>
                       </div>
+                      {locError && <p role="status" className="text-xs text-amber-700">{locError}</p>}
                       {address && (
                         <p className="text-xs text-slate-600 pt-0.5 leading-relaxed">
                           {address}
@@ -843,7 +793,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     </div>
                   ) : (
                     <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-                      <p>{locLoading ? 'Sedang menghubungkan ke satelit GPS dan jaringan...' : locError || 'Menunggu deteksi lokasi...'}</p>
+                      <p>{locLoading ? 'Mencari lokasi perangkat, maksimal 20 detik...' : locError || 'Menunggu deteksi lokasi...'}</p>
                     </div>
                   )}
                 </div>
@@ -1091,3 +1041,4 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
     </div>
   );
 }
+
