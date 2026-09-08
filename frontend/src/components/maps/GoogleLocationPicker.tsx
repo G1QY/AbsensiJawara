@@ -461,13 +461,12 @@ export default function GoogleLocationPicker({
               setProvider('osm');
               setError('');
             }}
-            className={`rounded-lg px-2.5 py-1 font-medium transition-all ${
-              provider === 'osm'
+            className={`rounded-lg px-2.5 py-1 font-medium transition-all ${provider === 'osm'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
-            🗺️ OpenStreetMap
+            OpenStreetMap
           </button>
           <button
             type="button"
@@ -479,11 +478,10 @@ export default function GoogleLocationPicker({
               setProvider('google');
               setError('');
             }}
-            className={`rounded-lg px-2.5 py-1 font-medium transition-all ${
-              provider === 'google'
+            className={`rounded-lg px-2.5 py-1 font-medium transition-all ${provider === 'google'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
-            }`}
+              }`}
           >
             Google Maps
           </button>
@@ -494,7 +492,7 @@ export default function GoogleLocationPicker({
       {googleAuthError && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
           <div className="flex items-center justify-between font-semibold">
-            <span>⚠️ Google Maps Tidak Dapat Memuat Peta</span>
+            <span>Google Maps Tidak Dapat Memuat Peta</span>
             <span className="rounded bg-amber-200/80 px-2 py-0.5 text-[11px] font-mono">
               Auto-Fallback Aktif
             </span>
@@ -507,7 +505,7 @@ export default function GoogleLocationPicker({
             belum diizinkan di HTTP referrers, atau Billing belum diaktifkan).
           </p>
           <p className="mt-1 font-medium text-blue-800">
-            ✅ Peta telah dialihkan ke <strong>OpenStreetMap</strong> sehingga Anda tetap dapat memilih lokasi, klik titik, dan menyimpan store seperti biasa.
+            Peta telah dialihkan ke <strong>OpenStreetMap</strong> sehingga Anda tetap dapat memilih lokasi, klik titik, dan menyimpan store seperti biasa.
           </p>
         </div>
       )}
@@ -564,7 +562,7 @@ export default function GoogleLocationPicker({
           disabled={loading}
           className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
         >
-          📍 Gunakan Lokasi Perangkat
+          Gunakan Lokasi Perangkat
         </button>
 
         {selected && (
@@ -583,13 +581,12 @@ export default function GoogleLocationPicker({
           onClick={() => setShowManualInput(!showManualInput)}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          {showManualInput ? 'Sembunyikan Koordinat' : '✏️ Input Koordinat Manual'}
+          {showManualInput ? 'Sembunyikan Koordinat' : 'Input Koordinat Manual'}
         </button>
 
         <span
-          className={`ml-auto text-xs font-medium ${
-            selected ? 'text-emerald-700' : 'text-amber-700'
-          }`}
+          className={`ml-auto text-xs font-medium ${selected ? 'text-emerald-700' : 'text-amber-700'
+            }`}
         >
           {selected ? 'Lokasi sudah dipilih' : 'Pilih satu titik sebelum menyimpan'}
         </span>
