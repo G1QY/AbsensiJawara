@@ -1,0 +1,43 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+test('guest/registered review uses locked UUID rows and atomic audit', {skip:!process.env.PGLITE_MODULE},async()=>{
+  const {PGlite}=require(process.env.PGLITE_MODULE);const db=new PGlite();
+  try {
+    await db.exec(`create schema auth;create role anon;create role authenticated;create role service_role bypassrls;
+      create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');
+      create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
+    const dir=path.resolve(__dirname,'../../supabase/migrations');
+    for(const file of ['001_foundation.sql','002_workforce.sql','003_attendance.sql','006_attendance_calendar_fields.sql'])await db.exec(fs.readFileSync(path.join(dir,file),'utf8').replace('create extension if not exists "pgcrypto";',''));
+    await db.exec(`create table audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());
+      create table notifications(id uuid primary key default gen_random_uuid(),user_id uuid not null references users(id),type text not null,title text not null,body text,read_at timestamptz,created_at timestamptz default now());`);
+    await db.exec(fs.readFileSync(path.join(dir,'20260831121350_attendance_review_guest.sql'),'utf8'));
+    await db.exec(fs.readFileSync(path.join(dir,'20260901021500_crew_overtime_approval_notifications.sql'),'utf8'));
+    const admin='00000000-0000-4000-8000-000000000001',user='00000000-0000-4000-8000-000000000002';
+    await db.exec(`insert into roles(code,name)values('SUPER_ADMIN','Admin'),('CREW_EVENT','Crew');insert into auth.users(id,email)values('${admin}','admin@test.invalid'),('${user}','crew@test.invalid');insert into user_roles(user_id,role_id)select '${admin}',id from roles where code='SUPER_ADMIN';`);
+    const crew=(await db.query("insert into crew(user_id,employee_code,crew_type,join_date)values($1,'TEST-C','CREW_EVENT',current_date)returning id",[user])).rows[0].id;
+    const event=(await db.query("insert into events(event_code,event_name,event_date)values('TEST-E','Fixture',current_date)returning id")).rows[0].id;
+    const assignment=(await db.query("insert into event_assignments(event_id,crew_id)values($1,$2)returning id",[event,crew])).rows[0].id;
+    const schedule=(await db.query("insert into event_schedules(event_assignment_id,schedule_date,start_time,end_time)values($1,current_date,'09:00','17:00')returning id",[assignment])).rows[0].id;
+    assert.equal((await db.query('select overtime_preapproved from event_schedules where id=$1',[schedule])).rows[0].overtime_preapproved,false);
+    await db.query('update events set overtime_preapproved=true where id=$1',[event]);
+    assert.equal((await db.query('select overtime_preapproved from event_schedules where id=$1',[schedule])).rows[0].overtime_preapproved,true);
+    const id=(await db.query("insert into attendance_logs(crew_id,event_assignment_id,event_schedule_id,attendance_date,check_in,check_out,status,late_minutes,overtime_minutes,overtime_status,review_status,check_in_note,check_out_note)values($1,$2,$3,current_date,now()-interval '9 hours',now(),'LATE',20,60,'PENDING','PENDING','Masuk catatan','Pulang catatan')returning id",[crew,assignment,schedule])).rows[0].id;
+    const review=(actor,kind,id,target,decision,note='')=>db.query('select review_attendance($1,$2,$3,$4,$5,$6)',[actor,kind,id,target,decision,note]);
+    await assert.rejects(review(user,'registered',id,'attendance','APPROVED'));
+    await assert.rejects(review(admin,'registered',id,'overtime','APPROVED'));
+    await assert.rejects(review(admin,'registered',id,'attendance','REJECTED',''));
+    await review(admin,'registered',id,'attendance','APPROVED','Diperiksa');
+    await review(admin,'registered',id,'attendance','APPROVED','Retry');
+    assert.equal((await db.query('select count(*)::int as n from audit_logs')).rows[0].n,1);
+    await assert.rejects(review(admin,'registered',id,'attendance','REJECTED','Keputusan berbeda'));
+    await review(admin,'registered',id,'overtime','REJECTED','Lembur tidak ditugaskan');
+    const row=(await db.query('select * from attendance_logs where id=$1',[id])).rows[0];
+    assert.equal(row.status,'LATE');assert.equal(row.late_minutes,20);assert.equal(row.review_status,'APPROVED');assert.equal(row.overtime_status,'REJECTED');assert.equal(row.check_in_note,'Masuk catatan');assert.equal(row.check_out_note,'Pulang catatan');
+    const notices=(await db.query('select title,body from notifications where user_id=$1 order by created_at',[user])).rows;assert.equal(notices.length,2);assert.match(notices[0].title,/Absensi disetujui/);assert.match(notices[1].title,/lembur ditolak/i);assert.match(notices[1].body,/Catatan admin/);
+    const guest=(await db.query("insert into guest_attendances(legacy_id,import_key,full_name,phone,crew_type,location_name,clock_type,occurred_at,time_source,photo_key,note)values('GST-P5D35','hash-1','Guest','08123456789','CREW_EVENT','Fixture','OUT',now(),'LEGACY_DEVICE','guest-attendance/test.jpg','Catatan pulang')returning id")).rows[0].id;
+    await assert.rejects(review(admin,'guest',guest,'overtime','APPROVED'));
+    await review(admin,'guest',guest,'attendance','REJECTED','Bukti kurang jelas');
+    const g=(await db.query('select * from guest_attendances where id=$1',[guest])).rows[0];assert.equal(g.review_status,'REJECTED');assert.equal(g.legacy_id,'GST-P5D35');assert.equal(g.note,'Catatan pulang');
+    assert.equal((await db.query('select count(*)::int as n from attendance_logs')).rows[0].n,1);
+    const access=(await db.query("select has_table_privilege('anon','guest_attendances','SELECT') as anon,has_table_privilege('authenticated','guest_attendances','SELECT') as auth,has_function_privilege('authenticated','review_attendance(uuid,text,uuid,text,text,text)','EXECUTE') as rpc")).rows[0];assert.deepEqual(access,{anon:false,auth:false,rpc:false});
+  }finally{await db.close();}
+});

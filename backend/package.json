@@ -1,0 +1,41 @@
+{
+  "name": "fotosnaps-backend",
+  "version": "1.0.0",
+  "description": "Backend API — FotoSnaps & Bujangan Food Sistem Informasi Operasional Terpadu",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "lint": "eslint src",
+    "bootstrap-admin": "node scripts/bootstrap-admin.js",
+    "check-email": "node scripts/check-email.js",
+    "test": "node --test tests/*.test.cjs tests/security/*.test.cjs",
+    "test:security": "node --test tests/security/*.test.cjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@supabase/supabase-js": "^2.44.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "8.7.0",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.15.0",
+    "rate-limit-redis": "6.0.1",
+    "redis": "6.2.1",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "nodemon": "^3.1.0"
+  },
+  "allowScripts": {
+    "sharp@0.33.5": true
+  },
+  "overrides": {
+    "qs": "6.16.0"
+  }
+}

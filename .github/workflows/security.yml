@@ -1,0 +1,27 @@
+name: Security checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python3 scripts/check-secrets.py
+      - run: npm ci
+        working-directory: backend
+      - run: npm test
+        working-directory: backend
+      - run: npm audit --omit=dev --audit-level=moderate
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: node --experimental-vm-modules --test tests/*.test.mjs
+        working-directory: frontend
+      - run: npx tsc --noEmit && npm run build
+        working-directory: frontend
+      - run: npm audit --omit=dev --audit-level=moderate
+        working-directory: frontend

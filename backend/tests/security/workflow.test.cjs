@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {validateWorkflowData,validateProgress}=require('../../src/security/workflow');
+test('reject forged money, foreign photos and unrecognised fields',()=>{assert.throws(()=>validateWorkflowData({omset_tunai:-1},'e1'));assert.throws(()=>validateWorkflowData({omset_transfer:'bad'},'e1'));assert.throws(()=>validateWorkflowData({tes_print_before_photo:'event-workflows/e2/photo.jpg'},'e1'));assert.throws(()=>validateWorkflowData({base_salary:1000000},'e1'));});
+test('cannot skip workflow or complete without own attendance',()=>{assert.throws(()=>validateProgress(15,1,{},'a1',[]));assert.throws(()=>validateProgress(2,1,{},'a1',[]));assert.doesNotThrow(()=>validateProgress(2,1,{},'a1',[{check_in:'2026-09-07'}]));assert.throws(()=>validateProgress(15,14,{},'a1',[{check_in:'2026-09-07'}]));});

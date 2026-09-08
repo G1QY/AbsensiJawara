@@ -1,0 +1,40 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+test('event workspace transaction, schedules, protection, audit and privileges',{skip:!process.env.PGLITE_MODULE},async()=>{
+ const {PGlite}=require(process.env.PGLITE_MODULE);const db=new PGlite();
+ try{
+ await db.exec(`create schema auth; create role anon; create role authenticated; create role service_role bypassrls; create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
+ const root=path.resolve(__dirname,'../../supabase/migrations');
+ for(const name of ['001_foundation.sql','002_workforce.sql','003_attendance.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8').replace('create extension if not exists "pgcrypto";',''));
+ await db.exec(`create table public.audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());`);
+ await db.exec(fs.readFileSync(path.join(root,'20260831110840_admin_branches_crew.sql'),'utf8'));
+ await db.exec(fs.readFileSync(path.join(root,'20260831194049_admin_event_workspace.sql'),'utf8'));
+ const admin='00000000-0000-4000-8000-000000000001',user='00000000-0000-4000-8000-000000000002';
+ await db.exec(`insert into roles(code,name) values('SUPER_ADMIN','Admin'),('CREW_EVENT','Event'); insert into auth.users(id,email) values('${admin}','admin@test.local'),('${user}','crew@test.local'); insert into user_roles(user_id,role_id) select '${admin}',id from roles where code='SUPER_ADMIN';`);
+ const branch=(await db.query('select id from branches limit 1')).rows[0].id;
+ const crew=(await db.query(`insert into crew(user_id,employee_code,crew_type,join_date,branch_id) values($1,'C01','CREW_EVENT',current_date,$2) returning id`,[user,branch])).rows[0].id;
+ const fields={event_code:'EV-TEST',event_name:'Event Uji',event_date:'2026-09-01',start_time:'08:00',end_time:'17:00',status:'SCHEDULED',branch_id:branch,pic_crew_id:crew,address:'Lokasi Uji',latitude:-6.9,longitude:107.6,radius_meters:100};
+ const save=async(actor,id,data)=>(await db.query('select save_admin_event($1,$2,$3) as id',[actor,id,JSON.stringify(data)])).rows[0].id;
+ await assert.rejects(()=>save(user,null,fields),/Admin aktif/);
+ const id=await save(admin,null,fields);
+ const assign=async(status='ACTIVE')=>(await db.query('select assign_admin_event($1,$2,$3,$4,$5) as id',[admin,id,crew,'Fotografer',status])).rows[0].id;
+ const assignment=await assign();assert.equal(await assign(),assignment);
+ const sch=(await db.query('select * from event_schedules')).rows;assert.equal(sch.length,1);assert.equal(sch[0].start_time,'08:00:00');
+ assert.equal((await db.query('select count(*)::int as n from event_locations')).rows[0].n,1);
+ await assert.rejects(()=>save(admin,null,{...fields,event_code:'NIGHT',start_time:'20:00',end_time:'02:00'}),/tanggal yang sama/);
+ const other=await save(admin,null,{...fields,event_code:'EV-OTHER'});
+ await assert.rejects(()=>db.query('select assign_admin_event($1,$2,$3,$4,$5)',[admin,other,crew,'Fotografer','ACTIVE']),/jadwal event lain/);
+ await assert.rejects(()=>save(admin,id,fields),/Muat ulang/);
+ const e=(await db.query('select * from events where id=$1',[id])).rows[0];
+ await save(admin,id,{...fields,start_time:'09:00',expected_updated_at:e.updated_at});
+ assert.equal((await db.query('select start_time from event_schedules')).rows[0].start_time,'09:00:00');
+ await db.query(`insert into attendance_logs(crew_id,event_assignment_id,event_schedule_id,attendance_date,check_in,status) values($1,$2,$3,'2026-09-01','2026-09-01T02:00:00Z','ON_TIME')`,[crew,assignment,sch[0].id]);
+ const latest=(await db.query('select * from events where id=$1',[id])).rows[0];
+ await assert.rejects(()=>save(admin,id,{...fields,start_time:'10:00',expected_updated_at:latest.updated_at}),/sudah dipakai/);
+ await assign('ENDED');assert.equal((await db.query('select count(*)::int as n from attendance_logs')).rows[0].n,1);
+ const direct=(await db.query(`insert into event_assignments(event_id,crew_id,position,status) values($1,$2,'Operator','ACTIVE') returning id`,[id,crew])).rows[0].id;
+ assert.equal((await db.query('select count(*)::int as n from event_schedules where event_assignment_id=$1',[direct])).rows[0].n,1);
+ await assert.rejects(()=>save(admin,null,{...fields,event_code:'BAD',latitude:999}),/Koordinat/);assert.equal((await db.query('select count(*)::int as n from events')).rows[0].n,2);
+ const privileges=(await db.query(`select has_function_privilege('anon','public.save_admin_event(uuid,uuid,jsonb)','EXECUTE') as anon,has_function_privilege('service_role','public.assign_admin_event(uuid,uuid,uuid,text,text)','EXECUTE') as service`)).rows[0];assert.equal(privileges.anon,false);assert.equal(privileges.service,true);
+ assert.ok((await db.query('select count(*)::int as n from audit_logs')).rows[0].n>=4);
+ }finally{await db.close();}
+});

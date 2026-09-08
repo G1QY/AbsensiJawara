@@ -1,0 +1,7 @@
+type Props={role:string;currentPage:string;onNavigate:(page:string)=>void;onMenu:()=>void;menuOpen:boolean};
+const paths={home:'M3 10l9-7 9 7v10H3z M9 20v-7h6v7',attendance:'M8 4H5v17h14V4h-3 M9 3h6v4H9z M8 14l3 3 5-6',event:'M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4',history:'M12 8v5l3 2 M21 12a9 9 0 11-9-9',menu:'M4 6h16 M4 12h16 M4 18h16'};
+export default function MobileNav({role,currentPage,onNavigate,onMenu,menuOpen}:Props){
+ if(role==='admin')return null;
+ const items=role==='crew_event'?[['ce-dashboard','Beranda','home'],['ce-absensi','Absensi','attendance'],['ce-events','Event','event']]:role==='crew_store'?[['cs-dashboard','Beranda','home'],['cs-absensi','Absensi','attendance'],['cs-riwayat','Riwayat','history']]:[['guest-portal','Absensi','attendance'],['guest-info','Event','event'],['guest-help','Bantuan','history']];
+ return <nav className="mobile-employee-nav md:hidden" aria-label="Navigasi karyawan">{[...items,['menu','Menu','menu']].map(([id,label,icon])=>{const active=id===currentPage||(id==='ce-events'&&currentPage==='ce-workflow');return <button key={id} type="button" aria-current={active?'page':undefined} aria-expanded={id==='menu'?menuOpen:undefined} onClick={()=>id==='menu'?onMenu():onNavigate(id)}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={paths[icon as keyof typeof paths]}/></svg><span>{label}</span></button>})}</nav>;
+}

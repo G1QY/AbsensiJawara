@@ -1,0 +1,181 @@
+import { useState, useEffect } from 'react';
+import { api, ApiError } from '../../lib/apiClient';
+
+interface CalendarDay {
+  date: string;
+  type: 'STORE' | 'EVENT' | 'HOLIDAY';
+  source: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  status: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  lateMinutes: number;
+  overtimeMinutes: number;
+  overtimeStatus: string;
+}
+
+const STATUS_STYLE: Record<string, string> = {
+  PRESENT: 'bg-emerald-100 text-emerald-700 ring-emerald-300',
+  LATE: 'bg-red-100 text-red-700 ring-red-300',
+  ABSENT: 'bg-slate-200 text-slate-600 ring-slate-300',
+  PERMISSION: 'bg-blue-100 text-blue-700 ring-blue-300',
+  SICK: 'bg-purple-100 text-purple-700 ring-purple-300',
+  HOLIDAY: 'bg-amber-100 text-amber-700 ring-amber-300',
+  PENDING: 'bg-slate-100 text-slate-400 ring-slate-200',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  PRESENT: 'Hadir', LATE: 'Telat', ABSENT: 'Absen', PERMISSION: 'Izin',
+  SICK: 'Sakit', HOLIDAY: 'Libur', PENDING: 'Belum Terjadi',
+};
+
+const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+/** Kalender kerja — dipakai di halaman Absensi Crew Store & Crew Event. */
+export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [days, setDays] = useState<CalendarDay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [warning,setWarning]=useState('');
+  const [selected, setSelected] = useState<CalendarDay | null>(null);
+
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');setWarning('');setDays([]);setSelected(null);
+    const query = crewId ? `?month=${monthStr}&crewId=${crewId}` : `?month=${monthStr}`;
+    api.get<{ days: CalendarDay[];warnings?:string[] }>(`/attendance/calendar${query}`)
+      .then(res => { if (!cancelled) { setDays(res.days);setWarning((res.warnings||[]).join(" ")); setSelected(null); } })
+      .catch(err => { if (!cancelled) setError(err instanceof ApiError ? err.message : 'Gagal memuat kalender.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [monthStr, crewId]);
+
+  const changeMonth = (delta: number) => {
+    let m = month + delta;
+    let y = year;
+    if (m > 12) { m = 1; y += 1; }
+    if (m < 1) { m = 12; y -= 1; }
+    setMonth(m); setYear(y);
+  };
+
+  // Bangun grid 7-kolom (Minggu-Sabtu) untuk bulan ini
+  const firstOfMonth = new Date(year, month - 1, 1);
+  const startOffset = firstOfMonth.getDay(); // 0=Minggu
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dayMap = new Map(days.map(d => [d.date, d]));
+
+  const cells: (CalendarDay | null | 'empty')[] = [
+    ...Array(startOffset).fill('empty'),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
+      return dayMap.get(dateStr) ?? null;
+    }),
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <h3 className="font-semibold text-slate-900 text-sm">
+          {firstOfMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        </h3>
+        <button onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+
+      {warning && <p role="status" className="text-xs text-amber-700 mb-3">{warning}</p>}
+      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {DAY_NAMES.map(d => (
+          <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="py-10 text-center text-xs text-slate-400">Memuat kalender...</div>
+      ) : (
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((cell, i) => {
+            if (cell === 'empty') return <div key={i} />;
+            const dateNum = i - startOffset + 1;
+            if (!cell) {
+              return (
+                <div key={i} className="aspect-square flex items-center justify-center rounded-lg text-xs text-slate-300">
+                  {dateNum}
+                </div>
+              );
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => setSelected(cell)}
+                className={`aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-semibold ring-1 hover:ring-2 transition-all ${STATUS_STYLE[cell.status] || STATUS_STYLE.PENDING}`}
+              >
+                {dateNum}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Legenda */}
+      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+        {Object.entries(STATUS_LABEL).map(([key, label]) => (
+          <span key={key} className={`text-[10px] font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{label}</span>
+        ))}
+      </div>
+
+      {/* Detail tanggal terpilih */}
+      {selected && (
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-900">
+              {new Date(`${selected.date}T00:00:00+07:00`).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[selected.status]}`}>
+              {STATUS_LABEL[selected.status] || selected.status}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">{selected.type === 'HOLIDAY' ? 'Keterangan' : selected.type === 'STORE' ? 'Toko' : 'Event'}: {selected.source || '-'}</p>
+          {selected.type !== 'HOLIDAY' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+            <div className="bg-slate-50 rounded-lg p-2.5">
+              <p className="text-slate-400">Jadwal</p>
+              <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-2.5">
+              <p className="text-slate-400">Clock In / Out</p>
+              <p className="font-mono font-semibold text-slate-700">
+                {selected.checkIn ? new Date(selected.checkIn).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                {' / '}
+                {selected.checkOut ? new Date(selected.checkOut).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+              </p>
+            </div>
+            {selected.lateMinutes > 0 && (
+              <div className="bg-red-50 rounded-lg p-2.5">
+                <p className="text-red-500">Terlambat</p>
+                <p className="font-semibold text-red-700">{selected.lateMinutes} menit</p>
+              </div>
+            )}
+            {selected.overtimeMinutes > 0 && (
+              <div className="bg-amber-50 rounded-lg p-2.5">
+                <p className="text-amber-600">Lembur ({selected.overtimeStatus === 'PENDING' ? 'menunggu approval' : selected.overtimeStatus.toLowerCase()})</p>
+                <p className="font-semibold text-amber-700">{Math.floor(selected.overtimeMinutes / 60)} jam</p>
+              </div>
+            )}
+          </div> : null}
+        </div>
+      )}
+    </div>
+  );
+}

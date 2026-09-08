@@ -1,0 +1,95 @@
+# Place at repository root, alongside frontend/ and backend/.
+# All paid-capable services explicitly use free plans.
+services:
+  - type: keyvalue
+    name: fotosnaps-demo-security
+    region: singapore
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+  - type: web
+    name: fotosnaps-demo-api
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: '22.22.0'
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: ENABLE_DEV_OTP
+        value: 'false'
+      # Verify actual proxy path after deploy; never use a blanket trust-all.
+      - key: TRUST_PROXY_CIDRS
+        value: loopback,linklocal,uniquelocal
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: fotosnaps-demo-security
+          property: connectionString
+      # Exact frontend HTTPS origin, without trailing slash.
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: GOOGLE_CALENDAR_API_KEY
+        sync: false
+      - key: GOOGLE_HOLIDAY_CALENDAR_ID
+        value: en.indonesian.official#holiday@group.v.calendar.google.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: OTP_EMAIL_FROM
+        sync: false
+
+  - type: web
+    name: fotosnaps-demo-ui
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: '22.22.0'
+      # Exact backend HTTPS origin, without /api or trailing slash.
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: VITE_ADMIN_WHATSAPP
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(), geolocation=(self)
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
