@@ -531,7 +531,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         ? `https://maps.google.com/?q=${rec.latitude},${rec.longitude}`
         : 'Tidak terdeteksi';
 
-    const text = `*KONFIRMASI ABSENSI (GUEST CREW)*
+    const text = `*KONFIRMASI ABSENSI LAPANGAN (GUEST CREW)*
 ------------------------------------
 *ID Absensi:* ${rec.id}
 *Kode Verifikasi:* ${rec.photoCode}
