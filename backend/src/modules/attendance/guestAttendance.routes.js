@@ -44,9 +44,9 @@ async function save(req,res,next,legacy=false) {
     if((latitude!==null&&(!Number.isFinite(latitude)||Math.abs(latitude)>90))||(longitude!==null&&(!Number.isFinite(longitude)||Math.abs(longitude)>180)))throw fail('Koordinat tidak valid.');
     const accuracy=b.accuracy===''||b.accuracy==null?null:Number(b.accuracy);
     if(accuracy!==null&&(!Number.isFinite(accuracy)||accuracy<0))throw fail('Akurasi GPS tidak valid.');
-    let location_name,store_id=null,event_id=null;
+    let location_name='Tanpa pilihan event / toko',store_id=null,event_id=null;
     if(legacy)location_name=string(b,'locationName',250,true);
-    else {
+    else if(b.locationId !== undefined && b.locationId !== null && b.locationId !== '') {
       const id=uuid(b.locationId),store=b.crewType==='CREW_STORE';
       const {data,error}=await db.from(store?'stores':'events').select(store?'id,name,status':'id,event_name,status').eq('id',id).maybeSingle();
       if(error)throw fail('Lokasi belum dapat diverifikasi.',503);

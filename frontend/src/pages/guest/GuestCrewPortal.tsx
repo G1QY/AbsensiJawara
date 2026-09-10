@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
-import GoogleLocationPicker from '../../components/maps/GoogleLocationPicker';
+import DeviceLocationMap from '../../components/maps/DeviceLocationMap';
 
 export interface GuestAttendanceRecord {
   occurredAt?: string;
@@ -9,7 +9,7 @@ export interface GuestAttendanceRecord {
   id: string;
   nama: string;
   hp: string;
-  jenis: 'Crew Event' | 'Crew Store';
+  jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
   lokasi: string;
   posisi: string;
   tipe: 'Clock In' | 'Clock Out';
@@ -26,7 +26,7 @@ export interface GuestAttendanceRecord {
   status: 'Menunggu Verifikasi Admin' | 'Disetujui' | 'Ditolak';
 }
 
-const GUEST_STORAGE_KEY = 'fotosnaps_guest_attendances';
+const GUEST_STORAGE_KEY = 'Jawara_guest_attendances';
 
 export function getGuestAttendances(): GuestAttendanceRecord[] {
   try {
@@ -75,7 +75,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     auth?.user?.full_name && !auth.user.full_name.includes('Guest Crew') ? auth.user.full_name : ''
   );
   const [hp, setHp] = useState(auth?.user?.phone || '');
-  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store'>('Crew Event');
+  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
   const [optionsError, setOptionsError] = useState('');
@@ -115,9 +115,12 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const adminPhone = (import.meta.env.VITE_ADMIN_WHATSAPP || '6287825791000').toString().replace(/\D/g, '');
+  const adminPhone = (import.meta.env.VITE_ADMIN_WHATSAPP || '6281214989974').toString().replace(/\D/g, '');
 
   const getLocationText = useCallback(() => {
+    if (jenis === 'Kantor') {
+      return locations.stores.find(s => s.id === selectedLocation)?.name || 'Kantor';
+    }
     return jenis === 'Crew Store' ? locations.stores.find(s => s.id === selectedLocation)?.name || '' : locations.events.find(e => e.id === selectedLocation)?.event_name || '';
   }, [selectedLocation, jenis, locations]);
   useEffect(() => {
@@ -125,7 +128,14 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations(data); } }).catch(error => { if (active) setOptionsError(error.message); });
     return () => { active = false; };
   }, []);
-  useEffect(() => { setSelectedLocation(''); }, [jenis]);
+  useEffect(() => {
+    if (jenis === 'Kantor') {
+      const kantor = locations.stores.find(s => s.name.toLowerCase() === 'kantor');
+      setSelectedLocation(kantor?.id || '');
+    } else {
+      setSelectedLocation('');
+    }
+  }, [jenis, locations.stores]);
 
   // Realtime clock
   useEffect(() => {
@@ -321,7 +331,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     ctx.textAlign = 'right';
     ctx.font = `bold ${Math.round(width * 0.038)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#F59E0B'; // Amber / Gold accent
-    ctx.fillText('FotoSnaps', width - rightPadding, topPadding);
+    ctx.fillText('Jawara', width - rightPadding, topPadding);
 
     ctx.font = `500 ${Math.round(width * 0.022)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
@@ -466,10 +476,6 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       setFormError('Nomor WhatsApp / HP wajib diisi untuk konfirmasi.');
       return;
     }
-    if (!getLocationText()) {
-      setFormError('Pilih lokasi yang terdaftar di sistem.');
-      return;
-    }
     if (lat === null || lng === null || locSource !== 'gps') { setFormError('Aktifkan GPS perangkat. Lokasi perkiraan jaringan tidak dapat digunakan untuk mengirim absensi.'); return; }
     if (!foto) {
       setFormError('Foto bukti kehadiran wajib diambil menggunakan kamera.');
@@ -484,7 +490,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       nama: nama.trim(),
       hp: hp.trim(),
       jenis,
-      lokasi: getLocationText(),
+      lokasi: getLocationText() || 'Tanpa pilihan event / toko',
       posisi,
       tipe: tipeAbsen,
       timestamp: `${dateFull} • ${timeShort}`,
@@ -506,9 +512,9 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto, lat, lng]);
       if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
       const form = new FormData();
-      for (const [key, value] of Object.entries({ fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Store' ? 'CREW_STORE' : 'CREW_EVENT', locationId: selectedLocation, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: lat, longitude: lng, accuracy: accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
+      for (const [key, value] of Object.entries({ fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE', locationId: selectedLocation, locationName: newRecord.lokasi, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: lat, longitude: lng, accuracy: accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
       form.append('photo', await (await fetch(foto)).blob(), 'guest-selfie.jpg');
-      const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
+      const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-Jawara-Request': '1' }, body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.id) throw new Error(data?.message || 'Absensi belum tersimpan di server. Coba lagi.');
       setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) });
@@ -540,7 +546,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 *Link Lokasi:* ${mapLink}
 *Catatan:* ${rec.catatan}
 
-_Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
+_Foto selfie telah tersimpan di sistem._`;
 
     return `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`;
   };
@@ -673,13 +679,13 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Jenis Penugasan
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['Crew Event', 'Crew Store'] as const).map((t) => (
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
                         <button
                           key={t}
                           type="button"
                           onClick={() => setJenis(t)}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${jenis === t
+                          className={`py-2 px-1.5 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all text-center ${jenis === t
                               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                               : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
@@ -723,7 +729,10 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                     >
                       <option>Tenda</option>
+                      <option>FotoSnaps</option>
+                      <option>Bujangan</option>
                       <option>Fotobox</option>
+                      <option>Staff Kantor</option>
                     </select>
                   </div>
                 </div>
@@ -731,7 +740,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 {/* Lokasi / Event */}
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Lokasi Event / Toko <span className="text-red-500">*</span>
+                    {jenis === 'Kantor' ? 'Lokasi Kantor (opsional)' : 'Lokasi Event / Toko (opsional)'}
                   </label>
                   <select
                     aria-label="Lokasi Event / Toko"
@@ -739,10 +748,18 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     onChange={(e) => setSelectedLocation(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-medium"
                   >
-                    <option value="">Pilih lokasi</option>
-                    {(jenis === 'Crew Store' ? locations.stores.map(s => ({ id: s.id, name: s.name })) : locations.events.map(e => ({ id: e.id, name: e.event_name }))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    <option value="">
+                      {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
+                    </option>
+                    {(jenis === 'Crew Store'
+                      ? locations.stores.map(s => ({ id: s.id, name: s.name }))
+                      : jenis === 'Kantor'
+                      ? (locations.stores.some(s => s.name.toLowerCase().includes('kantor'))
+                          ? locations.stores.filter(s => s.name.toLowerCase().includes('kantor')).map(s => ({ id: s.id, name: s.name }))
+                          : locations.stores.map(s => ({ id: s.id, name: s.name })))
+                      : locations.events.map(e => ({ id: e.id, name: e.event_name }))
+                    ).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
-
                 </div>
 
                 {/* Deteksi Lokasi GPS Live & Peta */}
@@ -794,29 +811,9 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     </div>
                   )}
 
-                  {/* Interactive Map Picker */}
-                  <div className="pt-1">
-                    <GoogleLocationPicker
-                      title="Peta Lokasi Kehadiran"
-                      address={address}
-                      latitude={lat !== null ? String(lat) : ''}
-                      longitude={lng !== null ? String(lng) : ''}
-                      onChange={(location) => {
-                        const nextLat = parseFloat(location.latitude);
-                        const nextLng = parseFloat(location.longitude);
-                        if (Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
-                          setLat(nextLat);
-                          setLng(nextLng);
-                          setLocSource('gps');
-                          setLocError('');
-                          if (accuracy === null) setAccuracy(10);
-                        }
-                        if (location.address && location.address.trim()) {
-                          setAddress(location.address.trim());
-                        }
-                      }}
-                    />
-                  </div>
+                  {lat !== null && lng !== null && locSource === 'gps' && (
+                    <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
+                  )}
                 </div>
 
                 {/* Foto Selfie (Kamera Live) */}
@@ -866,7 +863,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
 
                         {/* Top Right Mini Brand */}
                         <div className="absolute top-3 right-3 text-right">
-                          <p className="text-xs font-bold text-amber-400 leading-none">FotoSnaps</p>
+                          <p className="text-xs font-bold text-amber-400 leading-none">Jawara</p>
                           <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
                         </div>
 
@@ -970,7 +967,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 {/* Catatan / Keterangan Darurat */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Catatan / Keterangan (Opsional)
+                    Recap Event & Catatan Keterangan (Opsional)
                   </label>
                   <textarea
                     rows={2}
@@ -1012,17 +1009,17 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 Pusat Bantuan & Layanan Kendala Akun
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin FotoSnaps melalui kontak di bawah ini.
+                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin Jawara melalui kontak di bawah ini.
               </p>
 
               <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin FotoSnaps</p>
-                  <p className="text-xs text-blue-700">WhatsApp: +62 878-2579-1000</p>
+                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin Jawara</p>
+                  <p className="text-xs text-blue-700">WhatsApp: 081214989974</p>
                 </div>
                 <a
                   href={`https://wa.me/${adminPhone}?text=${encodeURIComponent(
-                    'Halo Admin FotoSnaps, saya memerlukan bantuan reset password akun crew.'
+                    'Halo Admin Jawara, saya memerlukan bantuan reset password akun crew.'
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1039,7 +1036,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 <ul className="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
                   <li>Lakukan Clock In saat tiba di lokasi penugasan.</li>
                   <li>Ambil foto bukti kehadiran langsung melalui kamera.</li>
-                  <li>Watermark waktu dan alamat lokasi otomatis disematkan pada foto.</li>
+                  <li>Waktu dan alamat lokasi otomatis disematkan pada foto.</li>
                   <li>Setelah submit, teruskan bukti kehadiran ke WhatsApp Admin jika diperlukan.</li>
                   <li>Lakukan Clock Out setelah menyelesaikan shift/tugas.</li>
                 </ul>

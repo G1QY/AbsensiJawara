@@ -155,6 +155,29 @@ async function save(req, res, next) {
     next(error)
   }
 }
+router.delete("/:kind/:id", async (req, res, next) => {
+  try {
+    const table = req.params.kind;
+    if (!["branches", "stores"].includes(table)) throw fail("Jenis direktori tidak valid.", 404);
+    const id = uuid(req.params.id);
+    const { data: previous, error: readError } = await db.from(table).select("*").eq("id", id).maybeSingle();
+    if (readError) throw fail("Data belum dapat diperiksa.", 503);
+    if (!previous) throw fail("Data tidak ditemukan.", 404);
+    const dependencies = table === "branches"
+      ? [["stores", "branch_id"], ["events", "branch_id"], ["crew", "branch_id"]]
+      : [["store_assignments", "store_id"], ["guest_attendances", "store_id"]];
+    for (const [related, column] of dependencies) {
+      const { data, error } = await db.from(related).select("id").eq(column, id).limit(1);
+      if (error) throw fail("Relasi data belum dapat diperiksa. Coba lagi.", 503);
+      if (data.length) throw fail("Data masih digunakan oleh store, crew, event, atau riwayat absensi. Lepaskan penugasan yang sesuai atau nonaktifkan store melalui Edit.", 409);
+    }
+    const { data, error } = await db.from(table).delete().eq("id", id).select("id").maybeSingle();
+    if (error) throw fail(error.code === "23503" ? "Data masih digunakan. Penghapusan dibatalkan agar riwayat tetap tersimpan." : "Data belum dapat dihapus.", error.code === "23503" ? 409 : 503);
+    if (!data) throw fail("Data tidak ditemukan.", 404);
+    await logAudit({ actorUserId: req.user.id, action: "DIRECTORY_DELETED", entityType: table, entityId: id, oldData: previous });
+    res.json({ id, message: "Data dihapus." });
+  } catch (error) { next(error); }
+});
 router.post("/:kind", save)
 router.patch("/:kind/:id", save)
 module.exports = router

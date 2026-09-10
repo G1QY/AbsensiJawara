@@ -79,6 +79,17 @@ export default function DirectoryManager({
       setBusy(false)
     }
   }
+  async function remove(rowId: string, name: string) {
+    if (!window.confirm(`Hapus ${kind === "branches" ? "cabang" : "store"} "${name}"? Data yang masih digunakan tidak dapat dihapus.`)) return;
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      await api.delete(`/admin-directory/${kind}/${rowId}`);
+      if (id === rowId) reset();
+      setSuccess("Data dihapus.");
+      await onSaved();
+    } catch (e) { setError(message(e)); }
+    finally { setBusy(false); }
+  }
   const rows = data[kind]
   return (
     <div className="space-y-4">
@@ -98,7 +109,7 @@ export default function DirectoryManager({
       )}
       <p className="text-sm text-slate-600">
         {kind === "branches"
-          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat FotoSnaps berkembang."
+          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat Jawara berkembang."
           : kind === "stores"
             ? "Pilih lokasi Store melalui Google Maps. Satu cabang dapat memiliki banyak Store."
             : "Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew."}
@@ -120,6 +131,7 @@ export default function DirectoryManager({
                   : row.code}
               </p>
             </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
             <button
               disabled={busy}
               className={button}
@@ -142,6 +154,9 @@ export default function DirectoryManager({
             >
               Edit
             </button>
+            {kind !== "events" && <button type="button" disabled={busy} className={button + " text-red-700"}
+              onClick={() => remove(row.id, "event_name" in row ? row.event_name : row.name)}>Hapus</button>}
+            </div>
           </div>
         ))}
         {!rows.length && (

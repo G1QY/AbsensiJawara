@@ -46,7 +46,7 @@ function mapRow(a: AttendanceApiRow): HistoryRow {
   };
 }
 
-export default function CrewAttendanceHistory() {
+export default function CrewAttendanceHistory({ showAttendance = true }: { showAttendance?: boolean }) {
   const { auth } = useAuth();
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ export default function CrewAttendanceHistory() {
   const bonus = rows.reduce((n, r) => n + r.bonus, 0);
   const pending = rows.filter(r => r.overtimeStatus === 'Menunggu admin'||r.attendanceApproval === 'Menunggu admin').length;
   return <div className="p-4 sm:p-6 space-y-5">
-    <CrewAttendance showCalendar={false} onAttendanceChanged={() => void load()} />
+    {showAttendance && <CrewAttendance showCalendar={false} onAttendanceChanged={() => void load()} />}
     {loading ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500" role="status">Memuat riwayat absensi...</p> : null}
     {error ? <p className="ui-error rounded-xl p-4" role="alert">{error}</p> : null}
     <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">

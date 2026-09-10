@@ -3,7 +3,7 @@ import { api, ApiError } from '../../lib/apiClient';
 
 interface CalendarDay {
   date: string;
-  type: 'STORE' | 'EVENT' | 'HOLIDAY';
+  type: 'STORE' | 'EVENT' | 'HOLIDAY' | 'NONE';
   source: string | null;
   startTime: string | null;
   endTime: string | null;
@@ -22,19 +22,21 @@ const STATUS_STYLE: Record<string, string> = {
   PERMISSION: 'bg-blue-100 text-blue-700 ring-blue-300',
   SICK: 'bg-purple-100 text-purple-700 ring-purple-300',
   HOLIDAY: 'bg-amber-100 text-amber-700 ring-amber-300',
-  PENDING: 'bg-slate-100 text-slate-400 ring-slate-200',
+  PENDING: 'bg-white text-slate-700 ring-slate-200',
+  NO_SCHEDULE: 'bg-white text-slate-500 ring-slate-200',
 };
 
 const STATUS_LABEL: Record<string, string> = {
   PRESENT: 'Hadir', LATE: 'Telat', ABSENT: 'Absen', PERMISSION: 'Izin',
-  SICK: 'Sakit', HOLIDAY: 'Libur', PENDING: 'Belum Terjadi',
+  SICK: 'Sakit', HOLIDAY: 'Libur', PENDING: 'Terjadwal', NO_SCHEDULE: 'Tanpa jadwal',
 };
 
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
 /** Kalender kerja — dipakai di halaman Absensi Crew Store & Crew Event. */
 export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
-  const now = new Date();
+  const todayWib = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  const now = new Date(todayWib + 'T12:00:00');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
   const [days, setDays] = useState<CalendarDay[]>([]);
@@ -51,7 +53,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
     setError('');setWarning('');setDays([]);setSelected(null);
     const query = crewId ? `?month=${monthStr}&crewId=${crewId}` : `?month=${monthStr}`;
     api.get<{ days: CalendarDay[];warnings?:string[] }>(`/attendance/calendar${query}`)
-      .then(res => { if (!cancelled) { setDays(res.days);setWarning((res.warnings||[]).join(" ")); setSelected(null); } })
+      .then(res => { if (!cancelled) { setDays(res.days);setWarning((res.warnings||[]).join(" ")); setSelected(res.days.find(day => day.date === todayWib) || null); } })
       .catch(err => { if (!cancelled) setError(err instanceof ApiError ? err.message : 'Gagal memuat kalender.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -82,23 +84,23 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+        <button aria-label="Bulan sebelumnya" onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <h3 className="font-semibold text-slate-900 text-sm">
           {firstOfMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
         </h3>
-        <button onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+        <button aria-label="Bulan berikutnya" onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </button>
       </div>
 
-      {warning && <p role="status" className="text-xs text-amber-700 mb-3">{warning}</p>}
+      {warning && <p role="status" className="text-xs text-amber-700 mb-3">Informasi hari libur belum tersedia. Jadwal kerja tetap mengikuti penugasan admin.</p>}
       {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAY_NAMES.map(d => (
-          <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase py-1">{d}</div>
         ))}
       </div>
 
@@ -109,20 +111,21 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
           {cells.map((cell, i) => {
             if (cell === 'empty') return <div key={i} />;
             const dateNum = i - startOffset + 1;
-            if (!cell) {
-              return (
-                <div key={i} className="aspect-square flex items-center justify-center rounded-lg text-xs text-slate-300">
-                  {dateNum}
-                </div>
-              );
-            }
+            const date = `${monthStr}-${String(dateNum).padStart(2, '0')}`;
+            const day: CalendarDay = cell || { date, type: 'NONE', source: null, startTime: null, endTime: null,
+              status: 'NO_SCHEDULE', checkIn: null, checkOut: null, lateMinutes: 0, overtimeMinutes: 0, overtimeStatus: 'NONE' };
+            const isToday = date === todayWib;
+            const isSelected = selected?.date === date;
+            const plain = day.status === 'PENDING' || day.status === 'NO_SCHEDULE';
             return (
-              <button
-                key={i}
-                onClick={() => setSelected(cell)}
-                className={`aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-semibold ring-1 hover:ring-2 transition-all ${STATUS_STYLE[cell.status] || STATUS_STYLE.PENDING}`}
-              >
+              <button key={date} type="button" onClick={() => setSelected(day)}
+                aria-label={`${dateNum}, ${STATUS_LABEL[day.status] || day.status}${isToday ? ', hari ini' : ''}`}
+                aria-current={isToday ? 'date' : undefined} aria-pressed={isSelected}
+                className={`relative h-11 sm:h-12 flex flex-col items-center justify-center rounded-lg text-sm font-semibold transition-colors
+                  ${plain ? 'text-slate-700 hover:bg-slate-50' : (STATUS_STYLE[day.status] || STATUS_STYLE.PENDING) + ' ring-1'}
+                  ${isSelected ? 'outline outline-2 outline-blue-600 outline-offset-1' : isToday ? 'outline outline-2 outline-blue-400' : ''}`}>
                 {dateNum}
+                {day.status === 'PENDING' && <span aria-hidden="true" className="absolute bottom-1 h-1 w-1 rounded-full bg-blue-500" />}
               </button>
             );
           })}
@@ -132,7 +135,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
       {/* Legenda */}
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
         {Object.entries(STATUS_LABEL).map(([key, label]) => (
-          <span key={key} className={`text-[10px] font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{label}</span>
+          <span key={key} className={`text-xs font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{label}</span>
         ))}
       </div>
 
@@ -147,8 +150,8 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
               {STATUS_LABEL[selected.status] || selected.status}
             </span>
           </div>
-          <p className="text-xs text-slate-500">{selected.type === 'HOLIDAY' ? 'Keterangan' : selected.type === 'STORE' ? 'Toko' : 'Event'}: {selected.source || '-'}</p>
-          {selected.type !== 'HOLIDAY' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+          <p className="text-xs text-slate-500">{selected.type === 'NONE' ? 'Keterangan' : selected.type === 'HOLIDAY' ? 'Keterangan' : selected.type === 'STORE' ? 'Toko' : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
+          {selected.type !== 'HOLIDAY' && selected.type !== 'NONE' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">Jadwal</p>
               <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}</p>
@@ -156,9 +159,9 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">Clock In / Out</p>
               <p className="font-mono font-semibold text-slate-700">
-                {selected.checkIn ? new Date(selected.checkIn).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                {selected.checkIn ? new Date(selected.checkIn).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
                 {' / '}
-                {selected.checkOut ? new Date(selected.checkOut).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                {selected.checkOut ? new Date(selected.checkOut).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
               </p>
             </div>
             {selected.lateMinutes > 0 && (

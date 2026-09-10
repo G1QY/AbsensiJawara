@@ -45,7 +45,7 @@ export default function AdminAbsensi() {
       if(!occurredAt)throw new Error('Tanggal data lama belum terbaca. Isi tanggal dan jam sebenarnya (WIB).');
       if(!/^data:image\/(jpeg|png|webp);base64,/.test(g.foto))throw new Error('Foto data lama tidak tersedia atau tidak didukung.');
       const photo=await (await fetch(g.foto)).blob();const form=new FormData();
-      for(const [key,value]of Object.entries({fullName:g.nama,phone:g.hp,crewType:g.jenis==='Crew Store'?'CREW_STORE':'CREW_EVENT',locationName:g.lokasi,position:g.posisi||'',clockType:g.tipe==='Clock In'?'IN':'OUT',occurredAt,legacyId:g.id,note:g.catatan||'',latitude:g.latitude??'',longitude:g.longitude??'',accuracy:g.accuracy??'',address:g.address||''}))form.append(key,String(value));
+      for(const [key,value]of Object.entries({fullName:g.nama,phone:g.hp,crewType:g.jenis==='Crew Event'?'CREW_EVENT':'CREW_STORE',locationName:g.lokasi,position:g.posisi||'',clockType:g.tipe==='Clock In'?'IN':'OUT',occurredAt,legacyId:g.id,note:g.catatan||'',latitude:g.latitude??'',longitude:g.longitude??'',accuracy:g.accuracy??'',address:g.address||''}))form.append(key,String(value));
       form.append('photo',photo,'guest-legacy.jpg');
       const saved=await api.postForm<{id:string}>('/admin-attendance/import-guest',form);
       markGuestSynced(g,saved.id);
@@ -91,7 +91,7 @@ export default function AdminAbsensi() {
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
       <label className="text-xs text-slate-600">Cari crew<input aria-label="Cari crew" value={filters.search} onChange={e=>filter('search',e.target.value)} className={control} placeholder="Nama, HP, email, lokasi..."/></label>
       <label className="text-xs text-slate-600">Tanggal kerja (WIB)<input aria-label="Tanggal kerja" type="date" value={filters.date} onChange={e=>filter('date',e.target.value)} className={control}/></label>
-      <label className="text-xs text-slate-600">Jenis<select aria-label="Jenis crew" className={control} value={filters.kind} onChange={e=>filter('kind',e.target.value)}><option value="">Semua jenis</option><option>Crew Event</option><option>Crew Store</option></select></label>
+      <label className="text-xs text-slate-600">Jenis<select aria-label="Jenis crew" className={control} value={filters.kind} onChange={e=>filter('kind',e.target.value)}><option value="">Semua jenis</option><option>Crew Event</option><option>Crew Store</option><option>Kantor</option></select></label>
       <label className="text-xs text-slate-600">Status kehadiran<select aria-label="Status kehadiran" className={control} value={filters.status} onChange={e=>filter('status',e.target.value)}><option value="">Semua status</option>{[...new Set(rows.map(a=>a.status))].sort().map(s=><option key={s}>{s}</option>)}</select></label>
       <label className="text-xs text-slate-600">Persetujuan absensi<select aria-label="Persetujuan absensi" className={control} value={filters.review} onChange={e=>filter('review',e.target.value)}><option value="">Semua keputusan</option>{['PENDING','APPROVED','REJECTED','NOT_REQUIRED'].map(s=><option key={s} value={s}>{reviewLabel(s)}</option>)}</select></label>
       <label className="text-xs text-slate-600">Sumber akun<select aria-label="Sumber akun" className={control} value={filters.source} onChange={e=>filter('source',e.target.value)}><option value="">Semua termasuk Guest</option><option value="registered">Crew terdaftar</option><option value="guest">Guest server</option><option value="local">Guest lokal</option></select></label>

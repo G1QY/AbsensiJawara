@@ -1,6 +1,5 @@
-import Avatar from '../ui/Avatar';
 import { useState } from 'react';
-import fotoSnapsLogo from '../../assets/fotosnaps-logo.jpg';
+import fotoSnapsLogo from '../../assets/landscape.jpg';
 
 type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
 type Page = string;
@@ -192,15 +191,16 @@ export default function Sidebar({ role, currentPage, onNavigate, collapsed, onTo
     return (
       <>
         {/* Logo */}
-        <div className={`flex items-center border-b border-white/5 flex-shrink-0 ${role === 'guest_crew' ? 'h-11 px-3' : 'h-16 px-4'}`}>
+        <div className={`flex items-center border-b border-white/5 flex-shrink-0 h-16 ${isCollapsed ? 'justify-center px-2' : 'px-4'}`}>
           <button
             onClick={forceExpanded ? onCloseMobile : onToggle}
-            className={`${role === 'guest_crew' ? 'w-7 h-7 rounded-full' : 'w-9 h-9 rounded-xl'} overflow-hidden flex items-center justify-center flex-shrink-0 ring-1 ring-white/10 hover:ring-white/30 transition-all`}
+            className="w-14 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border border-slate-300/80 dark:border-white/15 ring-1 ring-black/5 hover:border-slate-400 dark:hover:border-white/30 transition-all"
+            title="Jawara"
           >
-            <img src={fotoSnapsLogo} alt="FotoSnaps" className="w-full h-full object-cover" />
+            <img src={fotoSnapsLogo} alt="Jawara" className="w-full h-full object-cover" />
           </button>
           {!isCollapsed && (
-            <span className={`sidebar-brand font-bold tracking-tight whitespace-nowrap overflow-hidden ${role === 'guest_crew' ? 'ml-2 text-sm' : 'ml-3 text-lg'}`}>FotoSnaps</span>
+            <span className="sidebar-brand font-bold tracking-tight whitespace-nowrap overflow-hidden ml-3 text-lg">JAWARA</span>
           )}
           {forceExpanded && (
             <button onClick={onCloseMobile} className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 md:hidden">
@@ -231,21 +231,6 @@ export default function Sidebar({ role, currentPage, onNavigate, collapsed, onTo
             />
           ))}
         </nav>
-
-        {/* Profile */}
-        <div className="p-3 border-t border-white/5 flex-shrink-0">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-            <Avatar name={userName} src={avatarUrl} />
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="sidebar-user-name text-sm font-medium truncate">
-                  {userName}
-                </p>
-                <p className="text-slate-500 text-xs truncate">{roleLabel[role]}</p>
-              </div>
-            )}
-          </div>
-        </div>
       </>
     );
   };

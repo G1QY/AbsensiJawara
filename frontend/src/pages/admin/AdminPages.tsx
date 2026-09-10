@@ -26,6 +26,9 @@ interface Audit {
   entity_type: string
   entity_id: string
   actor_user_id: string
+  actor_name?: string
+  entity_name?: string
+  actor?: { full_name?: string; email?: string }
 }
 interface Summary {
   totalCrew: number
@@ -135,7 +138,7 @@ export default function AdminPages({
       )}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          Data dibaca dari server FotoSnaps.
+          Data dibaca dari server Jawara.
         </p>
         <button
           disabled={loading}
@@ -299,15 +302,15 @@ export default function AdminPages({
                   "Waktu (WIB)",
                   "Tindakan",
                   "Entitas",
-                  "ID Entitas",
-                  "ID Pelaku",
+                  "Nama Data",
+                  "Pelaku",
                 ]}
                 rows={audit.map((a) => [
                   time(a.created_at),
                   a.action,
                   a.entity_type,
-                  a.entity_id || "—",
-                  a.actor_user_id || "Sistem",
+                  a.entity_name || "Nama data tidak tersedia",
+                  a.actor_name || a.actor?.full_name || "Pengguna tidak tersedia",
                 ])}
               />
             </>

@@ -29,28 +29,28 @@ type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
 type Toast = { id: string; message: string; type: 'success' | 'error' | 'warning' | 'info' };
 
 const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
-  'admin-dashboard': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Dashboard' },
-  'admin-event': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Kelola Event' },
-  'admin-payroll': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Payroll' },
-  'admin-laporan': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Laporan' },
-  'admin-audit': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Audit Log' },
-  'admin-crew': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Kelola Crew' },
-  'admin-absensi': { breadcrumbs: ['FotoSnaps', 'Admin'], title: 'Manajemen Absensi' },
-  'ce-absensi': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Absensi Hari Ini' },
-  'ce-dashboard': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Dashboard' },
-  'ce-events': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Event Saya' },
-  'ce-workflow': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Workflow Event' },
-  'ce-inventory': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Inventory Event' },
-  'ce-operasional': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Operasional Event' },
-  'ce-payroll': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Payroll' },
-  'ce-riwayat': { breadcrumbs: ['FotoSnaps', 'Crew Event'], title: 'Riwayat Absensi' },
-  'cs-absensi': { breadcrumbs: ['FotoSnaps', 'Crew Store'], title: 'Absensi Hari Ini' },
-  'cs-dashboard': { breadcrumbs: ['FotoSnaps', 'Crew Store'], title: 'Dashboard' },
-  'cs-riwayat': { breadcrumbs: ['FotoSnaps', 'Crew Store'], title: 'Riwayat Absensi' },
-  'cs-payroll': { breadcrumbs: ['FotoSnaps', 'Crew Store'], title: 'Payroll' },
-  'guest-portal': { breadcrumbs: ['FotoSnaps', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
-  'guest-info': { breadcrumbs: ['FotoSnaps', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
-  'guest-help': { breadcrumbs: ['FotoSnaps', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
+  'admin-dashboard': { breadcrumbs: ['Jawara', 'Admin'], title: 'Dashboard' },
+  'admin-event': { breadcrumbs: ['Jawara', 'Admin'], title: 'Kelola Event' },
+  'admin-payroll': { breadcrumbs: ['Jawara', 'Admin'], title: 'Payroll' },
+  'admin-laporan': { breadcrumbs: ['Jawara', 'Admin'], title: 'Laporan' },
+  'admin-audit': { breadcrumbs: ['Jawara', 'Admin'], title: 'Audit Log' },
+  'admin-crew': { breadcrumbs: ['Jawara', 'Admin'], title: 'Kelola Crew' },
+  'admin-absensi': { breadcrumbs: ['Jawara', 'Admin'], title: 'Manajemen Absensi' },
+  'ce-absensi': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Absensi Hari Ini' },
+  'ce-dashboard': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Dashboard' },
+  'ce-events': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Event Saya' },
+  'ce-workflow': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Workflow Event' },
+  'ce-inventory': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Inventory Event' },
+  'ce-operasional': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Operasional Event' },
+  'ce-payroll': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Payroll' },
+  'ce-riwayat': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Riwayat Absensi' },
+  'cs-absensi': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Absensi Hari Ini' },
+  'cs-dashboard': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Dashboard' },
+  'cs-riwayat': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Riwayat Absensi' },
+  'cs-payroll': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Payroll' },
+  'guest-portal': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
+  'guest-info': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
+  'guest-help': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
 };
 
 function defaultPage(role: Role): string {
@@ -76,7 +76,7 @@ export default function App() {
     setCurrentPage(defaultPage(frontendRole));
     setSidebarCollapsed(false);
     setMobileNavOpen(false);
-    addToast('Berhasil masuk ke FotoSnaps');
+    addToast('Berhasil masuk ke Jawara');
   }, [frontendRole, addToast]);
 
   if (!auth || !frontendRole) {
@@ -93,7 +93,7 @@ export default function App() {
   // Do not briefly mount an admin screen while the role-change effect runs.
   const prefix = role === 'guest_crew' ? 'guest-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
   const activePage = ['account-profile', 'account-settings'].includes(currentPage) || currentPage.startsWith(prefix) ? currentPage : defaultPage(role);
-  const meta = activePage.startsWith('account-') ? { breadcrumbs: ['FotoSnaps', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
+  const meta = activePage.startsWith('account-') ? { breadcrumbs: ['Jawara', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
   const navigate = (page: string) => {
     setCurrentPage(page);
     setMobileNavOpen(false);
@@ -122,7 +122,7 @@ export default function App() {
       case 'ce-absensi':
       case 'cs-absensi': return <CrewAttendance />;
       case 'ce-riwayat':
-      case 'cs-riwayat': return <AttendanceHistory />;
+      case 'cs-riwayat': return <AttendanceHistory showAttendance={false} />;
       default: return role === 'admin' ? <KelolaCrew /> : <CrewAttendance />;
     }
   };
