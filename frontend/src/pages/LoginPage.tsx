@@ -235,6 +235,7 @@ export default function LoginPage() {
       <div className="space-y-1.5">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Selamat Datang Kembali</h1>
         <p className="text-[14px] text-[#4c4451]">Masuk ke akun Jawara Anda untuk melanjutkan</p>
+        <p className="text-[14px] text-[#4c4451]">Masuk ke akun Jawara Anda untuk melanjutkan</p>
       </div>
 
       {/* Login Form */}
@@ -628,6 +629,7 @@ export default function LoginPage() {
             {renderStepContent()}
           </div>
 
+          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 Jawara. All rights reserved.</p>
           <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 Jawara. All rights reserved.</p>
         </div>
       </div>

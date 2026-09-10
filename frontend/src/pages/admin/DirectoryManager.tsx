@@ -50,19 +50,19 @@ export default function DirectoryManager({
           ? { code: form.code, name: form.name }
           : kind === "stores"
             ? {
-                ...form,
-                latitude: Number(form.latitude),
-                longitude: Number(form.longitude),
-                radius_meters: Number(form.radius_meters),
-              }
+              ...form,
+              latitude: Number(form.latitude),
+              longitude: Number(form.longitude),
+              radius_meters: Number(form.radius_meters),
+            }
             : {
-                branch_id: form.branch_id,
-                event_code: form.code,
-                event_name: form.name,
-                event_date: form.event_date,
-                client_name: form.client_name,
-                status: form.status === "ACTIVE" ? "SCHEDULED" : form.status,
-              }
+              branch_id: form.branch_id,
+              event_code: form.code,
+              event_name: form.name,
+              event_date: form.event_date,
+              client_name: form.client_name,
+              status: form.status === "ACTIVE" ? "SCHEDULED" : form.status,
+            }
       if (
         kind === "stores" &&
         (!form.address.trim() || !form.latitude.trim() || !form.longitude.trim())
@@ -109,7 +109,7 @@ export default function DirectoryManager({
       )}
       <p className="text-sm text-slate-600">
         {kind === "branches"
-          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat Jawara berkembang."
+          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat JAWARA berkembang."
           : kind === "stores"
             ? "Pilih lokasi Store melalui Google Maps. Satu cabang dapat memiliki banyak Store."
             : "Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew."}
@@ -127,35 +127,35 @@ export default function DirectoryManager({
               <p className="text-xs text-slate-500">
                 {"branch_id" in row
                   ? data.branches.find((b) => b.id === row.branch_id)?.name ||
-                    "Cabang belum ditetapkan"
+                  "Cabang belum ditetapkan"
                   : row.code}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-            <button
-              disabled={busy}
-              className={button}
-              onClick={() => {
-                setId(row.id)
-                setError("")
-                setSuccess("")
-                setForm({
-                  ...blank,
-                  ...row,
-                  code: "event_code" in row ? row.event_code : row.code,
-                  name: "event_name" in row ? row.event_name : row.name,
-                  branch_id: "branch_id" in row ? row.branch_id || "" : "",
-                  latitude: "latitude" in row ? String(row.latitude) : "",
-                  longitude: "longitude" in row ? String(row.longitude) : "",
-                  radius_meters:
-                    "radius_meters" in row ? String(row.radius_meters) : "50",
-                })
-              }}
-            >
-              Edit
-            </button>
-            {kind !== "events" && <button type="button" disabled={busy} className={button + " text-red-700"}
-              onClick={() => remove(row.id, "event_name" in row ? row.event_name : row.name)}>Hapus</button>}
+              <button
+                disabled={busy}
+                className={button}
+                onClick={() => {
+                  setId(row.id)
+                  setError("")
+                  setSuccess("")
+                  setForm({
+                    ...blank,
+                    ...row,
+                    code: "event_code" in row ? row.event_code : row.code,
+                    name: "event_name" in row ? row.event_name : row.name,
+                    branch_id: "branch_id" in row ? row.branch_id || "" : "",
+                    latitude: "latitude" in row ? String(row.latitude) : "",
+                    longitude: "longitude" in row ? String(row.longitude) : "",
+                    radius_meters:
+                      "radius_meters" in row ? String(row.radius_meters) : "50",
+                  })
+                }}
+              >
+                Edit
+              </button>
+              {kind !== "events" && <button type="button" disabled={busy} className={button + " text-red-700"}
+                onClick={() => remove(row.id, "event_name" in row ? row.event_name : row.name)}>Hapus</button>}
             </div>
           </div>
         ))}
@@ -308,11 +308,11 @@ export default function DirectoryManager({
             {busy
               ? "Menyimpan..."
               : "Simpan " +
-                (kind === "branches"
-                  ? "Cabang"
-                  : kind === "stores"
-                    ? "Store"
-                    : "Event")}
+              (kind === "branches"
+                ? "Cabang"
+                : kind === "stores"
+                  ? "Store"
+                  : "Event")}
           </button>
           {id && (
             <button

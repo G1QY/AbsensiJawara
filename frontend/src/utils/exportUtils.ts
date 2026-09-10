@@ -57,7 +57,7 @@ export function exportToPDF(title: string, subtitle: string, headers: string[], 
           <thead>${tableHead}</thead>
           <tbody>${tableBody}</tbody>
         </table>
-        <p class="footer">Jawara &mdash; Dokumen dibuat otomatis dari sistem.</p>
+        <p class="footer">JAWARA &mdash; Dokumen dibuat otomatis dari sistem.</p>
       </body>
     </html>
   `);

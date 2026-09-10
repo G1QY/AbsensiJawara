@@ -54,7 +54,7 @@ function reportPhotoKeys(assignment: CrewEventAssignment, data: Record<string, a
   assignment.attendance.forEach((row, index) => add(`Clock In ${row.attendance_date || index + 1}`, row.check_in_photo_url));
   (data.inventory_before_items || []).forEach((item: any, index: number) => add(`Inventory Before - ${item.nama || `Item ${index + 1}`}`, item.foto));
   add('Transportasi Pergi', data.transportasi_pergi_photo);
-  assignment.members?.forEach(member=>{add(`Setup Ready - ${member.name}`,data[`setup_ready_photo_${member.id}`]);add(`Event Selesai - ${member.name}`,data[`event_finished_photo_${member.id}`]);});
+  assignment.members?.forEach(member => { add(`Setup Ready - ${member.name}`, data[`setup_ready_photo_${member.id}`]); add(`Event Selesai - ${member.name}`, data[`event_finished_photo_${member.id}`]); });
   add('Setup Ready', data[`setup_ready_photo_${assignment.id}`] || data.setup_ready_photo);
   add('Cek Print Sebelum Event', data.tes_print_before_photo || data.tes_print_photo);
   add('Event Selesai', data[`event_finished_photo_${assignment.id}`] || data.event_finished_photo);
@@ -67,8 +67,8 @@ function reportPhotoKeys(assignment: CrewEventAssignment, data: Record<string, a
   return [...new Map(photos.map(photo => [photo.key, photo])).values()];
 }
 
-async function photoDataUrl(eventId: string, key: string, photoBase='/crew-event/events') {
-  const signed = await api.get<{url:string}>(`${photoBase}/${eventId}/photos/url?key=${encodeURIComponent(key)}`);
+async function photoDataUrl(eventId: string, key: string, photoBase = '/crew-event/events') {
+  const signed = await api.get<{ url: string }>(`${photoBase}/${eventId}/photos/url?key=${encodeURIComponent(key)}`);
   const response = await fetch(signed.url);
   if (!response.ok) throw new Error('Salah satu foto laporan tidak dapat dimuat.');
   const blob = await response.blob();
@@ -106,7 +106,7 @@ function addPhotoPages(doc: jsPDF, photos: ReportPhoto[]) {
   });
 }
 
-async function exportEventPDF(assignment: CrewEventAssignment, data: Record<string, any> = {}, download = true, photoBase='/crew-event/events') {
+async function exportEventPDF(assignment: CrewEventAssignment, data: Record<string, any> = {}, download = true, photoBase = '/crew-event/events') {
   const { event } = assignment;
   const schedules = [...(assignment.event_schedules || [])].sort((a, b) => a.schedule_date.localeCompare(b.schedule_date) || a.start_time.localeCompare(b.start_time));
   const firstSchedule = schedules[0];
@@ -127,7 +127,7 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
   doc.rect(0, 0, pageWidth, 40, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
-  doc.text('Jawara', 14, 18);
+  doc.text('JAWARA', 14, 18);
   doc.setFontSize(10);
   doc.text('Laporan Event', 14, 26);
   doc.setFontSize(12);
@@ -151,7 +151,7 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
     ['PIC', event.pic?.user?.full_name || '-'],
     ['Lokasi', event.event_locations?.[0]?.address || '-'],
     ['Tanggal Event', eventPeriod],
-    ['Waktu Event', event.start_time&&event.end_time?`${timeText(event.start_time)} sampai ${timeText(event.end_time)}`:firstSchedule && lastSchedule ? `${timeText(firstSchedule.start_time)} sampai ${timeText(lastSchedule.end_time)}` : '-'],
+    ['Waktu Event', event.start_time && event.end_time ? `${timeText(event.start_time)} sampai ${timeText(event.end_time)}` : firstSchedule && lastSchedule ? `${timeText(firstSchedule.start_time)} sampai ${timeText(lastSchedule.end_time)}` : '-'],
     ['Jumlah Crew', `${assignment.team.length} crew`],
     ['Tanggal Export', new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
     ['Status', `${reportStatus} (${assignment.workflow.max_reached}/${TOTAL_STEPS})`],
@@ -278,11 +278,11 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150);
-    doc.text(`Jawara Report — Page ${i}/${totalPages}`, 14, doc.internal.pageSize.getHeight() - 10);
+    doc.text(`JAWARA Report — Page ${i}/${totalPages}`, 14, doc.internal.pageSize.getHeight() - 10);
     doc.text(new Date().toLocaleString('id-ID'), pageWidth - 14, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
   }
 
-  if (download) doc.save(`Jawara_${eventId}_${eventName.replace(/\s+/g, '_')}.pdf`);
+  if (download) doc.save(`JAWARA_${eventId}_${eventName.replace(/\s+/g, '_')}.pdf`);
   return doc;
 }
 
@@ -315,7 +315,7 @@ function StepActions({ onSave, onNext, saveLabel, nextLabel }: {
 
 function PhotoPicker({ value, onChange, label = 'Ambil foto bukti', fieldLabel = 'Foto Bukti' }: { value?: string; onChange: (key: string) => void; label?: string; fieldLabel?: string }) {
   const eventId = useContext(WorkflowEventContext);
-  return <CameraPhotoUpload eventId={eventId} value={value} onChange={onChange} fieldLabel={fieldLabel} buttonLabel={label}/>;
+  return <CameraPhotoUpload eventId={eventId} value={value} onChange={onChange} fieldLabel={fieldLabel} buttonLabel={label} />;
 }
 
 // ---------- Progress Bar (clickable) ----------
@@ -337,7 +337,7 @@ function ProgressBar({ current, maxReached, onGoToStep, eventName }: {
       <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
         <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${(Math.max(current, maxReached) / TOTAL_STEPS) * 100}%`, transition: 'width 0.4s ease' }} />
       </div>
-      <label className="block sm:hidden text-sm text-slate-600">Langkah kerja<select aria-label="Pilih langkah workflow" className="mt-2 w-full rounded-xl border border-slate-200 p-3 bg-white" value={current} onChange={event=>onGoToStep(Number(event.target.value))}>{steps.map(step=><option key={step.id} value={step.id} disabled={step.id>Math.max(current,maxReached)}>{step.id}. {step.label}</option>)}</select></label>
+      <label className="block sm:hidden text-sm text-slate-600">Langkah kerja<select aria-label="Pilih langkah workflow" className="mt-2 w-full rounded-xl border border-slate-200 p-3 bg-white" value={current} onChange={event => onGoToStep(Number(event.target.value))}>{steps.map(step => <option key={step.id} value={step.id} disabled={step.id > Math.max(current, maxReached)}>{step.id}. {step.label}</option>)}</select></label>
       <div className="hidden sm:flex gap-1 overflow-x-auto pb-1">
         {steps.map(s => {
           const canClick = s.id <= maxReached || s.id <= current;
@@ -347,14 +347,13 @@ function ProgressBar({ current, maxReached, onGoToStep, eventName }: {
               title={s.label}
               onClick={() => canClick && onGoToStep(s.id)}
               disabled={!canClick}
-              className={`flex-shrink-0 w-7 h-7 rounded-lg text-xs flex items-center justify-center font-bold transition-all ${
-                s.id < current ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' :
-                s.id === current ? 'bg-amber-500 text-white ring-2 ring-amber-200' :
-                canClick ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer' :
-                'bg-slate-100 text-slate-400 cursor-not-allowed'
-              }`}
+              className={`flex-shrink-0 w-7 h-7 rounded-lg text-xs flex items-center justify-center font-bold transition-all ${s.id < current ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' :
+                  s.id === current ? 'bg-amber-500 text-white ring-2 ring-amber-200' :
+                    canClick ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer' :
+                      'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
             >
-              {s.id < current ? <CheckIcon/> : s.id}
+              {s.id < current ? <CheckIcon /> : s.id}
             </button>
           );
         })}
@@ -379,7 +378,7 @@ function StepInventoryBefore({ onSave, onNext, data, onDataChange }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">Inventory Before</h3>
           <p className="text-xs text-slate-400">Input semua barang yang dibawa ke event</p>
@@ -414,7 +413,7 @@ function StepInventoryBefore({ onSave, onNext, data, onDataChange }: {
                 </select>
               </div>
             </div>
-            <PhotoPicker fieldLabel="Foto Barang" label="Buka kamera" value={item.foto} onChange={key=>{const n=[...items];n[i]={...n[i],foto:key};setItems(n);}}/>
+            <PhotoPicker fieldLabel="Foto Barang" label="Buka kamera" value={item.foto} onChange={key => { const n = [...items]; n[i] = { ...n[i], foto: key }; setItems(n); }} />
             {items.length > 1 && (
               <button onClick={() => { const n = items.filter((_: any, idx: number) => idx !== i); setItems(n); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Hapus barang ini</button>
             )}
@@ -445,7 +444,7 @@ function StepTransportasi({ type, onSave, onNext, data, onDataChange, defaultDat
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">Transportasi {type === 'pergi' ? 'Pergi' : 'Pulang'}</h3>
           <p className="text-xs text-slate-400">Catat perjalanan, kendaraan, waktu, dan biaya</p>
@@ -454,10 +453,10 @@ function StepTransportasi({ type, onSave, onNext, data, onDataChange, defaultDat
 
       <div className="space-y-4">
         <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block text-sm font-medium text-slate-700">Tanggal<input type="date" value={data[dateKey] || defaultDate} onChange={e=>onDataChange({...data,[dateKey]:e.target.value})} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/></label>
+          <label className="block text-sm font-medium text-slate-700">Tanggal<input type="date" value={data[dateKey] || defaultDate} onChange={e => onDataChange({ ...data, [dateKey]: e.target.value })} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></label>
           <label className="block text-sm font-medium text-slate-700">Jam {type === 'pergi' ? 'Keberangkatan' : 'Kepulangan'}<input type="time" value={data[timeKey] || ''} onChange={e => onDataChange({ ...data, [timeKey]: e.target.value })} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></label>
-          <label className="block text-sm font-medium text-slate-700">Layanan<select value={data[serviceKey] || 'Lalamove'} onChange={e=>onDataChange({...data,[serviceKey]:e.target.value})} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm"><option>Lalamove</option><option>Transportasi Online</option><option>Kendaraan Pribadi</option><option>Sewa</option><option>Lainnya</option></select></label>
-          <label className="block text-sm font-medium text-slate-700">Kendaraan<select value={data[vehicleKey] || ''} onChange={e=>onDataChange({...data,[vehicleKey]:e.target.value})} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm"><option value="">Pilih kendaraan</option><option>Motor</option><option>Mobil</option><option>Van atau Pickup</option><option>Truk</option><option>Lainnya</option></select></label>
+          <label className="block text-sm font-medium text-slate-700">Layanan<select value={data[serviceKey] || 'Lalamove'} onChange={e => onDataChange({ ...data, [serviceKey]: e.target.value })} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm"><option>Lalamove</option><option>Transportasi Online</option><option>Kendaraan Pribadi</option><option>Sewa</option><option>Lainnya</option></select></label>
+          <label className="block text-sm font-medium text-slate-700">Kendaraan<select value={data[vehicleKey] || ''} onChange={e => onDataChange({ ...data, [vehicleKey]: e.target.value })} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm"><option value="">Pilih kendaraan</option><option>Motor</option><option>Mobil</option><option>Van atau Pickup</option><option>Truk</option><option>Lainnya</option></select></label>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Nominal Biaya</label>
@@ -466,7 +465,7 @@ function StepTransportasi({ type, onSave, onNext, data, onDataChange, defaultDat
             <input type="number" min={0} value={nominal} onChange={e => onDataChange({ ...data, [key]: draftNumber(e.target.value) })} placeholder="0" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
-        <PhotoPicker fieldLabel="Foto Bukti Pembayaran" label="Buka kamera" value={data[`transportasi_${type}_photo`]} onChange={photo=>onDataChange({...data,[`transportasi_${type}_photo`]:photo})}/>
+        <PhotoPicker fieldLabel="Foto Bukti Pembayaran" label="Buka kamera" value={data[`transportasi_${type}_photo`]} onChange={photo => onDataChange({ ...data, [`transportasi_${type}_photo`]: photo })} />
       </div>
 
       <StepActions onSave={onSave} onNext={onNext} />
@@ -494,12 +493,12 @@ function StepCheckpoint({ type, onSave, onNext, data, onDataChange, locationName
     form.append('photo', photo, `${type.toLowerCase()}.jpg`);
     form.append('latitude', String(position.latitude));
     form.append('longitude', String(position.longitude));
-    return api.postForm<{key:string;url:string;capturedAt:string;latitude:number;longitude:number}>(`/crew-event/events/${eventId}/checkpoints/${type}`, form);
+    return api.postForm<{ key: string; url: string; capturedAt: string; latitude: number; longitude: number }>(`/crew-event/events/${eventId}/checkpoints/${type}`, form);
   }, [eventId, getPosition, type]);
 
   return <div className="space-y-4">
     <div className="flex items-center gap-3">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isSetup ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}><WorkflowIcon/></div>
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isSetup ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}><WorkflowIcon /></div>
       <div><h3 className="font-semibold text-slate-900">{isSetup ? 'Setup Ready' : 'Event Selesai'}</h3><p className="text-xs text-slate-500">{isSetup ? 'Ambil foto setelah tiba dan seluruh setup siap digunakan.' : 'Ambil foto kondisi lokasi setelah kegiatan berakhir.'}</p></div>
     </div>
     <CameraPhotoUpload
@@ -509,11 +508,11 @@ function StepCheckpoint({ type, onSave, onNext, data, onDataChange, locationName
       buttonLabel={isSetup ? 'Buka kamera dan foto setup' : 'Buka kamera dan foto kondisi akhir'}
       locationName={locationName}
       upload={upload}
-      onChange={key=>onDataChange({...data,[photoKey]:key})}
-      onUploaded={result=>onDataChange({...data,[photoKey]:result.key,[timeKey]:result.capturedAt,[latitudeKey]:result.latitude,[longitudeKey]:result.longitude})}
+      onChange={key => onDataChange({ ...data, [photoKey]: key })}
+      onUploaded={result => onDataChange({ ...data, [photoKey]: result.key, [timeKey]: result.capturedAt, [latitudeKey]: result.latitude, [longitudeKey]: result.longitude })}
     />
     {data[timeKey] ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Tercatat pada {new Date(data[timeKey]).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</p> : null}
-    <StepActions onSave={onSave} onNext={onNext}/>
+    <StepActions onSave={onSave} onNext={onNext} />
   </div>;
 }
 
@@ -527,13 +526,13 @@ function StepTesPrint({ phase, onSave, onNext, data, onDataChange }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">Cek Print {isBefore ? 'Sebelum' : 'Sesudah'} Event</h3>
           <p className="text-xs text-slate-400">Ambil foto langsung dari kamera. Jumlah kertas tidak digunakan.</p>
         </div>
       </div>
-      <PhotoPicker fieldLabel={`Foto Cek Print ${isBefore ? 'Sebelum' : 'Sesudah'} Event`} label="Buka kamera" value={data[key] || (isBefore ? data.tes_print_photo : '')} onChange={photo=>onDataChange({...data,[key]:photo})}/>
+      <PhotoPicker fieldLabel={`Foto Cek Print ${isBefore ? 'Sebelum' : 'Sesudah'} Event`} label="Buka kamera" value={data[key] || (isBefore ? data.tes_print_photo : '')} onChange={photo => onDataChange({ ...data, [key]: photo })} />
       <StepActions onSave={onSave} onNext={onNext} />
     </div>
   );
@@ -560,14 +559,14 @@ function StepOngoing({ onSave, onNext, data, assignment, completed }: {
   const endedAt = checkpointEnd ? new Date(checkpointEnd).getTime() : attendance?.check_out ? new Date(attendance.check_out).getTime() : now;
   const elapsed = Number.isFinite(startedAt) ? Math.max(0, endedAt - startedAt) : 0;
   const duration = [Math.floor(elapsed / 3600000), Math.floor((elapsed % 3600000) / 60000), Math.floor((elapsed % 60000) / 1000)].map(value => String(value).padStart(2, '0')).join(':');
-  const heading = isCancelled ? 'Event Dibatalkan' : assignment.event.status==='COMPLETED' ? 'Event Selesai' : isFinished ? 'Tugas Anda Selesai' : assignment.event.status === 'SCHEDULED' ? 'Event Terjadwal' : 'Event Sedang Berlangsung';
+  const heading = isCancelled ? 'Event Dibatalkan' : assignment.event.status === 'COMPLETED' ? 'Event Selesai' : isFinished ? 'Tugas Anda Selesai' : assignment.event.status === 'SCHEDULED' ? 'Event Terjadwal' : 'Event Sedang Berlangsung';
   const period = firstSchedule && lastSchedule ? (firstSchedule.schedule_date === lastSchedule.schedule_date ? eventDateText(firstSchedule.schedule_date) : `${eventDateText(firstSchedule.schedule_date)} – ${eventDateText(lastSchedule.schedule_date)}`) : eventDateText(assignment.event.event_date);
   const location = assignment.event.event_locations?.[0]?.address || assignment.event.branch?.name || 'Lokasi belum diisi';
   return (
     <div className="space-y-5">
       <div className="text-center py-6">
         <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-          <span className="text-amber-700"><WorkflowIcon/></span>
+          <span className="text-amber-700"><WorkflowIcon /></span>
         </div>
         <h3 className="text-xl font-bold text-slate-900 mb-2">{heading}</h3>
         <p className="text-slate-500 text-sm">{isFinished ? 'Status diambil dari data event dan absensi terbaru.' : 'Fokus pada event. Clock Out saat event selesai.'}</p>
@@ -610,35 +609,35 @@ function StepKuotaOmset({ title, onSave, onNext, data, onDataChange }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">{title}</h3>
           <p className="text-xs text-slate-400">Input nominal {title.toLowerCase()}</p>
         </div>
       </div>
       {isQuota ? <div className="grid sm:grid-cols-2 gap-3">
-        <label className="block text-sm font-medium text-slate-700">Jumlah Kuota (GB)<input type="number" min={0} step="0.1" value={data.kuota_gb ?? ''} onChange={e=>onDataChange({...data,kuota_gb:draftNumber(e.target.value)})} placeholder="Contoh: 50" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/></label>
-        <label className="block text-sm font-medium text-slate-700">Provider / Perangkat<input type="text" value={data.kuota_provider || ''} onChange={e=>onDataChange({...data,kuota_provider:e.target.value})} placeholder="Contoh: Orbit Telkomsel" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/></label>
+        <label className="block text-sm font-medium text-slate-700">Jumlah Kuota (GB)<input type="number" min={0} step="0.1" value={data.kuota_gb ?? ''} onChange={e => onDataChange({ ...data, kuota_gb: draftNumber(e.target.value) })} placeholder="Contoh: 50" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></label>
+        <label className="block text-sm font-medium text-slate-700">Provider / Perangkat<input type="text" value={data.kuota_provider || ''} onChange={e => onDataChange({ ...data, kuota_provider: e.target.value })} placeholder="Contoh: Orbit Telkomsel" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></label>
         <div className="sm:col-span-2">
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Biaya Kuota</label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">Rp</span>
-          <input
-            type="number"
-            min={0}
-            value={data[key] ?? ''}
-            onChange={e => onDataChange({ ...data, [key]: draftNumber(e.target.value) })}
-            placeholder="0"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Biaya Kuota</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">Rp</span>
+            <input
+              type="number"
+              min={0}
+              value={data[key] ?? ''}
+              onChange={e => onDataChange({ ...data, [key]: draftNumber(e.target.value) })}
+              placeholder="0"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div> : <div className="grid sm:grid-cols-2 gap-3">
-        <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Tunai</label><input type="number" min={0} value={omsetTunai || ''} onChange={e=>{const tunai=Number(e.target.value);onDataChange({...data,omset_tunai:tunai,omset_nominal:tunai+omsetTransfer})}} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-        <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Transfer</label><input type="number" min={0} value={omsetTransfer || ''} onChange={e=>{const transfer=Number(e.target.value);onDataChange({...data,omset_transfer:transfer,omset_nominal:omsetTunai+transfer})}} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+        <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Tunai</label><input type="number" min={0} value={omsetTunai || ''} onChange={e => { const tunai = Number(e.target.value); onDataChange({ ...data, omset_tunai: tunai, omset_nominal: tunai + omsetTransfer }) }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+        <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Transfer</label><input type="number" min={0} value={omsetTransfer || ''} onChange={e => { const transfer = Number(e.target.value); onDataChange({ ...data, omset_transfer: transfer, omset_nominal: omsetTunai + transfer }) }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
         <p className="sm:col-span-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">Total omset: <strong>{fmt(omsetTunai + omsetTransfer)}</strong></p>
       </div>}
-      <PhotoPicker value={data[`${key}_photo`]} onChange={photo=>onDataChange({...data,[`${key}_photo`]:photo})}/>
+      <PhotoPicker value={data[`${key}_photo`]} onChange={photo => onDataChange({ ...data, [`${key}_photo`]: photo })} />
       <StepActions onSave={onSave} onNext={onNext} />
     </div>
   );
@@ -660,7 +659,7 @@ function StepInventoryAfter({ onSave, onNext, data, onDataChange }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">Inventory After</h3>
           <p className="text-xs text-slate-400">Input kondisi barang setelah event</p>
@@ -711,7 +710,7 @@ function StepInventoryAfter({ onSave, onNext, data, onDataChange }: {
                   />
                 </div>
               )}
-              <PhotoPicker fieldLabel="Foto Barang Setelah Event" label="Buka kamera" value={item.foto_after} onChange={photo=>{const n=[...afterItems];n[i]={...n[i],foto_after:photo};setAfterItems(n);}}/>
+              <PhotoPicker fieldLabel="Foto Barang Setelah Event" label="Buka kamera" value={item.foto_after} onChange={photo => { const n = [...afterItems]; n[i] = { ...n[i], foto_after: photo }; setAfterItems(n); }} />
             </div>
           );
         })}
@@ -741,7 +740,7 @@ function StepComparison({ onSave, onNext, data }: {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon/></div>
+        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
           <h3 className="font-semibold text-slate-900">Perbandingan Inventory</h3>
           <p className="text-xs text-slate-400">Before vs After — cek selisih barang</p>
@@ -876,8 +875,8 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
   const eventLocationName = assignment.event.event_locations?.[0]?.address || assignment.event.branch?.name || 'Lokasi event';
   const [workflowData, setWorkflowData] = useState<Record<string, any>>(() => getWorkflowData(eventId));
   const [saveError, setSaveError] = useState('');
-  const dirty=useRef(false);
-  const [revision,setRevision] = useState<string|null>(assignment.workflow.updated_at || null);
+  const dirty = useRef(false);
+  const [revision, setRevision] = useState<string | null>(assignment.workflow.updated_at || null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [currentStep, setCurrentStep] = useState(() => {
@@ -890,7 +889,7 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
 
   useEffect(() => {
     let active = true;
-    api.get<{ data?: Record<string, any>; current_step?: number; max_reached?: number; updated_at?:string }>(`/crew-event/events/${eventId}/workflow`)
+    api.get<{ data?: Record<string, any>; current_step?: number; max_reached?: number; updated_at?: string }>(`/crew-event/events/${eventId}/workflow`)
       .then(remote => {
         if (!active || !remote?.data || Object.keys(remote.data).length === 0) return;
         setWorkflowData(remote.data);
@@ -898,8 +897,8 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
         const sharedStep = initialStep > 1 ? initialStep : remote.current_step || 1;
         const personalStep = !assignment.attendance.some(row => row.check_in) ? 1
           : !remote.data[`setup_ready_photo_${assignment.id}`] ? 4
-          : !remote.data[`event_finished_photo_${assignment.id}`] ? 7
-          : !assignment.attendance.some(row => row.check_out) ? 14 : 15;
+            : !remote.data[`event_finished_photo_${assignment.id}`] ? 7
+              : !assignment.attendance.some(row => row.check_out) ? 14 : 15;
         setCurrentStep(Math.min(sharedStep, personalStep));
         setMaxReached(remote.max_reached || remote.current_step || 1);
       })
@@ -907,12 +906,12 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
     return () => { active = false; };
   }, [eventId, initialStep]);
 
-  useEffect(()=>{
-    const remote=assignment.workflow;
-    if(!remote.updated_at||saving||(revision&&Date.parse(remote.updated_at)<=Date.parse(revision)))return;
-    if(dirty.current){setSaveError('Data event diperbarui anggota lain. Input Anda tetap tersimpan di layar. Muat ulang sebelum menyimpan untuk menghindari konflik.');return;}
-    setWorkflowData(remote.data);setRevision(remote.updated_at);setMaxReached(remote.max_reached);
-  },[assignment.workflow.updated_at,saving,revision]);
+  useEffect(() => {
+    const remote = assignment.workflow;
+    if (!remote.updated_at || saving || (revision && Date.parse(remote.updated_at) <= Date.parse(revision))) return;
+    if (dirty.current) { setSaveError('Data event diperbarui anggota lain. Input Anda tetap tersimpan di layar. Muat ulang sebelum menyimpan untuk menghindari konflik.'); return; }
+    setWorkflowData(remote.data); setRevision(remote.updated_at); setMaxReached(remote.max_reached);
+  }, [assignment.workflow.updated_at, saving, revision]);
 
   // Persist data on change
   useEffect(() => {
@@ -920,13 +919,13 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
   }, [workflowData, currentStep, maxReached, eventId]);
 
   const updateData = useCallback((newData: Record<string, any>) => {
-    dirty.current=true;setWorkflowData(newData);
+    dirty.current = true; setWorkflowData(newData);
   }, []);
 
   const persistRemote = useCallback(async (data: Record<string, any>, step: number, reached: number) => {
-    const saved = await api.put<{data:Record<string,any>;current_step:number;max_reached:number;updated_at:string}>(`/crew-event/events/${eventId}/workflow`, { data, expectedUpdatedAt:revision, currentStep: step, maxReached: reached });
-    dirty.current=false;setRevision(saved.updated_at);return saved;
-  }, [eventId,revision]);
+    const saved = await api.put<{ data: Record<string, any>; current_step: number; max_reached: number; updated_at: string }>(`/crew-event/events/${eventId}/workflow`, { data, expectedUpdatedAt: revision, currentStep: step, maxReached: reached });
+    dirty.current = false; setRevision(saved.updated_at); return saved;
+  }, [eventId, revision]);
 
   const next = useCallback(async () => {
     const validationError = stepValidationError(currentStep, workflowData, assignment.id);
@@ -954,14 +953,14 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
     const payload = { ...workflowData, _currentStep: currentStep, _maxReached: maxReached };
     saveWorkflowData(eventId, payload);
     setSaving(true); setSaveError('');
-    try { const saved=await persistRemote(payload, currentStep, maxReached); setWorkflowData(saved.data); onBack(); }
+    try { const saved = await persistRemote(payload, currentStep, maxReached); setWorkflowData(saved.data); onBack(); }
     catch (error) { setSaveError(error instanceof Error ? error.message : 'Workflow gagal disimpan.'); }
     finally { setSaving(false); }
   }, [eventId, workflowData, currentStep, maxReached, onBack, persistRemote]);
 
   const handleExportPDF = useCallback(async () => {
     setExporting(true); setSaveError('');
-    try { const latest = await api.get<{assignments:CrewEventAssignment[]}>('/crew-event/workspace'); const fresh = latest.assignments.find(row => row.event.id === eventId) || assignment; await exportEventPDF({ ...fresh, workflow: { ...assignment.workflow, current_step: currentStep, max_reached: maxReached } }, workflowData); }
+    try { const latest = await api.get<{ assignments: CrewEventAssignment[] }>('/crew-event/workspace'); const fresh = latest.assignments.find(row => row.event.id === eventId) || assignment; await exportEventPDF({ ...fresh, workflow: { ...assignment.workflow, current_step: currentStep, max_reached: maxReached } }, workflowData); }
     catch (error) { setSaveError(error instanceof Error ? error.message : 'PDF gagal dibuat.'); }
     finally { setExporting(false); }
   }, [assignment, currentStep, maxReached, workflowData]);
@@ -983,7 +982,7 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
       case 12: return <StepInventoryAfter {...props} />;
       case 13: return <StepComparison {...props} />;
       case 14: return <AttendanceAction mode="OUT" eventId={eventId} onContinue={next} />;
-      case 15: return <StepFinish onBack={onBack} onExportPDF={handleExportPDF} onEdit={()=>setCurrentStep(1)} data={workflowData} exporting={exporting} />;
+      case 15: return <StepFinish onBack={onBack} onExportPDF={handleExportPDF} onEdit={() => setCurrentStep(1)} data={workflowData} exporting={exporting} />;
       default: return null;
     }
   };
@@ -998,11 +997,11 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
 
       {/* Progress */}
       <ProgressBar
-          current={currentStep}
-          maxReached={maxReached}
-          onGoToStep={goToStep}
-          eventName={`${eventCode} • ${eventName}`}
-        />
+        current={currentStep}
+        maxReached={maxReached}
+        onGoToStep={goToStep}
+        eventName={`${eventCode} • ${eventName}`}
+      />
 
       {/* Step info */}
       {currentStep < TOTAL_STEPS && (
@@ -1028,5 +1027,5 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
 
 export { exportEventPDF, getWorkflowData };
 
-function WorkflowIcon(){return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5h6m-7 4h8m-8 4h5m-7 8h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>}
-function CheckIcon(){return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7"/></svg>}
+function WorkflowIcon() { return <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5h6m-7 4h8m-8 4h5m-7 8h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> }
+function CheckIcon() { return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" /></svg> }

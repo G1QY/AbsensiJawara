@@ -10,6 +10,7 @@ export interface GuestAttendanceRecord {
   nama: string;
   hp: string;
   jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
+  jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
   lokasi: string;
   posisi: string;
   tipe: 'Clock In' | 'Clock Out';
@@ -75,6 +76,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     auth?.user?.full_name && !auth.user.full_name.includes('Guest Crew') ? auth.user.full_name : ''
   );
   const [hp, setHp] = useState(auth?.user?.phone || '');
+  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
@@ -331,7 +333,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     ctx.textAlign = 'right';
     ctx.font = `bold ${Math.round(width * 0.038)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#F59E0B'; // Amber / Gold accent
-    ctx.fillText('Jawara', width - rightPadding, topPadding);
+    ctx.fillText('JAWARA', width - rightPadding, topPadding);
 
     ctx.font = `500 ${Math.round(width * 0.022)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
@@ -568,8 +570,8 @@ _Foto selfie telah tersimpan di sistem._`;
               aria-current={page === tab.id ? 'page' : undefined}
               onClick={() => onNavigate(tab.id)}
               className={`flex-1 min-w-0 py-2.5 px-2 rounded-full text-[11px] sm:text-xs font-semibold transition-all ${page === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
                 }`}
             >
               {tab.label}
@@ -681,313 +683,315 @@ _Foto selfie telah tersimpan di sistem._`;
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setJenis(t)}
-                          className={`py-2 px-1.5 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all text-center ${jenis === t
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setJenis(t)}
+                              className={`py-2 px-1.5 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all text-center ${jenis === t
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                }`}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Tipe Absensi
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['Clock In', 'Clock Out'] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTipeAbsen(t)}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${tipeAbsen === t
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Tipe Absensi
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['Clock In', 'Clock Out'] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTipeAbsen(t)}
+                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${tipeAbsen === t
                               ? t === 'Clock In'
                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                                 : 'bg-red-600 text-white border-red-600 shadow-sm'
                               : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                              }`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Posisi / Tugas
+                      </label>
+                      <select
+                        value={posisi}
+                        onChange={(e) => setPosisi(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                      >
+                        <option>Tenda</option>
+                        <option>FotoSnaps</option>
+                        <option>Bujangan</option>
+                        <option>Fotobox</option>
+                        <option>Staff Kantor</option>
+                      </select>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  {/* Lokasi / Event */}
+                  <div className="space-y-2">
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Posisi / Tugas
+                      {jenis === 'Kantor' ? 'Lokasi Kantor (opsional)' : 'Lokasi Event / Toko (opsional)'}
                     </label>
                     <select
-                      value={posisi}
-                      onChange={(e) => setPosisi(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                      aria-label="Lokasi Event / Toko"
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-medium"
                     >
-                      <option>Tenda</option>
-                      <option>FotoSnaps</option>
-                      <option>Bujangan</option>
-                      <option>Fotobox</option>
-                      <option>Staff Kantor</option>
+                      <option value="">
+                        {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
+                      </option>
+                      {(jenis === 'Crew Store'
+                        ? locations.stores.map(s => ({ id: s.id, name: s.name }))
+                        : jenis === 'Kantor'
+                          ? (locations.stores.some(s => s.name.toLowerCase().includes('kantor'))
+                            ? locations.stores.filter(s => s.name.toLowerCase().includes('kantor')).map(s => ({ id: s.id, name: s.name }))
+                            : locations.stores.map(s => ({ id: s.id, name: s.name })))
+                          : locations.events.map(e => ({ id: e.id, name: e.event_name }))
+                      ).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
-                </div>
 
-                {/* Lokasi / Event */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    {jenis === 'Kantor' ? 'Lokasi Kantor (opsional)' : 'Lokasi Event / Toko (opsional)'}
-                  </label>
-                  <select
-                    aria-label="Lokasi Event / Toko"
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-medium"
-                  >
-                    <option value="">
-                      {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
-                    </option>
-                    {(jenis === 'Crew Store'
-                      ? locations.stores.map(s => ({ id: s.id, name: s.name }))
-                      : jenis === 'Kantor'
-                      ? (locations.stores.some(s => s.name.toLowerCase().includes('kantor'))
-                          ? locations.stores.filter(s => s.name.toLowerCase().includes('kantor')).map(s => ({ id: s.id, name: s.name }))
-                          : locations.stores.map(s => ({ id: s.id, name: s.name })))
-                      : locations.events.map(e => ({ id: e.id, name: e.event_name }))
-                    ).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
+                  {/* Deteksi Lokasi GPS Live & Peta */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full ${lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
+                            }`}
+                        />
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                          Deteksi Lokasi GPS & Peta
+                        </span>
+                      </div>
 
-                {/* Deteksi Lokasi GPS Live & Peta */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full ${lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
-                          }`}
-                      />
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                        Deteksi Lokasi GPS & Peta
-                      </span>
+                      <button
+                        type="button"
+                        onClick={detectLocation}
+                        disabled={locLoading}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 bg-white hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors disabled:opacity-50"
+                      >
+                        <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>{locLoading ? 'Mendeteksi...' : 'Perbarui GPS'}</span>
+                      </button>
                     </div>
 
+                    {lat !== null && lng !== null ? (
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="font-mono text-xs font-semibold text-slate-800">
+                            {lat.toFixed(6)}, {lng.toFixed(6)}
+                          </span>
+                          <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            Lokasi perangkat · estimasi akurasi ±{accuracy ?? 0} m
+                          </span>
+                        </div>
+                        {locError && <p role="status" className="text-xs text-amber-700">{locError}</p>}
+                        {address && (
+                          <p className="text-xs text-slate-600 pt-0.5 leading-relaxed">
+                            {address}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+                        <p>{locLoading ? 'Mencari lokasi perangkat, maksimal 20 detik...' : locError || 'Menunggu deteksi lokasi...'}</p>
+                      </div>
+                    )}
+
+                    {lat !== null && lng !== null && locSource === 'gps' && (
+                      <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
+                    )}
+                  </div>
+
+                  {/* Foto Selfie (Kamera Live) */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Foto Bukti Kehadiran <span className="text-red-500">*</span>
+                      </label>
+                    </div>
+
+                    {/* Hidden Canvas for Watermark Processing */}
+                    <canvas ref={canvasRef} className="hidden" />
+
+                    {/* Live Camera Viewfinder Modal / View */}
+                    {isCameraActive ? (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 text-white space-y-4 border border-slate-800 shadow-2xl animate-fade-in">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={toggleCameraFacing}
+                              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-slate-200 transition-colors"
+                            >
+                              Ganti Kamera
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-xs text-red-300 font-semibold transition-colors"
+                            >
+                              Tutup
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Video Viewfinder Container */}
+                        <div className="w-full max-w-lg mx-auto aspect-[4/3] rounded-xl overflow-hidden bg-black relative border border-slate-700 flex items-center justify-center">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+                          />
+
+                          {/* Top Right Mini Brand */}
+                          <div className="absolute top-3 right-3 text-right">
+                            <p className="text-xs font-bold text-amber-400 leading-none">Jawara</p>
+                            <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
+                          </div>
+
+                          {/* Live Watermark Preview on Bottom Left */}
+                          <div className="absolute bottom-3 left-3 text-left max-w-[85%] space-y-1">
+                            <div className="inline-flex rounded overflow-hidden text-xs font-bold shadow-md">
+                              <span className="bg-amber-500 text-slate-950 px-2 py-0.5">
+                                {tipeAbsen === 'Clock In' ? 'Absensi' : 'Pulang'}
+                              </span>
+                              <span className="bg-white text-slate-950 px-2 py-0.5">
+                                {currentTimeFormatted.timeShort || '12:00'}
+                              </span>
+                            </div>
+
+                            <div className="border-l-2 border-amber-400 pl-2 text-white text-[11px] leading-tight">
+                              <p className="font-bold">{currentTimeFormatted.dateFull}</p>
+                              <p className="text-slate-200 line-clamp-2 mt-0.5">{address || getLocationText()}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Capture Trigger Button */}
+                        <div className="max-w-lg mx-auto">
+                          <button
+                            type="button"
+                            onClick={capturePhoto}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all"
+                          >
+                            Ambil Gambar Sekarang
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Initial & Captured State View */
+                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200">
+                        {foto ? (
+                          <div className="space-y-3">
+                            <div className="max-w-md mx-auto rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-black">
+                              <img
+                                src={foto}
+                                alt="Bukti Kehadiran"
+                                className="w-full h-auto object-contain max-h-[380px]"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+                              <button
+                                type="button"
+                                onClick={() => startCamera()}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                              >
+                                Ambil Ulang Foto
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFoto('')}
+                                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                              >
+                                Hapus Foto
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 space-y-3">
+                            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-800">
+                                Ambil Foto Selfie di Lokasi
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">
+                                Sistem menyematkan stempel waktu, tanggal, dan alamat lengkap secara otomatis pada foto.
+                              </p>
+                            </div>
+
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                onClick={() => startCamera()}
+                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all"
+                              >
+                                Buka Kamera Selfie
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {cameraError && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+                            {cameraError}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Catatan / Keterangan Darurat */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Recap Event & Catatan Keterangan (Opsional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={catatan}
+                      onChange={(e) => setCatatan(e.target.value)}
+                      placeholder="Ketik keterangan jika ada kendala di lapangan..."
+                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Submit button */}
+                  <div className="pt-2">
                     <button
-                      type="button"
-                      onClick={detectLocation}
-                      disabled={locLoading}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 bg-white hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors disabled:opacity-50"
+                      type="submit"
+                      disabled={submitting || !!optionsError}
+                      className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
                     >
-                      <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      <span>{locLoading ? 'Mendeteksi...' : 'Perbarui GPS'}</span>
+                      {submitting ? 'Mengirim ke server...' : 'Kirim Absensi Lapangan'}
                     </button>
                   </div>
-
-                  {lat !== null && lng !== null ? (
-                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className="font-mono text-xs font-semibold text-slate-800">
-                          {lat.toFixed(6)}, {lng.toFixed(6)}
-                        </span>
-                        <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          Lokasi perangkat · estimasi akurasi ±{accuracy ?? 0} m
-                        </span>
-                      </div>
-                      {locError && <p role="status" className="text-xs text-amber-700">{locError}</p>}
-                      {address && (
-                        <p className="text-xs text-slate-600 pt-0.5 leading-relaxed">
-                          {address}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-                      <p>{locLoading ? 'Mencari lokasi perangkat, maksimal 20 detik...' : locError || 'Menunggu deteksi lokasi...'}</p>
-                    </div>
-                  )}
-
-                  {lat !== null && lng !== null && locSource === 'gps' && (
-                    <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
-                  )}
-                </div>
-
-                {/* Foto Selfie (Kamera Live) */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Foto Bukti Kehadiran <span className="text-red-500">*</span>
-                    </label>
-                  </div>
-
-                  {/* Hidden Canvas for Watermark Processing */}
-                  <canvas ref={canvasRef} className="hidden" />
-
-                  {/* Live Camera Viewfinder Modal / View */}
-                  {isCameraActive ? (
-                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-950 text-white space-y-4 border border-slate-800 shadow-2xl animate-fade-in">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={toggleCameraFacing}
-                            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-slate-200 transition-colors"
-                          >
-                            Ganti Kamera
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopCamera}
-                            className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-xs text-red-300 font-semibold transition-colors"
-                          >
-                            Tutup
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Video Viewfinder Container */}
-                      <div className="w-full max-w-lg mx-auto aspect-[4/3] rounded-xl overflow-hidden bg-black relative border border-slate-700 flex items-center justify-center">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-                        />
-
-                        {/* Top Right Mini Brand */}
-                        <div className="absolute top-3 right-3 text-right">
-                          <p className="text-xs font-bold text-amber-400 leading-none">Jawara</p>
-                          <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
-                        </div>
-
-                        {/* Live Watermark Preview on Bottom Left */}
-                        <div className="absolute bottom-3 left-3 text-left max-w-[85%] space-y-1">
-                          <div className="inline-flex rounded overflow-hidden text-xs font-bold shadow-md">
-                            <span className="bg-amber-500 text-slate-950 px-2 py-0.5">
-                              {tipeAbsen === 'Clock In' ? 'Absensi' : 'Pulang'}
-                            </span>
-                            <span className="bg-white text-slate-950 px-2 py-0.5">
-                              {currentTimeFormatted.timeShort || '12:00'}
-                            </span>
-                          </div>
-
-                          <div className="border-l-2 border-amber-400 pl-2 text-white text-[11px] leading-tight">
-                            <p className="font-bold">{currentTimeFormatted.dateFull}</p>
-                            <p className="text-slate-200 line-clamp-2 mt-0.5">{address || getLocationText()}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Capture Trigger Button */}
-                      <div className="max-w-lg mx-auto">
-                        <button
-                          type="button"
-                          onClick={capturePhoto}
-                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all"
-                        >
-                          Ambil Gambar Sekarang
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Initial & Captured State View */
-                    <div className="p-5 rounded-xl bg-slate-50 border border-slate-200">
-                      {foto ? (
-                        <div className="space-y-3">
-                          <div className="max-w-md mx-auto rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-black">
-                            <img
-                              src={foto}
-                              alt="Bukti Kehadiran"
-                              className="w-full h-auto object-contain max-h-[380px]"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
-                            <button
-                              type="button"
-                              onClick={() => startCamera()}
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
-                            >
-                              Ambil Ulang Foto
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFoto('')}
-                              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-                            >
-                              Hapus Foto
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 space-y-3">
-                          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-800">
-                              Ambil Foto Selfie di Lokasi
-                            </h4>
-                            <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">
-                              Sistem menyematkan stempel waktu, tanggal, dan alamat lengkap secara otomatis pada foto.
-                            </p>
-                          </div>
-
-                          <div className="pt-2">
-                            <button
-                              type="button"
-                              onClick={() => startCamera()}
-                              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all"
-                            >
-                              Buka Kamera Selfie
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {cameraError && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
-                          {cameraError}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Catatan / Keterangan Darurat */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Recap Event & Catatan Keterangan (Opsional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={catatan}
-                    onChange={(e) => setCatatan(e.target.value)}
-                    placeholder="Ketik keterangan jika ada kendala di lapangan..."
-                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-
-                {/* Submit button */}
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={submitting || !!optionsError}
-                    className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
-                  >
-                    {submitting ? 'Mengirim ke server...' : 'Kirim Absensi Lapangan'}
-                  </button>
-                </div>
               </form>
             </div>
           </div>

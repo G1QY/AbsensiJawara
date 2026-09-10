@@ -105,10 +105,10 @@ export default function AdminPages({
         setAttendance(
           await api.get(
             "/reports/attendance?" +
-              new URLSearchParams({
-                ...(from ? { from } : {}),
-                ...(to ? { to } : {}),
-              }),
+            new URLSearchParams({
+              ...(from ? { from } : {}),
+              ...(to ? { to } : {}),
+            }),
           ),
         )
       }
@@ -138,7 +138,7 @@ export default function AdminPages({
       )}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          Data dibaca dari server Jawara.
+          Data dibaca dari server JAWARA.
         </p>
         <button
           disabled={loading}
@@ -149,33 +149,33 @@ export default function AdminPages({
         </button>
       </div>
       {page === "admin-laporan" && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void load()
-                }}
-                className="flex flex-wrap items-end gap-3"
-              >
-                <label className="text-sm text-slate-700">
-                  Dari
-                  <input
-                    type="date"
-                    className={control}
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                  />
-                </label>
-                <label className="text-sm text-slate-700">
-                  Sampai
-                  <input
-                    type="date"
-                    className={control}
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                  />
-                </label>
-                <button disabled={loading} className={primary}>Terapkan</button>
-              </form>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void load()
+          }}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <label className="text-sm text-slate-700">
+            Dari
+            <input
+              type="date"
+              className={control}
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            Sampai
+            <input
+              type="date"
+              className={control}
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </label>
+          <button disabled={loading} className={primary}>Terapkan</button>
+        </form>
       )}
       {loading ? (
         <p className="p-8 text-slate-500">Memuat data...</p>
