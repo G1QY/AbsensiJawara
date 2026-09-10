@@ -57,7 +57,7 @@ export default function ProfilePage() {
     });
   }
   return <div className="account-page">
-    <div className="account-heading"><span className="ui-eyebrow">AKUN ANDA</span><h2>Profil Saya</h2><p>Kelola identitas dan foto yang ditampilkan di FotoSnaps.</p></div>
+    <div className="account-heading"><span className="ui-eyebrow">AKUN ANDA</span><h2>Profil Saya</h2><p>Kelola identitas dan foto yang ditampilkan di JAWARA.</p></div>
     {guest && <p className="ui-info">Mode Guest Crew. Nama, email kontak, dan foto hanya berlaku selama sesi ini. Data ini tidak membuat akun login baru.</p>}
     {loading && <p role="status">Memuat profil akun…</p>}
     {error && <p className="ui-error" role="alert">{error}</p>}

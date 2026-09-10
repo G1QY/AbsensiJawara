@@ -9,7 +9,7 @@ export interface GuestAttendanceRecord {
   id: string;
   nama: string;
   hp: string;
-  jenis: 'Crew Event' | 'Crew Store';
+  jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
   lokasi: string;
   posisi: string;
   tipe: 'Clock In' | 'Clock Out';
@@ -75,7 +75,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     auth?.user?.full_name && !auth.user.full_name.includes('Guest Crew') ? auth.user.full_name : ''
   );
   const [hp, setHp] = useState(auth?.user?.phone || '');
-  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store'>('Crew Event');
+  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
   const [optionsError, setOptionsError] = useState('');
@@ -321,7 +321,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     ctx.textAlign = 'right';
     ctx.font = `bold ${Math.round(width * 0.038)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#F59E0B'; // Amber / Gold accent
-    ctx.fillText('FotoSnaps', width - rightPadding, topPadding);
+    ctx.fillText('JAWARA', width - rightPadding, topPadding);
 
     ctx.font = `500 ${Math.round(width * 0.022)}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
@@ -540,7 +540,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 *Link Lokasi:* ${mapLink}
 *Catatan:* ${rec.catatan}
 
-_Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
+_Foto selfie ber-watermark resmi JAWARA telah tersimpan di sistem._`;
 
     return `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`;
   };
@@ -673,8 +673,8 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Jenis Penugasan
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['Crew Event', 'Crew Store'] as const).map((t) => (
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
                         <button
                           key={t}
                           type="button"
@@ -724,6 +724,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                     >
                       <option>Tenda</option>
                       <option>Fotobox</option>
+                      <option>Bujangan</option>
                     </select>
                   </div>
                 </div>
@@ -866,7 +867,7 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
 
                         {/* Top Right Mini Brand */}
                         <div className="absolute top-3 right-3 text-right">
-                          <p className="text-xs font-bold text-amber-400 leading-none">FotoSnaps</p>
+                          <p className="text-xs font-bold text-amber-400 leading-none">JAWARA</p>
                           <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
                         </div>
 
@@ -1012,17 +1013,17 @@ _Foto selfie ber-watermark resmi FotoSnaps telah tersimpan di sistem._`;
                 Pusat Bantuan & Layanan Kendala Akun
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin FotoSnaps melalui kontak di bawah ini.
+                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin JAWARA melalui kontak di bawah ini.
               </p>
 
               <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin FotoSnaps</p>
+                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin JAWARA</p>
                   <p className="text-xs text-blue-700">WhatsApp: +62 878-2579-1000</p>
                 </div>
                 <a
                   href={`https://wa.me/${adminPhone}?text=${encodeURIComponent(
-                    'Halo Admin FotoSnaps, saya memerlukan bantuan reset password akun crew.'
+                    'Halo Admin JAWARA, saya memerlukan bantuan reset password akun crew.'
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

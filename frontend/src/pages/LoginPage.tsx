@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import fotoSnapsLogo from '../assets/fotosnaps-logo.jpg';
 import { useAuth } from '../lib/AuthContext';
 import FloatingInput from '../components/ui/FloatingInput';
 import Modal from '../components/ui/Modal';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api';
 const ADMIN_WHATSAPP_NUMBER = (import.meta.env.VITE_ADMIN_WHATSAPP || '6287825791000').toString().replace(/\D/g, '');
-const waHelpMessage = encodeURIComponent('Halo Admin FotoSnaps, saya memerlukan bantuan untuk akses akun / kendala login di sistem FotoSnaps.');
+const waHelpMessage = encodeURIComponent('Halo Admin Jawara, saya memerlukan bantuan untuk akses akun / kendala login di sistem Jawara.');
 const waAdminUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${waHelpMessage}`;
 
 type PageStep = 'login' | 'forgot' | 'otp-verify' | 'new-password' | 'success';
@@ -231,7 +230,7 @@ export default function LoginPage() {
       {/* Header text */}
       <div className="space-y-1.5">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Selamat Datang Kembali</h1>
-        <p className="text-[14px] text-[#4c4451]">Masuk ke akun FotoSnaps Anda untuk melanjutkan</p>
+        <p className="text-[14px] text-[#4c4451]">Masuk ke akun Jawara Anda untuk melanjutkan</p>
       </div>
 
       {/* Login Form */}
@@ -603,13 +602,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col md:flex-row bg-[#f9f9f9] text-[#1a1c1c]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Form Section (Left) */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-10 relative z-10">
-        <div className="w-full max-w-sm space-y-8">
+        <div className="w-full max-w-sm space-y-6">
           {/* Brand / Logo */}
-          <div className="flex items-center gap-2.5 mb-10">
-            <div className="h-9 w-9 rounded-[4px] overflow-hidden flex-shrink-0 ring-1 ring-[#e2e8f0]">
-              <img src={fotoSnapsLogo} alt="FotoSnaps" className="h-full w-full object-cover" />
-            </div>
-            <span className="text-[22px] font-semibold tracking-tighter uppercase text-[#1a1c1c]">FotoSnaps</span>
+          <div className="flex items-center mb-4">
+            <span className="text-[32px] font-semibold tracking-tighter uppercase text-[#1a1c1c]">JAWARA</span>
           </div>
 
           {/* Step content with animation */}
@@ -624,7 +620,7 @@ export default function LoginPage() {
             {renderStepContent()}
           </div>
 
-          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 FotoSnaps. All rights reserved.</p>
+          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 Jawara. All rights reserved.</p>
         </div>
       </div>
 
