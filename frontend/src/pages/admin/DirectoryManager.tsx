@@ -98,7 +98,7 @@ export default function DirectoryManager({
       )}
       <p className="text-sm text-slate-600">
         {kind === "branches"
-          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat FotoSnaps berkembang."
+          ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat JAWARA berkembang."
           : kind === "stores"
             ? "Pilih lokasi Store melalui Google Maps. Satu cabang dapat memiliki banyak Store."
             : "Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew."}

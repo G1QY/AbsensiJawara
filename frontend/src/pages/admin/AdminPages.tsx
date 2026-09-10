@@ -135,7 +135,7 @@ export default function AdminPages({
       )}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          Data dibaca dari server FotoSnaps.
+          Data dibaca dari server JAWARA.
         </p>
         <button
           disabled={loading}
