@@ -10,7 +10,6 @@ export interface GuestAttendanceRecord {
   nama: string;
   hp: string;
   jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
-  jenis: 'Crew Event' | 'Crew Store' | 'Kantor';
   lokasi: string;
   posisi: string;
   tipe: 'Clock In' | 'Clock Out';
@@ -76,7 +75,6 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     auth?.user?.full_name && !auth.user.full_name.includes('Guest Crew') ? auth.user.full_name : ''
   );
   const [hp, setHp] = useState(auth?.user?.phone || '');
-  const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
@@ -533,7 +531,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         ? `https://maps.google.com/?q=${rec.latitude},${rec.longitude}`
         : 'Tidak terdeteksi';
 
-    const text = `*KONFIRMASI ABSENSI LAPANGAN (GUEST CREW)*
+    const text = `*KONFIRMASI ABSENSI (GUEST CREW)*
 ------------------------------------
 *ID Absensi:* ${rec.id}
 *Kode Verifikasi:* ${rec.photoCode}
@@ -698,7 +696,8 @@ _Foto selfie telah tersimpan di sistem._`;
                             </button>
                           ))}
                         </div>
-                  </div>
+                      ))}
+                    </div>
 
                     <div className="space-y-1.5">
                       <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
