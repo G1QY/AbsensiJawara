@@ -26,8 +26,8 @@ function installSecurity(app,{production=process.env.NODE_ENV==='production',ori
  app.use((req,res,next)=>{req.requestId=crypto.randomUUID();res.setHeader('X-Request-ID',req.requestId);res.setHeader('Cache-Control','no-store');if(/(?:^|\/)\.(?!well-known(?:\/|$))|\.(?:sql|bak|log|map)$/i.test(req.path))return res.status(404).json({message:'Endpoint tidak ditemukan.'});if(production&&req.path!=='/health'&&!req.secure)return res.status(400).json({message:'HTTPS wajib digunakan.'});next();});
  app.use(helmet());
  app.use((req,res,next)=>{if(req.headers.origin&&!origins.includes(req.headers.origin))return res.status(403).json({message:'Origin tidak diizinkan.'});next();});
- app.use(cors({origin:origins,credentials:false,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS'],allowedHeaders:['Authorization','Content-Type','X-FotoSnaps-Request'],exposedHeaders:['Retry-After','X-Request-ID']}));
- app.use('/api',(req,res,next)=>{if(!['GET','HEAD','OPTIONS'].includes(req.method)&&req.get('X-FotoSnaps-Request')!=='1')return res.status(403).json({message:'Header keamanan request wajib tersedia.'});next();});
+ app.use(cors({origin:origins,credentials:false,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS'],allowedHeaders:['Authorization','Content-Type','X-FotoSnaps-Request','X-Jawara-Request'],exposedHeaders:['Retry-After','X-Request-ID']}));
+ app.use('/api',(req,res,next)=>{const hasRequestHeader=req.get('X-FotoSnaps-Request')==='1'||req.get('X-Jawara-Request')==='1';if(!['GET','HEAD','OPTIONS'].includes(req.method)&&!hasRequestHeader)return res.status(403).json({message:'Header keamanan request wajib tersedia.'});next();});
  app.use('/api',limiter('edge',limit,60000));
  app.use(express.json({limit:'256kb',strict:true}));
  app.use((req,res,next)=>{try{inputGuard(req.body);inputGuard(req.query);next();}catch(e){next(e);}});

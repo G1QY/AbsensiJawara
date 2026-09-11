@@ -81,7 +81,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
-        headers: { 'X-Jawara-Request': '1', 'Content-Type': 'application/json' },
+        headers: { 'X-FotoSnaps-Request': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail.trim() }),
       });
       const body = await res.json();
@@ -153,7 +153,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: 'POST',
-        headers: { 'X-Jawara-Request': '1', 'Content-Type': 'application/json' },
+        headers: { 'X-FotoSnaps-Request': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail.trim(), otp }),
       });
       const body = await res.json();
@@ -180,7 +180,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
-        headers: { 'X-Jawara-Request': '1', 'Content-Type': 'application/json' },
+        headers: { 'X-FotoSnaps-Request': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail.trim(), resetToken, newPassword }),
       });
       const body = await res.json();

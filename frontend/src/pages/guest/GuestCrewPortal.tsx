@@ -514,7 +514,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       const form = new FormData();
       for (const [key, value] of Object.entries({ fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE', locationId: selectedLocation, locationName: newRecord.lokasi, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: lat, longitude: lng, accuracy: accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
       form.append('photo', await (await fetch(foto)).blob(), 'guest-selfie.jpg');
-      const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-Jawara-Request': '1' }, body: form });
+      const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.id) throw new Error(data?.message || 'Absensi belum tersimpan di server. Coba lagi.');
       setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) });
