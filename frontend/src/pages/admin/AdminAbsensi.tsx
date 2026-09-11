@@ -61,6 +61,21 @@ export default function AdminAbsensi() {
       setReview(null);setNotice(`${target==='overtime'?'Lembur':'Pengajuan absensi'} ${decision==='APPROVED'?'disetujui':'ditolak'}. Keputusan tersimpan dan notifikasi dikirim ke akun crew.`);await load();
     }catch(e){setModalError(message(e));}finally{setBusy(false);}
   }
+  async function remove(a:AttendanceRow) {
+    if(!window.confirm(`Hapus catatan absensi ${a.name} (${a.source==='local'?'Guest lokal':'server'})? Tindakan ini tidak dapat dibatalkan.`))return;
+    setBusy(true);setModalError('');setNotice('');
+    try {
+      if(a.source==='local') {
+        const list=getGuestAttendances().filter(g=>g.id!==a.legacy?.id);
+        localStorage.setItem('Jawara_guest_attendances', JSON.stringify(list));
+        setNotice('Data guest lokal berhasil dihapus.');
+      } else {
+        await api.delete(`/admin-attendance/${a.source}/${a.id}`);
+        setNotice(`Absensi ${a.name} berhasil dihapus.`);
+      }
+      await load();
+    }catch(e){setError(message(e));}finally{setBusy(false);}
+  }
   const filtered=filterAttendance(rows,filters);
   const filter=(key:keyof Filters,value:string)=>setFilters(f=>({...f,[key]:value}));
   const needsReview=(a:AttendanceRow)=>a.review==='PENDING'||(a.overtimeStatus==='PENDING'&&['APPROVED','NOT_REQUIRED'].includes(a.review));
@@ -105,7 +120,7 @@ export default function AdminAbsensi() {
       <td className="p-3 min-w-36 text-slate-700">{stamp(a.clockOut)}</td><td className="p-3 min-w-28 text-slate-700">{a.overtimeMinutes===null?'Belum dihitung':`${a.overtimeMinutes} menit`}</td>
       <td className="p-3"><ApprovalBadge value={a.source==='local'?'PENDING':a.review}/></td>
       <td className="p-3"><ApprovalBadge value={a.overtimeStatus}/></td>
-      <td className="p-3 sticky right-0 bg-white"><div className="flex flex-col items-start gap-2">{needsReview(a)?<button disabled={busy||!!error} className={primary+' whitespace-nowrap'} onClick={()=>void open(a,true)}>{a.source==='local'?'Simpan & Tinjau':a.review==='PENDING'?'Tinjau Absensi':'Tinjau Lembur'}</button>:<span className="text-xs font-semibold text-emerald-700">Keputusan selesai</span>}<button disabled={busy} className="text-blue-700 text-xs font-semibold whitespace-nowrap" onClick={()=>void open(a)}>Lihat Detail</button></div></td>
+      <td className="p-3 sticky right-0 bg-white"><div className="flex flex-col items-start gap-2">{needsReview(a)?<button disabled={busy||!!error} className={primary+' whitespace-nowrap'} onClick={()=>void open(a,true)}>{a.source==='local'?'Simpan & Tinjau':a.review==='PENDING'?'Tinjau Absensi':'Tinjau Lembur'}</button>:<span className="text-xs font-semibold text-emerald-700">Keputusan selesai</span>}<button disabled={busy} className="text-blue-700 text-xs font-semibold whitespace-nowrap" onClick={()=>void open(a)}>Lihat Detail</button><button disabled={busy} className="text-red-600 text-xs font-semibold whitespace-nowrap" onClick={()=>void remove(a)}>Hapus</button></div></td>
     </tr>)}</tbody></table></div>{!filtered.length&&<p className="text-sm text-slate-500 p-8 text-center">{loading?'Memuat absensi...':'Tidak ada absensi yang sesuai filter.'}</p>}</div>
     <Modal open={!!detail} onClose={()=>setDetail(null)} title="Detail Absensi" size="lg">{detail&&<div className="space-y-4">{identity(detail)}<p className="text-sm text-slate-600">Jadwal: {scheduleLabel(detail.schedule)} • {detail.date||'Tanggal belum terbaca'}</p>{calculation(detail)}{photos(detail)}<p className="text-sm text-slate-700 whitespace-pre-wrap">Catatan admin: {detail.reviewNote||'Belum ada catatan.'}</p><p className="text-xs text-slate-500">{detail.timeSource==='LEGACY_DEVICE'?'Waktu berasal dari perangkat pada data lama. Bukan waktu server.':'Waktu penerimaan absensi berasal dari server.'} Foto masuk dan pulang tidak dipasangkan otomatis berdasarkan nama/HP guest.</p></div>}</Modal>
     <Modal open={!!review} onClose={()=>{if(!busy)setReview(null);}} title="Tinjau Pengajuan Absensi" size="lg">{review&&<div className="space-y-4">{identity(review)}{photos(review)}

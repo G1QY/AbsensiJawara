@@ -54,4 +54,32 @@ router.patch('/:kind/:id/review',async(req,res,next)=>{
     res.json({message:'Keputusan tersimpan di server.'});
   }catch(error){next(error);}
 });
+router.delete('/:kind/:id',async(req,res,next)=>{
+  try {
+    uuid(req.params.id);const kind=req.params.kind;
+    if(!['registered','guest'].includes(kind))throw fail('Sumber absensi tidak valid.');
+
+    if(kind==='guest') {
+      const { data: guest, error: guestError } = await db.from('guest_attendances').select('photo_key').eq('id', req.params.id).maybeSingle();
+      check(guestError);
+      if(!guest)throw fail('Absensi guest tidak ditemukan.',404);
+
+      const { error } = await db.from('guest_attendances').delete().eq('id', req.params.id);
+      check(error);
+
+      if(guest.photo_key) {
+        try {
+          const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+          const { s3, BUCKET_NAME } = require('../../config/s3Client');
+          await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: guest.photo_key })).catch(()=>{});
+        } catch {}
+      }
+    } else {
+      const { error } = await db.from('attendance_logs').delete().eq('id', req.params.id);
+      check(error);
+    }
+
+    res.json({message:'Absensi berhasil dihapus.'});
+  }catch(error){next(error);}
+});
 module.exports=router;
