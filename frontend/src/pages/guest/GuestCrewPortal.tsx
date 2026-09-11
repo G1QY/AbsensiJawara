@@ -52,7 +52,11 @@ export function markGuestSynced(record: GuestAttendanceRecord, serverId: string)
   } catch { /* Server remains authoritative; the original local record is not deleted. */ }
 }
 
-interface GuestOptions { stores: { id: string; name: string }[]; events: { id: string; event_name: string; event_date: string }[] }
+interface GuestOptions {
+  stores: { id: string; name: string }[];
+  offices?: { id: string; name: string }[];
+  events: { id: string; event_name: string; event_date: string }[];
+}
 const GUEST_API = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/guest-attendance';
 
 // Generate random verification hash code
@@ -77,7 +81,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [hp, setHp] = useState(auth?.user?.phone || '');
   const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [locations, setLocations] = useState<GuestOptions>({ stores: [], events: [] });
+  const [locations, setLocations] = useState<GuestOptions>({ stores: [], offices: [], events: [] });
   const [optionsError, setOptionsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submissionKey = useRef(crypto.randomUUID());
@@ -117,25 +121,30 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   const adminPhone = (import.meta.env.VITE_ADMIN_WHATSAPP || '6281214989974').toString().replace(/\D/g, '');
 
+  const kantorLocations = locations.offices && locations.offices.length
+    ? locations.offices
+    : locations.stores.filter((store) => /kantor/i.test(store.name));
+
   const getLocationText = useCallback(() => {
     if (jenis === 'Kantor') {
-      return locations.stores.find(s => s.id === selectedLocation)?.name || 'Kantor';
+      return kantorLocations.find((office) => office.id === selectedLocation)?.name || kantorLocations[0]?.name || 'Kantor';
     }
-    return jenis === 'Crew Store' ? locations.stores.find(s => s.id === selectedLocation)?.name || '' : locations.events.find(e => e.id === selectedLocation)?.event_name || '';
-  }, [selectedLocation, jenis, locations]);
+    return jenis === 'Crew Store'
+      ? locations.stores.find((store) => store.id === selectedLocation)?.name || ''
+      : locations.events.find((event) => event.id === selectedLocation)?.event_name || '';
+  }, [selectedLocation, jenis, kantorLocations, locations]);
   useEffect(() => {
     let active = true;
-    fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations(data); } }).catch(error => { if (active) setOptionsError(error.message); });
+    fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations({ stores: data.stores || [], offices: data.offices || [], events: data.events || [] }); } }).catch(error => { if (active) setOptionsError(error.message); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
     if (jenis === 'Kantor') {
-      const kantor = locations.stores.find(s => s.name.toLowerCase() === 'kantor');
-      setSelectedLocation(kantor?.id || '');
+      setSelectedLocation(kantorLocations[0]?.id || '');
     } else {
       setSelectedLocation('');
     }
-  }, [jenis, locations.stores]);
+  }, [jenis, kantorLocations]);
 
   // Realtime clock
   useEffect(() => {
@@ -512,7 +521,24 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto, lat, lng]);
       if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
       const form = new FormData();
-      for (const [key, value] of Object.entries({ fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE', locationId: selectedLocation, locationName: newRecord.lokasi, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: lat, longitude: lng, accuracy: accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
+      const assignmentKind = jenis === 'Crew Event' ? 'EVENT' : jenis === 'Kantor' ? 'OFFICE' : 'STORE';
+      for (const [key, value] of Object.entries({
+        fullName: newRecord.nama,
+        phone: newRecord.hp,
+        crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE',
+        assignmentKind,
+        locationId: selectedLocation,
+        locationName: newRecord.lokasi,
+        position: posisi,
+        clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT',
+        latitude: lat,
+        longitude: lng,
+        accuracy: accuracy ?? '',
+        address: newRecord.address,
+        note: newRecord.catatan,
+        locationSource: locSource,
+        submissionKey: submissionKey.current,
+      })) form.append(key, String(value));
       form.append('photo', await (await fetch(foto)).blob(), 'guest-selfie.jpg');
       const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
       const data = await res.json().catch(() => null);
@@ -752,13 +778,11 @@ _Foto selfie telah tersimpan di sistem._`;
                         {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
                       </option>
                       {(jenis === 'Crew Store'
-                        ? locations.stores.map(s => ({ id: s.id, name: s.name }))
+                        ? locations.stores
                         : jenis === 'Kantor'
-                          ? (locations.stores.some(s => s.name.toLowerCase().includes('kantor'))
-                            ? locations.stores.filter(s => s.name.toLowerCase().includes('kantor')).map(s => ({ id: s.id, name: s.name }))
-                            : locations.stores.map(s => ({ id: s.id, name: s.name })))
-                          : locations.events.map(e => ({ id: e.id, name: e.event_name }))
-                      ).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                          ? kantorLocations
+                          : locations.events.map((event) => ({ id: event.id, name: event.event_name })))
+                        .map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
                     </select>
                   </div>
 
