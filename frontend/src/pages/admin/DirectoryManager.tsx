@@ -25,6 +25,7 @@ export default function DirectoryManager({
   eventsOnly?: boolean
 }) {
   const [kind, setKind] = useState<Kind>(eventsOnly ? "events" : "stores")
+  const [officeTab, setOfficeTab] = useState(false)
   const [id, setId] = useState("")
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
@@ -51,6 +52,7 @@ export default function DirectoryManager({
           : kind === "stores"
             ? {
               ...form,
+              location_kind: officeTab ? "OFFICE" : "STORE",
               latitude: Number(form.latitude),
               longitude: Number(form.longitude),
               radius_meters: Number(form.radius_meters),
@@ -90,7 +92,7 @@ export default function DirectoryManager({
     } catch (e) { setError(message(e)); }
     finally { setBusy(false); }
   }
-  const rows = data[kind]
+  const rows = kind === "stores" ? data.stores.filter(row => (row.location_kind === "OFFICE") === officeTab) : data[kind]
   return (
     <div className="space-y-4">
       {!eventsOnly && (
@@ -99,19 +101,21 @@ export default function DirectoryManager({
             <button
               key={k}
               disabled={busy}
-              className={kind === k ? primary : button}
-              onClick={() => reset(k)}
+              className={kind === k && !officeTab ? primary : button}
+              onClick={() => { setOfficeTab(false); reset(k); }}
             >
               {k === "branches" ? "Cabang" : "Store"}
             </button>
           ))}
+          <button type="button" disabled={busy} className={officeTab ? primary : button}
+            onClick={() => { setOfficeTab(true); reset("stores"); }}>Kantor</button>
         </div>
       )}
       <p className="text-sm text-slate-600">
         {kind === "branches"
           ? "Cabang tidak dibatasi jumlahnya. Tambahkan kota/cabang baru saat JAWARA berkembang."
           : kind === "stores"
-            ? "Pilih lokasi Store melalui Google Maps. Satu cabang dapat memiliki banyak Store."
+            ? (officeTab ? "Kelola alamat kantor per cabang. Lokasi aktif akan tersedia pada absensi guest jenis Kantor." : "Pilih lokasi store melalui pencarian alamat atau peta.")
             : "Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew."}
       </p>
       <div className="max-h-48 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
@@ -171,7 +175,7 @@ export default function DirectoryManager({
           {kind === "branches"
             ? "Cabang"
             : kind === "stores"
-              ? "Store"
+              ? (officeTab ? "Kantor" : "Store")
               : "Event"}
         </h3>
         {error && (
@@ -206,7 +210,7 @@ export default function DirectoryManager({
             {kind === "branches"
               ? "Cabang"
               : kind === "stores"
-                ? "Store"
+                ? (officeTab ? "Kantor" : "Store")
                 : "Event"}
             <input
               required
@@ -239,7 +243,7 @@ export default function DirectoryManager({
             <>
               <div className="sm:col-span-2">
                 <GoogleLocationPicker
-                  title="Lokasi Store"
+                  title={officeTab ? "Lokasi Kantor" : "Lokasi Store"}
                   address={form.address}
                   latitude={form.latitude}
                   longitude={form.longitude}
@@ -311,7 +315,7 @@ export default function DirectoryManager({
               (kind === "branches"
                 ? "Cabang"
                 : kind === "stores"
-                  ? "Store"
+                  ? (officeTab ? "Kantor" : "Store")
                   : "Event")}
           </button>
           {id && (

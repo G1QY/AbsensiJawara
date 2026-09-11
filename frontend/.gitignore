@@ -11,3 +11,8 @@ logs/
 *.log
 .claude-replay.*
 .tmp-*
+
+# Generated browser binaries and QA artifacts
+/qa-browser-*/
+/qa-final/
+/undefined/

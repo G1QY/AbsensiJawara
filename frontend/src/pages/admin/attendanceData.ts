@@ -10,6 +10,7 @@ export interface RegisteredAttendance {
   store_schedule:Schedule|null; event_schedule:Schedule|null;
 }
 export interface ServerGuest {
+ assignment_kind?: "STORE" | "EVENT" | "OFFICE";
   id:string;legacy_id:string|null;full_name:string;phone:string;crew_type:string;location_name:string;position:string;
   clock_type:'IN'|'OUT';occurred_at:string;received_at:string;time_source:string;note:string;review_status:string;review_note:string;
   inPhoto?:string;outPhoto?:string;
@@ -44,7 +45,7 @@ export function fromRegistered(a:RegisteredAttendance):AttendanceRow {
     lateMinutes:schedule&&a.check_in?a.late_minutes:null,overtimeMinutes:schedule&&a.check_out?a.overtime_minutes:null,overtimeStatus:a.overtime_status||'NONE',review:a.review_status||'NOT_REQUIRED',reviewNote:a.review_note||'',inNote:a.check_in_note||'',outNote:a.check_out_note||'',inPhoto:a.check_in?a.inPhoto||'':'',outPhoto:a.check_out?a.outPhoto||'':'',timeSource:'SERVER'};
 }
 export function fromGuest(g:ServerGuest):AttendanceRow {
-  const isKantor = (g.location_name || '').toLowerCase().includes('kantor') || (g.position || '').toLowerCase().includes('kantor');
+  const isKantor = g.assignment_kind === 'OFFICE' || (!g.assignment_kind && ((g.location_name || '').toLowerCase().includes('kantor') || (g.position || '').toLowerCase().includes('kantor')));
   return {id:g.id,source:'guest',name:g.full_name,phone:g.phone,email:'',employeeCode:g.legacy_id||'',kind:isKantor ? 'Kantor' : g.crew_type==='CREW_STORE'?'Crew Store':'Crew Event',location:g.location_name,date:wibDate(g.occurred_at),schedule:null,clockIn:g.clock_type==='IN'?g.occurred_at:null,clockOut:g.clock_type==='OUT'?g.occurred_at:null,status:'Belum dapat dinilai',lateMinutes:null,overtimeMinutes:null,overtimeStatus:'NONE',review:g.review_status,reviewNote:g.review_note||'',inNote:g.clock_type==='IN'?g.note:'',outNote:g.clock_type==='OUT'?g.note:'',inPhoto:g.clock_type==='IN'?g.inPhoto||'':'',outPhoto:g.clock_type==='OUT'?g.outPhoto||'':'',timeSource:g.time_source};
 }
 export function fromLocal(g:GuestAttendanceRecord):AttendanceRow {

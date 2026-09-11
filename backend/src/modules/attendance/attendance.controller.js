@@ -496,14 +496,18 @@ async function calendar(req, res, next) {
     const holidayByDate = new Map((holidays || []).map(row => [row.holiday_date, row]));
     for (let value = new Date(`${monthStart}T00:00:00Z`); value < new Date(`${monthEnd}T00:00:00Z`); value.setUTCDate(value.getUTCDate() + 1)) {
       const dateValue = value.toISOString().slice(0, 10);
-      if (dayByDate.has(dateValue)) continue;
       const holiday = holidayByDate.get(dateValue);
       if (!holiday) continue;
+      if (dayByDate.has(dateValue)) {
+        Object.assign(dayByDate.get(dateValue), { holidayName: holiday.name, holidayKind: holiday.kind });
+        continue;
+      }
       dayByDate.set(dateValue, {
         date: dateValue,
         type: 'HOLIDAY',
         source: holiday.name,
         holidayKind: holiday.kind,
+        holidayName: holiday.name,
         startTime: null,
         endTime: null,
         status: 'HOLIDAY',
@@ -517,7 +521,7 @@ async function calendar(req, res, next) {
     }
     const days = [...dayByDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 
-    res.json({ month, crewId, days, warnings:calendarResults.filter(row=>row.warning).map(row=>row.warning) });
+    res.json({ month, crewId, days, holidays: holidays || [], holidayDataAvailable: calendarResults.every(row => Number(row.row_count) > 0), warnings:calendarResults.filter(row=>row.warning).map(row=>row.warning) });
   } catch (err) {
     next(err);
   }

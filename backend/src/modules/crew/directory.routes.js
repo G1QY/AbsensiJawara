@@ -63,6 +63,13 @@ async function save(req, res, next) {
       if (branchError) throw fail("Cabang belum dapat diperiksa.", 503)
       if (!branch) throw fail("Cabang tidak ditemukan.")
       if (table === "stores") {
+        const location_kind = body.location_kind || "STORE";
+        if (!["STORE", "OFFICE"].includes(location_kind)) throw fail("Jenis lokasi tidak valid.");
+        if (req.params.id) {
+          const { data: existing, error } = await db.from("stores").select("location_kind").eq("id", req.params.id).maybeSingle();
+          if (error) throw fail("Jenis lokasi belum dapat diperiksa.", 503);
+          if (existing && existing.location_kind !== location_kind) throw fail("Jenis lokasi tidak dapat diubah. Buat lokasi baru untuk menjaga riwayat.");
+        }
         const { latitude, longitude, radius_meters } = body
         if (
           typeof latitude !== "number" ||
@@ -82,6 +89,7 @@ async function save(req, res, next) {
         if (!["ACTIVE", "INACTIVE"].includes(body.status))
           throw fail("Status store tidak valid.")
         fields = {
+          location_kind,
           branch_id,
           code: text(body, "code", 30),
           name: text(body, "name", 150),

@@ -2,3 +2,8 @@ node_modules
 .env
 dist
 *.log
+
+# Generated QA artifacts
+qa-browser-*
+qa-final
+undefined

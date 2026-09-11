@@ -6,6 +6,7 @@ const http = require("node:http"),
   fs = require("node:fs"),
   path = require("node:path"),
   assert = require("node:assert/strict")
+const output = require("./qa-output.cjs")
 const root = path.resolve("dist")
 const server = http.createServer((req, res) => {
   const p = new URL(req.url, "http://localhost").pathname
@@ -254,7 +255,7 @@ const server = http.createServer((req, res) => {
     )
     await page.screenshot({
       animations: "disabled",
-      path: process.env.QA_OUTPUT + "/admin-add-crew-code.png",
+      path: output + "/admin-add-crew-code.png",
     })
     await dialog
       .getByRole("button", { name: "Simpan Crew", exact: true })
@@ -298,7 +299,7 @@ const server = http.createServer((req, res) => {
     dialog = page.getByRole("dialog")
     await page.screenshot({
       animations: "disabled",
-      path: process.env.QA_OUTPUT + "/admin-detail-light.png",
+      path: output + "/admin-detail-light.png",
     })
     await dialog.getByRole("button", { name: "Edit", exact: true }).click()
     dialog = page.getByRole("dialog")
@@ -367,7 +368,7 @@ const server = http.createServer((req, res) => {
       .waitFor()
     await page.screenshot({
       animations: "disabled",
-      path: process.env.QA_OUTPUT + "/admin-detail-dark.png",
+      path: output + "/admin-detail-dark.png",
     })
     await dialog
       .getByRole("button", { name: "Tutup dialog", exact: true })
@@ -419,7 +420,7 @@ const server = http.createServer((req, res) => {
     await page.getByRole("button", { name: "Detail", exact: true }).waitFor()
     await page.screenshot({
       animations: "disabled",
-      path: process.env.QA_OUTPUT + "/admin-crew-dark.png",
+      path: output + "/admin-crew-dark.png",
     })
     await page.setViewportSize({ width: 390, height: 844 })
     await page
@@ -429,7 +430,7 @@ const server = http.createServer((req, res) => {
     await dialog.getByLabel("Nama Lengkap", { exact: true }).fill("Mobile Uji")
     await page.screenshot({
       animations: "disabled",
-      path: process.env.QA_OUTPUT + "/admin-form-mobile.png",
+      path: output + "/admin-form-mobile.png",
     })
     assert.equal(
       await page.evaluate(

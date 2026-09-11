@@ -4,6 +4,7 @@ export interface Branch {
   name: string
 }
 export interface Store {
+  location_kind?: "STORE" | "OFFICE"
   id: string
   code: string
   name: string

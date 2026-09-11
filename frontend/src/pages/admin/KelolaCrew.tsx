@@ -858,7 +858,7 @@ export default function KelolaCrew() {
       <Modal
         open={showDirectory}
         onClose={() => setShowDirectory(false)}
-        title="Kelola Cabang & Store"
+        title="Kelola Cabang, Store & Kantor"
         size="lg"
       >
         <DirectoryManager data={directory} onSaved={loadDirectory} />

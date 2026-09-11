@@ -1,7 +1,7 @@
 // Run from frontend after npm run build; API responses are explicit test fixtures.
 const { chromium } = require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES + '/playwright');
 const http = require('node:http'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const root = path.resolve('dist'), output = process.env.QA_OUTPUT || '/tmp';
+const root = path.resolve('dist'), output = require("./qa-output.cjs");
 const server = http.createServer((req,res) => {
   const file = path.join(root,new URL(req.url,'http://localhost').pathname.replace(/^\/$/,'/index.html'));
   fs.readFile(file,(e,data) => {if(e){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':file.endsWith('.jpg')?'image/jpeg':'text/html');res.end(data);});

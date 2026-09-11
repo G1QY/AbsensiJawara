@@ -20,11 +20,11 @@ router.use((req,res,next)=>{
 router.get('/options',async(req,res,next)=>{
   try {
     const [{data:stores,error:a},{data:events,error:b}]=await Promise.all([
-      db.from('stores').select('id,name').eq('status','ACTIVE').order('name'),
+      db.from('stores').select('id,name,location_kind').eq('status','ACTIVE').order('name'),
       db.from('events').select('id,event_name,event_date').in('status',['SCHEDULED','ONGOING']).order('event_date')
     ]);
     if(a||b)throw fail('Pilihan lokasi belum dapat dimuat.',503);
-    res.json({stores,events});
+    res.json({stores: stores.filter(s=>s.location_kind!=='OFFICE'), offices: stores.filter(s=>s.location_kind==='OFFICE'), events});
   }catch(error){next(error);}
 });
 function string(body,key,max,required=false) {
@@ -44,13 +44,16 @@ async function save(req,res,next,legacy=false) {
     if((latitude!==null&&(!Number.isFinite(latitude)||Math.abs(latitude)>90))||(longitude!==null&&(!Number.isFinite(longitude)||Math.abs(longitude)>180)))throw fail('Koordinat tidak valid.');
     const accuracy=b.accuracy===''||b.accuracy==null?null:Number(b.accuracy);
     if(accuracy!==null&&(!Number.isFinite(accuracy)||accuracy<0))throw fail('Akurasi GPS tidak valid.');
-    let location_name='Tanpa pilihan event / toko',store_id=null,event_id=null;
+    const assignment_kind = b.assignmentKind || (b.crewType==='CREW_STORE'?'STORE':'EVENT');
+    if (!['STORE','EVENT','OFFICE'].includes(assignment_kind) || (assignment_kind==='EVENT') !== (b.crewType==='CREW_EVENT')) throw fail('Jenis penugasan tidak valid.');
+    let location_name=assignment_kind==='OFFICE'?'Kantor (tanpa pilihan lokasi)':'Tanpa pilihan event / toko',store_id=null,event_id=null;
     if(legacy)location_name=string(b,'locationName',250,true);
     else if(b.locationId !== undefined && b.locationId !== null && b.locationId !== '') {
       const id=uuid(b.locationId),store=b.crewType==='CREW_STORE';
-      const {data,error}=await db.from(store?'stores':'events').select(store?'id,name,status':'id,event_name,status').eq('id',id).maybeSingle();
+      const {data,error}=await db.from(store?'stores':'events').select(store?'id,name,status,location_kind':'id,event_name,status').eq('id',id).maybeSingle();
       if(error)throw fail('Lokasi belum dapat diverifikasi.',503);
       if(!data||!(store?['ACTIVE']:['SCHEDULED','ONGOING']).includes(data.status))throw fail('Pilih lokasi aktif yang tersedia di sistem.');
+      if(store && (data.location_kind==='OFFICE') !== (assignment_kind==='OFFICE')) throw fail('Jenis lokasi tidak sesuai penugasan.');
       location_name=store?data.name:data.event_name;if(store)store_id=id;else event_id=id;
     }
     const occurred_at=legacy?string(b,'occurredAt',40,true):new Date().toISOString();
@@ -66,7 +69,7 @@ async function save(req,res,next,legacy=false) {
     try{photo=await sharp(req.file.buffer,{limitInputPixels:20000000}).rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).jpeg({quality:85}).toBuffer();}
     catch{throw fail('File foto tidak dapat dibaca.');}
     const id=crypto.randomUUID();key=`guest-attendance/${id}.jpg`;await uploadPrivateObject(key,photo,'image/jpeg');
-    const {data,error}=await db.from('guest_attendances').insert({id,import_key,submission_key,legacy_id,full_name,phone,crew_type:b.crewType,store_id,event_id,location_name,position,clock_type:b.clockType,occurred_at,time_source:legacy?'LEGACY_DEVICE':'SERVER',photo_key:key,latitude,longitude,accuracy,address,note}).select('id,occurred_at').single();
+    const {data,error}=await db.from('guest_attendances').insert({id,import_key,submission_key,legacy_id,full_name,phone,crew_type:b.crewType,assignment_kind,store_id,event_id,location_name,position,clock_type:b.clockType,occurred_at,time_source:legacy?'LEGACY_DEVICE':'SERVER',photo_key:key,latitude,longitude,accuracy,address,note}).select('id,occurred_at').single();
     if(error) {
       await s3.send(new DeleteObjectCommand({Bucket:BUCKET_NAME,Key:key})).catch(()=>{});key=null;
       if(error.code==='23505'){const existing=await findExisting();if(existing.data)return res.json(existing.data);}

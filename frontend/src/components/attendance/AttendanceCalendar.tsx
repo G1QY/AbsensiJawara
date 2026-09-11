@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
 
 interface CalendarDay {
+  holidayName?: string;
+  holidayKind?: string;
   date: string;
   type: 'STORE' | 'EVENT' | 'HOLIDAY' | 'NONE';
   source: string | null;
@@ -43,6 +45,8 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [warning,setWarning]=useState('');
+  const [holidays, setHolidays] = useState<{holiday_date:string;name:string;kind:string}[]>([]);
+  const [holidayDataAvailable, setHolidayDataAvailable] = useState(false);
   const [selected, setSelected] = useState<CalendarDay | null>(null);
 
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
@@ -50,10 +54,10 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError('');setWarning('');setDays([]);setSelected(null);
+    setError('');setWarning('');setDays([]);setSelected(null);setHolidays([]);setHolidayDataAvailable(false);
     const query = crewId ? `?month=${monthStr}&crewId=${crewId}` : `?month=${monthStr}`;
-    api.get<{ days: CalendarDay[];warnings?:string[] }>(`/attendance/calendar${query}`)
-      .then(res => { if (!cancelled) { setDays(res.days);setWarning((res.warnings||[]).join(" ")); setSelected(res.days.find(day => day.date === todayWib) || null); } })
+    api.get<{ days: CalendarDay[];warnings?:string[];holidays?:{holiday_date:string;name:string;kind:string}[];holidayDataAvailable?:boolean }>(`/attendance/calendar${query}`)
+      .then(res => { if (!cancelled) { setDays(res.days);setHolidays(res.holidays || []);setHolidayDataAvailable(res.holidayDataAvailable === true);setWarning((res.warnings||[]).join(" ")); setSelected(res.days.find(day => day.date === todayWib) || null); } })
       .catch(err => { if (!cancelled) setError(err instanceof ApiError ? err.message : 'Gagal memuat kalender.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -95,7 +99,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
         </button>
       </div>
 
-      {warning && <p role="status" className="text-xs text-amber-700 mb-3">Informasi hari libur belum tersedia. Jadwal kerja tetap mengikuti penugasan admin.</p>}
+      {warning && <p role="status" className="text-xs text-amber-700 mb-3">{warning}</p>}
       {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -119,12 +123,13 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
             const plain = day.status === 'PENDING' || day.status === 'NO_SCHEDULE';
             return (
               <button key={date} type="button" onClick={() => setSelected(day)}
-                aria-label={`${dateNum}, ${STATUS_LABEL[day.status] || day.status}${isToday ? ', hari ini' : ''}`}
+                aria-label={`${dateNum}, ${STATUS_LABEL[day.status] || day.status}${day.holidayName ? ', ' + day.holidayName : ''}${isToday ? ', hari ini' : ''}`}
                 aria-current={isToday ? 'date' : undefined} aria-pressed={isSelected}
                 className={`relative h-11 sm:h-12 flex flex-col items-center justify-center rounded-lg text-sm font-semibold transition-colors
                   ${plain ? 'text-slate-700 hover:bg-slate-50' : (STATUS_STYLE[day.status] || STATUS_STYLE.PENDING) + ' ring-1'}
                   ${isSelected ? 'outline outline-2 outline-blue-600 outline-offset-1' : isToday ? 'outline outline-2 outline-blue-400' : ''}`}>
                 {dateNum}
+                {day.holidayName && day.type !== 'HOLIDAY' && <span aria-hidden="true" className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />}
                 {day.status === 'PENDING' && <span aria-hidden="true" className="absolute bottom-1 h-1 w-1 rounded-full bg-blue-500" />}
               </button>
             );
@@ -132,6 +137,15 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
         </div>
       )}
 
+      {!loading && !error && holidayDataAvailable && (
+        <section className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
+          <h4 className="font-semibold">Libur nasional &amp; cuti bersama</h4>
+          {holidays.length ? <ul className="mt-2 space-y-2">{holidays.map(holiday => (
+            <li key={holiday.holiday_date}>{Number(holiday.holiday_date.slice(8))} {firstOfMonth.toLocaleDateString('id-ID', { month:'long' })}: {holiday.name}</li>
+          ))}</ul> : <p className="mt-1">Tidak ada libur nasional atau cuti bersama pada bulan ini.</p>}
+          <p className="mt-2">Jadwal kerja tetap mengikuti penugasan admin.</p>
+        </section>
+      )}
       {/* Legenda */}
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
         {Object.entries(STATUS_LABEL).map(([key, label]) => (
@@ -150,6 +164,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
               {STATUS_LABEL[selected.status] || selected.status}
             </span>
           </div>
+          {selected.holidayName && selected.type !== 'HOLIDAY' && <p className="text-xs text-amber-700">{selected.holidayName}. Anda tetap memiliki jadwal kerja pada tanggal ini.</p>}
           <p className="text-xs text-slate-500">{selected.type === 'NONE' ? 'Keterangan' : selected.type === 'HOLIDAY' ? 'Keterangan' : selected.type === 'STORE' ? 'Toko' : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
           {selected.type !== 'HOLIDAY' && selected.type !== 'NONE' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
