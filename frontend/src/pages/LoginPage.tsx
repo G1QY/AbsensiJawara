@@ -9,7 +9,7 @@ import Modal from '../components/ui/Modal';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api';
 const ADMIN_WHATSAPP_NUMBER = (import.meta.env.VITE_ADMIN_WHATSAPP || '6281214989974').toString().replace(/\D/g, '');
-const waHelpMessage = encodeURIComponent('Halo Admin Jawara, saya memerlukan bantuan untuk akses akun / kendala login di sistem Jawara.');
+const waHelpMessage = encodeURIComponent('Halo Admin JAWARA, saya memerlukan bantuan untuk akses akun / kendala login di sistem JAWARA.');
 const waAdminUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${waHelpMessage}`;
 
 type PageStep = 'login' | 'forgot' | 'otp-verify' | 'new-password' | 'success';
@@ -232,10 +232,9 @@ export default function LoginPage() {
   const renderLoginForm = () => (
     <>
       {/* Header text */}
-      <div className="space-y-1.5">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Selamat Datang Kembali</h1>
-        <p className="text-[14px] text-[#4c4451]">Masuk ke akun Jawara Anda untuk melanjutkan</p>
-        <p className="text-[14px] text-[#4c4451]">Masuk ke akun Jawara Anda untuk melanjutkan</p>
+      <div className="space-y-1.5 text-center">
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Selamat Datang</h1>
+        <p className="text-[14px] text-[#1a1c1c]">Masuk ke akun JAWARA anda</p>
       </div>
 
       {/* Login Form */}
@@ -291,7 +290,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => goToStep('forgot')}
-            className="text-[12px] font-medium text-[#2e0052] hover:text-[#4b0082] uppercase tracking-wider transition-colors"
+            className="text-[12px] font-medium text-[#2e0052] 4b0082 uppercase tracking-wider transition-colors"
           >
             Lupa sandi?
           </button>
@@ -610,11 +609,11 @@ export default function LoginPage() {
       <div className="login-form-section w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-10 relative z-10">
         <div className="login-panel w-full max-w-sm space-y-8">
           {/* Brand / Logo */}
-          <div className="flex items-center gap-2.5 mb-10">
-            <div className="h-9 w-9 rounded-[4px] overflow-hidden flex-shrink-0 ring-1 ring-[#e2e8f0]">
-              <img src={JawaraLogo} alt="Jawara" className="h-full w-full object-cover" />
+          <div className="flex items-center justify-center gap-2.5 mb-10">
+            <div className="h-10 w-14 rounded-[6px] overflow-hidden flex-shrink-0 ring-1 ring-[#e2e8f0] bg-white">
+              <img src={JawaraLogo} alt="JAWARA" className="h-full w-full object-cover" />
             </div>
-            <span className="text-[22px] font-semibold tracking-tighter uppercase text-[#1a1c1c]">Jawara</span>
+            <span className="text-[22px] font-semibold tracking-tighter uppercase text-[#1a1c1c]">JAWARA</span>
           </div>
 
           {/* Step content with animation */}
@@ -629,13 +628,12 @@ export default function LoginPage() {
             {renderStepContent()}
           </div>
 
-          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 Jawara. All rights reserved.</p>
-          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 Jawara. All rights reserved.</p>
+          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 JAWARA. All rights reserved.</p>
         </div>
       </div>
 
       <div className="login-company-visual hidden md:flex md:w-1/2">
-        <img src={companyLandscape} alt="Jawara, Burger Chill, dan Kripik Bujangan" className="login-company-image" />
+        <img src={companyLandscape} alt="JAWARA, Burger Chill, dan Kripik Bujangan" className="login-company-image" />
       </div>
 
       <Modal open={showGuestModal} onClose={() => setShowGuestModal(false)} title="Masuk sebagai Guest Crew">

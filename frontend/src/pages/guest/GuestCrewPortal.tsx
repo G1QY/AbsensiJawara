@@ -681,64 +681,61 @@ _Foto selfie telah tersimpan di sistem._`;
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
-                        <div className="grid grid-cols-3 gap-2">
-                          {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => setJenis(t)}
-                              className={`py-2 px-1.5 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all text-center ${jenis === t
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                }`}
-                            >
-                              {t}
-                            </button>
-                          ))}
-                        </div>
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setJenis(t)}
+                          className={`py-2 px-1.5 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all text-center ${jenis === t
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                        >
+                          {t}
+                        </button>
                       ))}
                     </div>
+                  </div>
 
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Tipe Absensi
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(['Clock In', 'Clock Out'] as const).map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => setTipeAbsen(t)}
-                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${tipeAbsen === t
-                              ? t === 'Clock In'
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                : 'bg-red-600 text-white border-red-600 shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Posisi / Tugas
-                      </label>
-                      <select
-                        value={posisi}
-                        onChange={(e) => setPosisi(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                      >
-                        <option>Tenda</option>
-                        <option>FotoSnaps</option>
-                        <option>Bujangan</option>
-                        <option>Fotobox</option>
-                        <option>Staff Kantor</option>
-                      </select>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Tipe Absensi
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['Clock In', 'Clock Out'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTipeAbsen(t)}
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${tipeAbsen === t
+                            ? t === 'Clock In'
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                              : 'bg-red-600 text-white border-red-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
                     </div>
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Posisi / Tugas
+                    </label>
+                    <select
+                      value={posisi}
+                      onChange={(e) => setPosisi(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                    >
+                      <option>Tenda</option>
+                      <option>FotoSnaps</option>
+                      <option>Bujangan</option>
+                      <option>Fotobox</option>
+                      <option>Staff Kantor</option>
+                    </select>
+                  </div>
+                </div>
 
                   {/* Lokasi / Event */}
                   <div className="space-y-2">
@@ -866,7 +863,7 @@ _Foto selfie telah tersimpan di sistem._`;
 
                           {/* Top Right Mini Brand */}
                           <div className="absolute top-3 right-3 text-right">
-                            <p className="text-xs font-bold text-amber-400 leading-none">Jawara</p>
+                            <p className="text-xs font-bold text-amber-400 leading-none">JAWARA</p>
                             <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
                           </div>
 
@@ -1012,17 +1009,17 @@ _Foto selfie telah tersimpan di sistem._`;
                 Pusat Bantuan & Layanan Kendala Akun
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin Jawara melalui kontak di bawah ini.
+                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin JAWARA melalui kontak di bawah ini.
               </p>
 
               <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin Jawara</p>
+                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin JAWARA</p>
                   <p className="text-xs text-blue-700">WhatsApp: 081214989974</p>
                 </div>
                 <a
                   href={`https://wa.me/${adminPhone}?text=${encodeURIComponent(
-                    'Halo Admin Jawara, saya memerlukan bantuan reset password akun crew.'
+                    'Halo Admin JAWARA, saya memerlukan bantuan reset password akun crew.'
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

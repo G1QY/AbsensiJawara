@@ -1,4 +1,3 @@
-import MobileNav from './components/layout/MobileNav';
 import { useCallback, useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import { useAuth } from './lib/AuthContext';
@@ -29,28 +28,6 @@ type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
 type Toast = { id: string; message: string; type: 'success' | 'error' | 'warning' | 'info' };
 
 const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
-  'admin-dashboard': { breadcrumbs: ['Jawara', 'Admin'], title: 'Dashboard' },
-  'admin-event': { breadcrumbs: ['Jawara', 'Admin'], title: 'Kelola Event' },
-  'admin-payroll': { breadcrumbs: ['Jawara', 'Admin'], title: 'Payroll' },
-  'admin-laporan': { breadcrumbs: ['Jawara', 'Admin'], title: 'Laporan' },
-  'admin-audit': { breadcrumbs: ['Jawara', 'Admin'], title: 'Audit Log' },
-  'admin-crew': { breadcrumbs: ['Jawara', 'Admin'], title: 'Kelola Crew' },
-  'admin-absensi': { breadcrumbs: ['Jawara', 'Admin'], title: 'Manajemen Absensi' },
-  'ce-absensi': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Absensi Hari Ini' },
-  'ce-dashboard': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Dashboard' },
-  'ce-events': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Event Saya' },
-  'ce-workflow': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Workflow Event' },
-  'ce-inventory': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Inventory Event' },
-  'ce-operasional': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Operasional Event' },
-  'ce-payroll': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Payroll' },
-  'ce-riwayat': { breadcrumbs: ['Jawara', 'Crew Event'], title: 'Riwayat Absensi' },
-  'cs-absensi': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Absensi Hari Ini' },
-  'cs-dashboard': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Dashboard' },
-  'cs-riwayat': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Riwayat Absensi' },
-  'cs-payroll': { breadcrumbs: ['Jawara', 'Crew Store'], title: 'Payroll' },
-  'guest-portal': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
-  'guest-info': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
-  'guest-help': { breadcrumbs: ['Jawara', 'Guest Mode'], title: 'Portal Absensi Guest Crew' },
   'admin-dashboard': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Dashboard' },
   'admin-event': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Kelola Event' },
   'admin-payroll': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Payroll' },
@@ -98,7 +75,6 @@ export default function App() {
     setCurrentPage(defaultPage(frontendRole));
     setSidebarCollapsed(false);
     setMobileNavOpen(false);
-    addToast('Berhasil masuk ke Jawara');
     addToast('Berhasil masuk ke JAWARA');
   }, [frontendRole, addToast]);
 
@@ -116,7 +92,6 @@ export default function App() {
   // Do not briefly mount an admin screen while the role-change effect runs.
   const prefix = role === 'guest_crew' ? 'guest-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
   const activePage = ['account-profile', 'account-settings'].includes(currentPage) || currentPage.startsWith(prefix) ? currentPage : defaultPage(role);
-  const meta = activePage.startsWith('account-') ? { breadcrumbs: ['Jawara', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
   const meta = activePage.startsWith('account-') ? { breadcrumbs: ['JAWARA', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
   const navigate = (page: string) => {
     setCurrentPage(page);
@@ -181,7 +156,6 @@ export default function App() {
           onSettings={() => navigate('account-settings')}
         />
         <main key={activePage} className={`employee-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${role !== 'admin' ? 'employee-mobile' : ''}`}>{renderContent()}</main>
-        <MobileNav role={role} currentPage={activePage} onNavigate={navigate} onMenu={() => setMobileNavOpen(true)} menuOpen={mobileNavOpen} />
       </div>
       <ToastContainer toasts={toasts} onRemove={id => setToasts(items => items.filter(item => item.id !== id))} />
     </div>
