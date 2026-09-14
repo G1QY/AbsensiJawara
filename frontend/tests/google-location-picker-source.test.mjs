@@ -9,7 +9,8 @@ const stores = await readFile(new URL('../src/pages/admin/DirectoryManager.tsx',
 test('form event dan store tidak lagi menampilkan input koordinat manual', () => {
   assert.match(events, /<GoogleLocationPicker/);
   assert.match(stores, /<GoogleLocationPicker/);
-  assert.match(stores, /title="Lokasi Store"/);
+  assert.match(stores, /Lokasi Store/);
+  assert.match(stores, /Lokasi Kantor/);
   assert.doesNotMatch(events, /Latitude'|Longitude'/);
   assert.doesNotMatch(stores, />\s*Latitude\s*</);
   assert.doesNotMatch(stores, />\s*Longitude\s*</);

@@ -6,7 +6,7 @@ const { ROLES } = require('../../config/constants');
 // GET/POST/PATCH /store-assignments
 // Sekarang tanpa filter tenant — isolasi cukup lewat RLS di database.
 const controller = crudFactory('store_assignments', {
-  selectQuery: '*, crew:crew(id, employee_code, user:users(full_name)), store:stores(name)',
+  selectQuery: '*, crew:crew(id, company_name, job_title, employee_code, user:users(full_name)), store:stores(name)',
 });
 const canManage = requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE);
 

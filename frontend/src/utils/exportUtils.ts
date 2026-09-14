@@ -1,69 +1,35 @@
-// Utilitas export data ke Excel (.csv, siap dibuka Excel) dan PDF (via dialog print browser)
-
-export type ExportRow = (string | number)[];
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+import { downloadWorkbook } from '../lib/xlsxExport';
+export type ExportRow = (string | number | null)[];
+export type ExportContext = Record<string, string>;
+export function withExportContext(headers:string[],rows:ExportRow[],context:ExportContext={}){
+ if(rows.some(row=>row.length!==headers.length))throw new Error('Jumlah kolom ekspor tidak sesuai.');
+ const keys=Object.keys(context);
+ return {headers:[...keys,...headers],rows:rows.map(row=>[...keys.map(key=>context[key]||'Belum diisi'),...row])};
 }
-
-/** Export array data ke file .csv (format Excel) dan langsung download */
-export function exportToExcel(filename: string, headers: string[], rows: ExportRow[]) {
-  const csv = [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\r\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}-${todayStr()}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+function todayStr(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date());}
+function filename(value:string){return value.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,120);}
+export function exportToExcel(name:string,headers:string[],rows:ExportRow[]){
+ withExportContext(headers,rows);
+ downloadWorkbook([headers,...rows],`${filename(name)}-${todayStr()}.xlsx`);
 }
-
-/** Export array data ke PDF: membuka tab print browser berisi tabel siap "Simpan sebagai PDF" */
-export function exportToPDF(title: string, subtitle: string, headers: string[], rows: ExportRow[]) {
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if (!win) return;
-
-  const style = `
-    <style>
-      * { box-sizing: border-box; }
-      body { font-family: 'Inter', system-ui, sans-serif; padding: 32px; color: #0F172A; }
-      h1 { font-size: 18px; margin: 0 0 2px; }
-      p.sub { font-size: 12px; color: #64748B; margin: 0 0 20px; }
-      table { width: 100%; border-collapse: collapse; font-size: 11px; }
-      th, td { border: 1px solid #E2E8F0; padding: 6px 8px; text-align: left; }
-      th { background: #F1F5F9; text-transform: uppercase; font-size: 9px; letter-spacing: 0.03em; color: #64748B; }
-      tr:nth-child(even) td { background: #F8FAFC; }
-      .footer { margin-top: 16px; font-size: 10px; color: #94A3B8; }
-      @media print { body { padding: 12px; } }
-    </style>
-  `;
-
-  const tableHead = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
-  const tableBody = rows
-    .map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`)
-    .join('');
-
-  win.document.write(`
-    <html>
-      <head><title>${title}</title>${style}</head>
-      <body>
-        <h1>${title}</h1>
-        <p class="sub">${subtitle} • Dicetak ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-        <table>
-          <thead>${tableHead}</thead>
-          <tbody>${tableBody}</tbody>
-        </table>
-        <p class="footer">JAWARA &mdash; Dokumen dibuat otomatis dari sistem.</p>
-      </body>
-    </html>
-  `);
-  win.document.close();
-  win.onload = () => {
-    win.focus();
-    win.print();
-  };
+export async function makeReportPDF(title:string,subtitle:string,headers:string[],rows:ExportRow[]){
+ withExportContext(headers,rows);
+ const [{jsPDF},{default:autoTable}]=await Promise.all([import('jspdf'),import('jspdf-autotable')]);
+ const doc=new jsPDF({orientation:headers.length>6?'landscape':'portrait'});
+ const width=doc.internal.pageSize.getWidth();
+ doc.setFontSize(14);
+ const titleLines=doc.splitTextToSize(title,width-28);doc.text(titleLines,14,16);
+ doc.setFontSize(9);
+ const sub=doc.splitTextToSize(`${subtitle} | Dicetak ${todayStr()} (WIB)`,width-28);
+ const subY=20+titleLines.length*6;doc.text(sub,14,subY);
+ autoTable(doc,{startY:subY+sub.length*4+5,head:[headers],body:rows.map(row=>row.map(cell=>cell??'')),
+  theme:'grid',styles:{fontSize:8,cellPadding:2,overflow:'linebreak',minCellWidth:20},headStyles:{fillColor:[37,99,235]},
+  margin:{top:14,right:14,bottom:16,left:14},showHead:'everyPage',horizontalPageBreak:true,horizontalPageBreakRepeat:Math.max(0,headers.findIndex(header=>/^Nama(?: Crew)?$/i.test(header))),
+ });
+ const total=doc.getNumberOfPages();
+ for(let page=1;page<=total;page++){doc.setPage(page);doc.setFontSize(8);doc.text(`JAWARA | ${page} / ${total}`,14,doc.internal.pageSize.getHeight()-8);}
+ return doc;
+}
+export async function exportToPDF(title:string,subtitle:string,headers:string[],rows:ExportRow[]){
+ const doc=await makeReportPDF(title,subtitle,headers,rows);doc.save(`${filename(title)}-${todayStr()}.pdf`);
 }

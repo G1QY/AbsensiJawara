@@ -1,3 +1,5 @@
+import ExportButtons from '../../components/ui/ExportButtons';
+import CrewCsvImport from "./CrewCsvImport"
 import { useState, useEffect, type FormEvent } from "react"
 import { StatusBadge } from "../../components/ui/Badge"
 import Modal from "../../components/ui/Modal"
@@ -24,8 +26,8 @@ const empty = {
   email: "",
   password: "",
   phoneNumber: "",
-  employeeCode: "",
-  employeeNumber: "",
+  companyName: "",
+  jobTitle: "",
   crewType: "CREW_EVENT",
   baseSalary: "0",
   status: "ACTIVE",
@@ -46,6 +48,7 @@ export default function KelolaCrew() {
   const [kind, setKind] = useState("")
   const [status, setStatus] = useState("")
   const [branch, setBranch] = useState("")
+  const [showImport, setShowImport] = useState(false)
   const [form, setForm] = useState(empty)
   const [editing, setEditing] = useState<Crew | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -99,7 +102,6 @@ export default function KelolaCrew() {
     setVisible(false)
     setDetail(null)
     const activeStore=c?.crew_type==="CREW_STORE"?(c.store_assignments||[]).find(a=>a.status==="ACTIVE")?.store?.id||"":""
-    const activeEvent=c?.crew_type==="CREW_EVENT"?((c.event_assignments||[]).find(a=>a.status==="ACTIVE")?.event?.id||directory.events.find(e=>c.employee_code.startsWith(`${e.event_code}-`))?.id||""):""
     setForm(
       c
         ? {
@@ -107,13 +109,13 @@ export default function KelolaCrew() {
             email: c.user.email,
             password: "",
             phoneNumber: c.user.phone_number || "",
-            employeeCode: c.employee_code,
-            employeeNumber: c.employee_code.split("-").at(-1) || "",
+            companyName: c.company_name || "",
+            jobTitle: c.job_title || "",
             crewType: c.crew_type,
             baseSalary: String(Number(c.base_salary)),
             status: c.status,
             branchId: c.branch_id || "",
-            assignTo: activeStore || activeEvent,
+            assignTo: activeStore,
           }
         : { ...empty },
     )
@@ -122,35 +124,15 @@ export default function KelolaCrew() {
   function change(key: keyof typeof empty, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
   }
-  function automaticEmployeeCode(next: typeof empty) {
-    const branchCode=directory.branches.find(b=>b.id===next.branchId)?.code.trim().toUpperCase()||""
-    if(!branchCode||!next.assignTo)return ""
-    let prefix=""
-    if(next.crewType==="CREW_EVENT") {
-      const event=directory.events.find(e=>e.id===next.assignTo)
-      if(!event)return ""
-      const raw=event.event_code.trim().toUpperCase()
-      prefix=raw.startsWith(`${branchCode}-`)?raw:`${branchCode}-${raw}`
-    } else {
-      const store=directory.stores.find(s=>s.id===next.assignTo)
-      if(!store)return ""
-      const raw=store.code.trim().toUpperCase()
-      prefix=raw.startsWith(`${branchCode}-`)?raw:`${branchCode}-${raw}`
-    }
-    const escaped=prefix.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")
-    const used=crew.map(c=>c.employee_code.match(new RegExp(`^${escaped}-([1-9]\\d*)$`))).filter(Boolean).map(m=>Number(m?.[1]))
-    const number=Number(next.employeeNumber)>0?Number(next.employeeNumber):Math.max(0,...used)+1
-    return `${prefix}-${number}`
-  }
   function changeCodeInputs(patch: Partial<typeof empty>) {
-    setForm(previous=>{const next={...previous,...patch};return{...next,employeeCode:automaticEmployeeCode(next)}})
+    setForm(previous => ({...previous, ...patch}))
   }
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
     setFormError("")
     try {
-      const { email, password, baseSalary, employeeNumber, employeeCode, ...rest } = form
+      const { email, password, baseSalary, ...rest } = form
       if (editing && email !== editing.user.email)
         throw new Error("Klik Perbarui email login terlebih dahulu, atau kembalikan email sebelum menyimpan profil.")
       if (!/^\d*$/.test(baseSalary))
@@ -160,8 +142,6 @@ export default function KelolaCrew() {
         baseSalary: Number(baseSalary || 0),
         branchId: form.branchId || null,
         assignTo: form.crewType === "CREW_STORE" ? form.assignTo || null : null,
-        codeSourceId: form.crewType === "CREW_EVENT" ? form.assignTo || null : null,
-        ...(!editing || employeeCode !== editing.employee_code ? { employeeCode } : {}),
         ...(!editing ? { email, password } : {}),
       }
       if (editing) await api.patch(`/crew/${editing.id}`, body)
@@ -250,7 +230,9 @@ export default function KelolaCrew() {
       [
         c.user.full_name,
         c.user.email,
-        c.employee_code,
+        c.company_name,
+        c.job_title,
+        c.user.phone_number,
         c.branch?.name,
         ...sources(c),
       ]
@@ -291,7 +273,7 @@ export default function KelolaCrew() {
       <div className="flex flex-wrap gap-3 items-center">
         <input
           aria-label="Cari crew"
-          placeholder="Cari nama, email, store, atau event..."
+          placeholder="Cari nama, perusahaan, jabatan, atau lokasi..."
           className={control + " flex-1 min-w-52"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -301,7 +283,7 @@ export default function KelolaCrew() {
           className={button}
           onClick={() => setShowDirectory(true)}
         >
-          Cabang &amp; Store
+          Cabang, Store &amp; Kantor
         </button>
         <button
           disabled={loading || busy || !!error}
@@ -310,6 +292,7 @@ export default function KelolaCrew() {
         >
           Jadwal Massal
         </button>
+        <button disabled={loading || busy || !!error} className={button} onClick={()=>setShowImport(true)}>Impor CSV</button>
         <button
           disabled={loading || busy || !!error}
           className={primary}
@@ -318,6 +301,8 @@ export default function KelolaCrew() {
           + Tambah Crew
         </button>
       </div>
+      {!loading && !error && <ExportButtons filename="Daftar-Crew" title="Daftar Crew" subtitle="Mengikuti pencarian dan filter Kelola Crew" headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',c.branch?.name||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
+      {showImport && <CrewCsvImport onClose={()=>setShowImport(false)} onSaved={reload} existingEmails={crew.map(c=>c.user.email)} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <select
           aria-label="Filter jenis"
@@ -380,16 +365,8 @@ export default function KelolaCrew() {
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
               <tr>
                 {[
-                  "Crew",
-                  "Dari Store / Event",
-                  "Kantor Cabang",
-                  "Email",
-                  "Password",
-                  "Jenis",
-                  "Status",
-                  "Gaji Pokok",
-                  "Jumlah Event",
-                  "Aksi",
+                  "Nama & Kontak", "Perusahaan", "Jabatan", "Cabang",
+                  "Penempatan", "Jenis Penugasan", "Status", "Aksi",
                 ].map((h) => (
                   <th
                     key={h}
@@ -416,25 +393,14 @@ export default function KelolaCrew() {
                         <p className="text-xs text-slate-500">
                           {c.user.phone_number || "HP belum diisi"}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          {c.employee_code}
-                        </p>
+                        <p className="text-xs text-slate-500 break-all">{c.user.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 min-w-44 text-slate-700">
-                    {sources(c).join(", ") || "Belum ditugaskan"}
-                  </td>
-                  <td className="p-4 text-slate-700">
-                    {c.branch?.name || "Belum ditetapkan"}
-                  </td>
-                  <td className="p-4 text-slate-700">{c.user.email}</td>
-                  <td
-                    className="p-4 text-xs text-slate-500"
-                    title="Password tidak dapat dibaca. Atur ulang melalui Detail Crew."
-                  >
-                    Terlindungi
-                  </td>
+                  <td className="p-4 text-slate-700">{c.company_name || "Belum ditetapkan"}</td>
+                  <td className="p-4 text-slate-700">{c.job_title || "Belum ditetapkan"}</td>
+                  <td className="p-4 text-slate-700">{c.branch?.name || "Belum ditetapkan"}</td>
+                  <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || "Belum ditugaskan"}</td>
                   <td className="p-4 whitespace-nowrap text-blue-700">
                     {crewKind(c)}
                   </td>
@@ -443,10 +409,6 @@ export default function KelolaCrew() {
                       status={c.status === "ACTIVE" ? "Aktif" : "Non-Aktif"}
                     />
                   </td>
-                  <td className="p-4 whitespace-nowrap text-slate-700">
-                    {money(c.base_salary)}
-                  </td>
-                  <td className="p-4 text-slate-700">{eventCount(c)}</td>
                   <td className="p-4 sticky right-0 bg-white z-10">
                     <button
                       disabled={busy}
@@ -560,12 +522,16 @@ export default function KelolaCrew() {
                 onChange={(e) => change("phoneNumber", e.target.value)}
               />
             </label>
-            <div className="text-sm text-slate-700">
-              <label htmlFor="employee-code">Kode Karyawan</label>
-              <input id="employee-code" required maxLength={30} className={control} value={form.employeeCode} onChange={(e)=>change("employeeCode",e.target.value.toUpperCase())}/>
-            </div>
+            <label className="text-sm text-slate-700">Perusahaan
+              <input list="crew-companies" maxLength={150} className={control} value={form.companyName} onChange={e=>change("companyName",e.target.value)} placeholder="Pilih atau ketik perusahaan" />
+              <datalist id="crew-companies">{[...new Set(["Fotosnaps", "Jawara Group", "Kripik Bujangan", ...crew.map(c=>c.company_name).filter(Boolean)])].map(name=><option key={name} value={name} />)}</datalist>
+            </label>
+            <label className="text-sm text-slate-700">Jabatan
+              <input maxLength={100} className={control} value={form.jobTitle} onChange={e=>change("jobTitle",e.target.value)} placeholder="Contoh: Supervisor, Kasir, Fotografer" />
+              <span className="text-xs text-slate-500">Jabatan tidak mengubah hak akses akun.</span>
+            </label>
             <label className="text-sm text-slate-700">
-              Jenis Crew
+              Jenis Penugasan
               <select
                 aria-label="Jenis Crew"
                 className={control}
@@ -615,7 +581,6 @@ export default function KelolaCrew() {
               Kantor Cabang
               <select
                 aria-label="Kantor Cabang"
-                required={!editing}
                 className={control}
                 value={form.branchId}
                 onChange={(e) =>
@@ -630,20 +595,12 @@ export default function KelolaCrew() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-slate-700">
-                {form.crewType === "CREW_STORE" ? "Store Penugasan" : "Acuan Kode Event"}
-                <select
-                  aria-label={form.crewType === "CREW_STORE" ? "Store Penugasan" : "Acuan Kode Event"}
-                  disabled={!form.branchId}
-                  required={!editing || form.employeeCode !== editing.employee_code}
-                  className={control}
-                  value={form.assignTo}
-                  onChange={(e) => changeCodeInputs({assignTo:e.target.value})}
-                >
-                  <option value="">{form.crewType === "CREW_STORE" ? "Pilih Store" : "Pilih Event"}</option>
-                  {locations.map((l) => <option key={l.id} value={l.id}>{l.code} • {l.name}</option>)}
-                </select>
-              </label>
+            {form.crewType === "CREW_STORE" ? <label className="text-sm text-slate-700">Store / Kantor Penugasan
+              <select aria-label="Store / Kantor Penugasan" disabled={!form.branchId} className={control} value={form.assignTo} onChange={e=>change("assignTo",e.target.value)}>
+                <option value="">Belum ditugaskan</option>
+                {locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label> : <p className="text-sm text-slate-500">Penugasan event diatur melalui Kelola Event setelah akun dibuat.</p>}
           </fieldset>
           {editing && (
             <p className="text-xs text-slate-500">
@@ -698,7 +655,7 @@ export default function KelolaCrew() {
                 <p className="text-sm text-slate-500 break-all">
                   {detail.user.email}
                 </p>
-                <p className="text-xs text-slate-500">{detail.employee_code}</p>
+                <p className="text-xs text-slate-500">{detail.company_name || "Perusahaan belum ditetapkan"}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -706,6 +663,8 @@ export default function KelolaCrew() {
                 ["Jenis", crewKind(detail)],
                 ["Status", detail.status === "ACTIVE" ? "Aktif" : "Non-Aktif"],
                 ["Nomor HP", detail.user.phone_number || "Belum diisi"],
+                ["Perusahaan", detail.company_name || "Belum ditetapkan"],
+                ["Jabatan", detail.job_title || "Belum ditetapkan"],
                 ["Cabang", detail.branch?.name || "Belum ditetapkan"],
                 ["Gaji Pokok", money(detail.base_salary)],
                 ["Jumlah Event", eventCount(detail)],

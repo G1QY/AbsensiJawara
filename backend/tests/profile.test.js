@@ -6,8 +6,8 @@ function fixture(options = {}) {
   const calls = [];
   const user = { id, email: 'crew@example.test', user_metadata: options.metadata || {} };
   let profile = { id, email: options.profileEmail || user.email, full_name: 'Crew Test', phone_number: '', is_active: true };
-  const query = { select() { return this; }, eq(column, value) { calls.push(['eq', column, value]); return this; }, update(value) { calls.push(['update', value]); profile = { ...profile, ...value }; return this; }, async maybeSingle() { return { data: profile }; }, then(resolve) { resolve({ data: profile }); } };
-  const db = { from(table) { calls.push(['table', table]); return query; }, auth: { admin: {
+  const query = { select() { return this; }, is(column,value) { calls.push(['is',column,value]); return this; }, eq(column, value) { calls.push(['eq', column, value]); return this; }, update(value) { calls.push(['update', value]); profile = { ...profile, ...value }; return this; }, async maybeSingle() { return { data: profile }; }, then(resolve) { resolve({ data: profile }); } };
+  const db = { from(table) { calls.push(['table', table]); if(table==='crew')return {...query,async maybeSingle(){return {data:{company_name:'Fotosnaps',job_title:'Kasir',branch:{name:'Bandung'}}}}}; return query; }, auth: { admin: {
     async getUserById(value) { calls.push(['authUser', value]); return { data: { user } }; },
     async updateUserById(value, fields) { calls.push(['authUpdate', value, fields]); return options.metaError ? { error: new Error('unavailable') } : { data: { user } }; },
     async signOut(token, scope) { calls.push(['signOut', token, scope]); },
@@ -50,3 +50,5 @@ test('reject SVG, oversized upload and invalid pixels before storage', async () 
   for (const [options, file] of [[{}, { mimetype: 'image/svg+xml', buffer: Buffer.from('svg') }], [{}, { mimetype: 'image/jpeg', buffer: Buffer.alloc(3*1024*1024+1) }], [{ invalidImage: true }, { mimetype: 'image/png', buffer: Buffer.from('fake') }]]) { const f=fixture(options); await assert.rejects(f.service.setAvatar(id,file)); assert.equal(f.calls.some(c=>c[0]==='upload'), false); }
 });
 test('failed metadata save cleans uploaded orphan, not previous avatar', async () => { const old=`avatars/${id}/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jpg`; const f=fixture({metaError:true,metadata:{avatar_key:old}}); await assert.rejects(f.service.setAvatar(id,{mimetype:'image/jpeg',buffer:Buffer.from('jpg')})); assert.ok(f.calls.some(c=>c[0]==='remove'&&c[1]!==old)); assert.equal(f.calls.some(c=>c[0]==='remove'&&c[1]===old),false); });
+
+test('own profile includes employment maintained by admin',async()=>{const f=fixture();const profile=await f.service.get(id);assert.equal(profile.company_name,'Fotosnaps');assert.equal(profile.job_title,'Kasir');assert.equal(profile.branch_name,'Bandung');assert.ok(f.calls.some(c=>c[0]==='eq'&&c[1]==='user_id'&&c[2]===id));});

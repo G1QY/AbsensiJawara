@@ -338,7 +338,7 @@ async function checkOut(req, res, next) {
 async function list(req, res, next) {
   try {
     const { crewId, from, to } = req.query;
-    let query = supabase.from('attendance_logs').select(`*, crew:crew(employee_code, user:users(full_name)),
+    let query = supabase.from('attendance_logs').select(`*, crew:crew(company_name,job_title,employee_code, user:users(full_name)),
       store_schedule:store_schedules(schedule_date,start_time,end_time,overtime_preapproved),
       event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved),
       store_assignment:store_assignments(store:stores(name)),
@@ -364,7 +364,7 @@ async function getOne(req, res, next) {
     uuid(req.params.id);
     const { data, error } = await supabase
       .from('attendance_logs')
-      .select('*, crew:crew(employee_code, user:users(full_name))')
+      .select('*, crew:crew(company_name,job_title,employee_code, user:users(full_name))')
       .eq('id', req.params.id)
       .maybeSingle();
 

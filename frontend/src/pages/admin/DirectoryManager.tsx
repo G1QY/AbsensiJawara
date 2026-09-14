@@ -1,9 +1,11 @@
+import ExportButtons from '../../components/ui/ExportButtons';
 import { useState, type FormEvent } from "react"
 import { api } from "../../lib/apiClient"
 import { type Directory, control, button, primary, message } from "./adminData"
 import GoogleLocationPicker from "../../components/maps/GoogleLocationPicker"
 type Kind = "branches" | "stores" | "events"
 const blank = {
+  company_name: "",
   code: "",
   name: "",
   branch_id: "",
@@ -48,7 +50,7 @@ export default function DirectoryManager({
     try {
       const body =
         kind === "branches"
-          ? { code: form.code, name: form.name }
+          ? { code: form.code, name: form.name, company_name: form.company_name }
           : kind === "stores"
             ? {
               ...form,
@@ -60,6 +62,7 @@ export default function DirectoryManager({
             : {
               branch_id: form.branch_id,
               event_code: form.code,
+              company_name: form.company_name,
               event_name: form.name,
               event_date: form.event_date,
               client_name: form.client_name,
@@ -95,6 +98,7 @@ export default function DirectoryManager({
   const rows = kind === "stores" ? data.stores.filter(row => (row.location_kind === "OFFICE") === officeTab) : data[kind]
   return (
     <div className="space-y-4">
+      <ExportButtons filename="Direktori-Lokasi" title={kind==='branches'?'Daftar Cabang':kind==='events'?'Daftar Event':officeTab?'Daftar Kantor':'Daftar Store'} subtitle="Data lokasi saat ini" headers={['Nama','Perusahaan','Cabang','Alamat','Status']} rows={rows.map(row=>['event_name' in row?row.event_name:row.name,row.company_name||'Belum diisi','branch_id' in row?data.branches.find(b=>b.id===row.branch_id)?.name||'Belum ditetapkan':row.name,'address' in row?row.address:'','status' in row?row.status:''].map(value => String(value ?? '')))} />
       {!eventsOnly && (
         <div className="flex flex-wrap gap-2">
           {(["branches", "stores"] as Kind[]).map((k) => (
@@ -128,11 +132,12 @@ export default function DirectoryManager({
               <p className="font-semibold text-slate-900">
                 {"event_name" in row ? row.event_name : row.name}
               </p>
+              <p className="text-xs text-slate-500">{row.company_name || "Perusahaan belum ditetapkan"}</p>
               <p className="text-xs text-slate-500">
                 {"branch_id" in row
                   ? data.branches.find((b) => b.id === row.branch_id)?.name ||
                   "Cabang belum ditetapkan"
-                  : row.code}
+                  : "Cabang"}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
@@ -195,15 +200,8 @@ export default function DirectoryManager({
           disabled={busy}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
-          <label className="text-sm text-slate-700">
-            Kode
-            <input
-              required
-              maxLength={30}
-              className={control}
-              value={form.code}
-              onChange={(e) => change("code", e.target.value)}
-            />
+          <label className="text-sm text-slate-700">Perusahaan
+            <input maxLength={150} className={control} value={form.company_name} onChange={e=>change("company_name",e.target.value)} placeholder="Nama perusahaan pemilik lokasi" />
           </label>
           <label className="text-sm text-slate-700">
             Nama{" "}

@@ -5,7 +5,7 @@ const { ROLES } = require('../../config/constants');
 
 // GET/POST/PATCH /permissions (izin/cuti crew)
 const controller = crudFactory('permissions', {
-  selectQuery: '*, crew:crew(employee_code, user:users(full_name))',
+  selectQuery: '*, crew:crew(company_name,job_title,employee_code, user:users(full_name))',
 });
 const canApprove = requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER);
 

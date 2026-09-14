@@ -5,6 +5,7 @@ const GOOGLE_CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3/calenda
 const DEFAULT_CALENDAR_ID = 'en.indonesian.official#holiday@group.v.calendar.google.com';
 const CACHE_DAYS = 30;
 const failedYears=new Map();
+const activeSyncs = new Map();
 
 function holidayError(message, status = 503) {
   return Object.assign(new Error(message), { status });
@@ -110,7 +111,7 @@ async function fetchGoogleHolidayRows(year, signal) {
   return { rows: normalizeRows(items, year), provider: `${GOOGLE_CALENDAR_API_BASE}/${encodeURIComponent(calendarId)}/events` };
 }
 
-async function syncHolidayYear(value, { force = false } = {}) {
+async function runHolidaySync(value, { force = false } = {}) {
   const year = validateYear(value);
   const failed=failedYears.get(year);
   if(!force&&failed&&failed.until>Date.now())return failed.result;
@@ -147,14 +148,26 @@ async function syncHolidayYear(value, { force = false } = {}) {
       }
     }
     if (await hasCachedRows(year)) {
-      return { ...(cached || { year, provider_url: provider, synced_at: null, row_count: null }), cached: true, fallback: true, warning: 'Pembaruan hari libur tertunda. Kalender menggunakan data terakhir yang tersimpan.' };
+      const result = { ...(cached || { year, provider_url: provider, synced_at: null, row_count: null }), cached: true, fallback: true, warning: 'Pembaruan hari libur tertunda. Kalender menggunakan data terakhir yang tersimpan.' };
+      failedYears.set(year, { until: Date.now() + 60 * 60 * 1000, result });
+      return result;
     }
     const unavailable={year,cached:false,fallback:true,row_count:0,warning:`Data libur ${year} belum tersedia dari Google Calendar. Jadwal mengikuti hari kerja pilihan; periksa libur kembali setelah sinkronisasi tersedia.`};
-    failedYears.set(year,{until:Date.now()+60000,result:unavailable});
+    failedYears.set(year,{until:Date.now()+60*60*1000,result:unavailable});
     return unavailable;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Coalesce concurrent requests per year in this backend process. Database cache
+// remains shared across instances; force joins an ongoing refresh as well.
+function syncHolidayYear(value, options = {}) {
+  const year = validateYear(value);
+  if (activeSyncs.has(year)) return activeSyncs.get(year);
+  const pending = runHolidaySync(year, options).finally(() => activeSyncs.delete(year));
+  activeSyncs.set(year, pending);
+  return pending;
 }
 
 async function ensureHolidayYears(years) {

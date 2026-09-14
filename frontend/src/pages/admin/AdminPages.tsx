@@ -17,7 +17,7 @@ interface Attendance {
   status: string
   check_in: string | null
   check_out: string | null
-  crew: { employee_code: string; user: { full_name: string } } | null
+  crew: { company_name?: string; job_title?: string; employee_code: string; user: { full_name: string } } | null
 }
 interface Audit {
   id: string
@@ -275,7 +275,8 @@ export default function AdminPages({
                 headers={[
                   "Tanggal",
                   "Crew",
-                  "Kode",
+                  "Perusahaan",
+                  "Jabatan",
                   "Check-in (WIB)",
                   "Check-out (WIB)",
                   "Status",
@@ -283,7 +284,8 @@ export default function AdminPages({
                 rows={attendance.map((a) => [
                   a.attendance_date,
                   a.crew?.user?.full_name || "Crew",
-                  a.crew?.employee_code || "—",
+                  a.crew?.company_name || "Belum diisi",
+                  a.crew?.job_title || "Belum diisi",
                   time(a.check_in),
                   time(a.check_out),
                   a.status,

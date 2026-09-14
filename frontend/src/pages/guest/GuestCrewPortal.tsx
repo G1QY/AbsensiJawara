@@ -1,9 +1,13 @@
+import { readDeviceLocation } from '../../lib/deviceLocation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
+import Modal from '../../components/ui/Modal';
 import DeviceLocationMap from '../../components/maps/DeviceLocationMap';
 
 export interface GuestAttendanceRecord {
+  companyName?: string;
+  jobTitle?: string;
   occurredAt?: string;
   serverId?: string;
   id: string;
@@ -52,11 +56,7 @@ export function markGuestSynced(record: GuestAttendanceRecord, serverId: string)
   } catch { /* Server remains authoritative; the original local record is not deleted. */ }
 }
 
-interface GuestOptions {
-  stores: { id: string; name: string }[];
-  offices?: { id: string; name: string }[];
-  events: { id: string; event_name: string; event_date: string }[];
-}
+interface GuestOptions { offices: { id: string; name: string }[]; stores: { id: string; name: string }[]; events: { id: string; event_name: string; event_date: string }[] }
 const GUEST_API = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/guest-attendance';
 
 // Generate random verification hash code
@@ -75,13 +75,15 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const activeTab = page === 'guest-info' ? 'jadwal' : page === 'guest-help' ? 'bantuan' : 'absen';
 
   // Form State
+  const [companyName,setCompanyName] = useState('');
+  const [jobTitle,setJobTitle] = useState('');
   const [nama, setNama] = useState(
     auth?.user?.full_name && !auth.user.full_name.includes('Guest Crew') ? auth.user.full_name : ''
   );
   const [hp, setHp] = useState(auth?.user?.phone || '');
   const [jenis, setJenis] = useState<'Crew Event' | 'Crew Store' | 'Kantor'>('Crew Event');
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [locations, setLocations] = useState<GuestOptions>({ stores: [], offices: [], events: [] });
+  const [locations, setLocations] = useState<GuestOptions>({ offices: [], stores: [], events: [] });
   const [optionsError, setOptionsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submissionKey = useRef(crypto.randomUUID());
@@ -94,7 +96,6 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [address, setAddress] = useState<string>('');
   const [locLoading, setLocLoading] = useState(false);
   const [locSource, setLocSource] = useState<'gps' | 'none'>('none');
   const [locError, setLocError] = useState('');
@@ -116,35 +117,22 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   // Submissions
   const [submittedRecord, setSubmittedRecord] = useState<GuestAttendanceRecord | null>(null);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [formError, setFormError] = useState('');
 
   const adminPhone = (import.meta.env.VITE_ADMIN_WHATSAPP || '6281214989974').toString().replace(/\D/g, '');
 
-  const kantorLocations = locations.offices && locations.offices.length
-    ? locations.offices
-    : locations.stores.filter((store) => /kantor/i.test(store.name));
-
   const getLocationText = useCallback(() => {
     if (jenis === 'Kantor') {
-      return kantorLocations.find((office) => office.id === selectedLocation)?.name || kantorLocations[0]?.name || 'Kantor';
+      return locations.offices.find(s => s.id === selectedLocation)?.name || 'Kantor (tanpa pilihan lokasi)';
     }
-    return jenis === 'Crew Store'
-      ? locations.stores.find((store) => store.id === selectedLocation)?.name || ''
-      : locations.events.find((event) => event.id === selectedLocation)?.event_name || '';
-  }, [selectedLocation, jenis, kantorLocations, locations]);
+    return jenis === 'Crew Store' ? locations.stores.find(s => s.id === selectedLocation)?.name || '' : locations.events.find(e => e.id === selectedLocation)?.event_name || '';
+  }, [selectedLocation, jenis, locations]);
   useEffect(() => {
     let active = true;
-    fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations({ stores: data.stores || [], offices: data.offices || [], events: data.events || [] }); } }).catch(error => { if (active) setOptionsError(error.message); });
+    fetch(GUEST_API + '/options').then(async res => { if (!res.ok) throw new Error('Pilihan lokasi belum dapat dimuat. Periksa backend lalu muat ulang.'); return res.json(); }).then(data => { if (active) { if (!Array.isArray(data.stores) || !Array.isArray(data.events)) throw new Error('Respons lokasi tidak valid.'); setLocations({ ...data, offices: data.offices || [] }); } }).catch(error => { if (active) setOptionsError(error.message); });
     return () => { active = false; };
   }, []);
-  useEffect(() => {
-    if (jenis === 'Kantor') {
-      setSelectedLocation(kantorLocations[0]?.id || '');
-    } else {
-      setSelectedLocation('');
-    }
-  }, [jenis, kantorLocations]);
+  useEffect(() => { setSelectedLocation(''); }, [jenis]);
 
   // Realtime clock
   useEffect(() => {
@@ -169,12 +157,10 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   // Device location only; never substitute a location inferred from IP.
   const locationRequest = useRef(0);
-  const addressAbort = useRef<AbortController | null>(null);
 
   const detectLocation = useCallback(() => {
     const requestId = ++locationRequest.current;
-    addressAbort.current?.abort();
-    setLat(null); setLng(null); setAccuracy(null); setAddress('');
+    setLat(null); setLng(null); setAccuracy(null);
     setLocSource('none'); setLocError(''); setLocLoading(true);
     if (!window.isSecureContext || !navigator.geolocation) {
       setLocLoading(false);
@@ -182,7 +168,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         if (requestId !== locationRequest.current) return;
         const { latitude, longitude, accuracy: measuredAccuracy } = pos.coords;
         if (![latitude, longitude, measuredAccuracy].every(Number.isFinite) ||
@@ -196,30 +182,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         setLocSource('gps'); setLocLoading(false);
         if (measuredAccuracy > 100) {
           setLocError('Lokasi masih kurang akurat. Aktifkan lokasi presisi, pindah ke area terbuka, lalu tekan Perbarui GPS.');
-          setAddress('Alamat tidak ditampilkan karena perkiraan lokasi masih terlalu luas.');
-          return;
         }
-        const controller = new AbortController();
-        addressAbort.current = controller;
-        const timeout = window.setTimeout(() => controller.abort(), 8000);
-        setAddress('Mencari perkiraan alamat...');
-        try {
-          const params = new URLSearchParams({
-            lat: String(latitude), lon: String(longitude),
-            format: 'json', zoom: '18', addressdetails: '1',
-          });
-          const res = await fetch('https://nominatim.openstreetmap.org/reverse?' + params,
-            { headers: { 'Accept-Language': 'id' }, signal: controller.signal });
-          if (!res.ok) throw new Error('Address unavailable');
-          const data = await res.json();
-          if (requestId !== locationRequest.current) return;
-          setAddress(typeof data.display_name === 'string' && data.display_name.trim()
-            ? data.display_name
-            : 'Alamat belum tersedia. Koordinat perangkat tetap tercatat.');
-        } catch {
-          if (requestId === locationRequest.current)
-            setAddress('Alamat belum tersedia. Koordinat perangkat tetap tercatat.');
-        } finally { window.clearTimeout(timeout); }
       },
       (error) => {
         if (requestId !== locationRequest.current) return;
@@ -236,7 +199,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   useEffect(() => {
     detectLocation();
-    return () => { ++locationRequest.current; addressAbort.current?.abort(); };
+    return () => { ++locationRequest.current; };
   }, [detectLocation]);
 
   // Camera Management
@@ -323,7 +286,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     const photoCode = generatePhotoCode();
     const { timeShort, dateFull } = currentTimeFormatted;
     const locationName = getLocationText();
-    const resolvedAddress = address || locationName;
+    const resolvedAddress = `Penugasan: ${locationName || 'Tanpa pilihan lokasi'}`;
 
     // -------------------------------------------------------------
     // Branding is not a guarantee of identity or GPS accuracy.
@@ -495,6 +458,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     const photoCode = generatePhotoCode();
 
     const newRecord: GuestAttendanceRecord = {
+      companyName: companyName.trim(), jobTitle: jobTitle.trim(),
       id: '', // Displayed only after the server returns the persisted UUID.
       nama: nama.trim(),
       hp: hp.trim(),
@@ -508,7 +472,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       latitude: lat,
       longitude: lng,
       accuracy,
-      address: address || getLocationText(),
+      address: '', // No reverse geocoding; assignment is stored separately.
       photoCode,
       foto,
       catatan: catatan.trim(),
@@ -518,34 +482,24 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     if (submitting) return;
     setSubmitting(true);
     try {
-      const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto, lat, lng]);
+      // Refresh at submission as well; opening the form earlier is not a current measurement.
+      setLocLoading(true);
+      let fresh;
+      try { fresh = await readDeviceLocation(); } finally { setLocLoading(false); }
+      setLat(fresh.latitude); setLng(fresh.longitude); setAccuracy(fresh.accuracy);
+      setLocError(fresh.accuracy > 100 ? 'Lokasi masih kurang akurat. Aktifkan lokasi presisi.' : '');
+      newRecord.latitude = fresh.latitude; newRecord.longitude = fresh.longitude; newRecord.accuracy = fresh.accuracy;
+      const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto]);
       if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
       const form = new FormData();
-      const assignmentKind = jenis === 'Crew Event' ? 'EVENT' : jenis === 'Kantor' ? 'OFFICE' : 'STORE';
-      for (const [key, value] of Object.entries({
-        fullName: newRecord.nama,
-        phone: newRecord.hp,
-        crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE',
-        assignmentKind,
-        locationId: selectedLocation,
-        locationName: newRecord.lokasi,
-        position: posisi,
-        clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT',
-        latitude: lat,
-        longitude: lng,
-        accuracy: accuracy ?? '',
-        address: newRecord.address,
-        note: newRecord.catatan,
-        locationSource: locSource,
-        submissionKey: submissionKey.current,
-      })) form.append(key, String(value));
+      for (const [key, value] of Object.entries({ companyName: newRecord.companyName || '', jobTitle: newRecord.jobTitle || '', fullName: newRecord.nama, phone: newRecord.hp, crewType: jenis === 'Crew Event' ? 'CREW_EVENT' : 'CREW_STORE', assignmentKind: jenis === 'Kantor' ? 'OFFICE' : jenis === 'Crew Store' ? 'STORE' : 'EVENT', locationId: selectedLocation, locationName: newRecord.lokasi, position: posisi, clockType: tipeAbsen === 'Clock In' ? 'IN' : 'OUT', latitude: newRecord.latitude, longitude: newRecord.longitude, accuracy: newRecord.accuracy ?? '', address: newRecord.address, note: newRecord.catatan, locationSource: locSource, submissionKey: submissionKey.current })) form.append(key, String(value));
       form.append('photo', await (await fetch(foto)).blob(), 'guest-selfie.jpg');
       const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.id) throw new Error(data?.message || 'Absensi belum tersimpan di server. Coba lagi.');
       setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) });
       submissionKey.current = crypto.randomUUID();
-      setFoto(''); setCatatan(''); setSubmitSuccess(true);
+      setFoto(''); setCatatan('');
       add('Absensi diterima server', 'Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.');
     } catch (error) { setFormError(error instanceof Error ? error.message : 'Pengiriman gagal. Coba lagi.'); }
     finally { setSubmitting(false); }
@@ -553,7 +507,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   const generateWhatsAppMessage = (rec: GuestAttendanceRecord) => {
     const mapLink =
-      rec.latitude && rec.longitude
+      Number.isFinite(rec.latitude) && Number.isFinite(rec.longitude)
         ? `https://maps.google.com/?q=${rec.latitude},${rec.longitude}`
         : 'Tidak terdeteksi';
 
@@ -562,13 +516,16 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 *ID Absensi:* ${rec.id}
 *Kode Verifikasi:* ${rec.photoCode}
 *Nama Crew:* ${rec.nama}
+*Perusahaan:* ${rec.companyName || 'Belum diisi'}
+*Jabatan:* ${rec.jobTitle || 'Belum diisi'}
 *No. WhatsApp:* ${rec.hp}
 *Penugasan:* ${rec.jenis}
 *Lokasi/Venue:* ${rec.lokasi}
 *Posisi Tugas:* ${rec.posisi}
 *Jenis Absen:* ${rec.tipe}
 *Waktu:* ${rec.timestamp}
-*Alamat Terdeteksi:* ${rec.address}
+*Koordinat Perangkat:* ${rec.latitude}, ${rec.longitude}
+*Akurasi GPS:* ±${rec.accuracy ?? 'Tidak tersedia'} m
 *Link Lokasi:* ${mapLink}
 *Catatan:* ${rec.catatan}
 
@@ -606,51 +563,21 @@ _Foto selfie telah tersimpan di sistem._`;
         {/* TAB 1: FORM ABSENSI */}
         {activeTab === 'absen' && (
           <div className="space-y-6">
-            {submitSuccess && submittedRecord && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 shadow-sm animate-fade-in">
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <h3 className="text-sm font-bold text-emerald-950">
-                        Absensi Lapangan Berhasil Dikirim
-                      </h3>
-                      <span className="font-mono text-xs px-2.5 py-0.5 bg-emerald-200 text-emerald-900 rounded font-semibold">
-                        {submittedRecord.id}
-                      </span>
-                    </div>
-                    <p className="text-xs text-emerald-800 mt-1">
-                      Data absensi <strong>{submittedRecord.nama}</strong> ({submittedRecord.tipe}) di{' '}
-                      <strong>{submittedRecord.lokasi}</strong> telah diterima server dan menunggu tinjauan admin.
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2.5">
-                      <a
-                        href={generateWhatsAppMessage(submittedRecord)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
-                      >
-                        Kirim Bukti ke WhatsApp Admin
-                      </a>
-                      <button
-                        onClick={() => {
-                          setSubmitSuccess(false);
-                          setSubmittedRecord(null);
-                        }}
-                        className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors"
-                      >
-                        Tutup Notifikasi
-                      </button>
-                    </div>
-                  </div>
+            <Modal open={!!submittedRecord} onClose={() => setSubmittedRecord(null)} title="Absensi berhasil dikirim" size="sm">
+              {submittedRecord && <div className="space-y-4">
+                <p role="status" className="text-sm text-slate-700 leading-relaxed">
+                  Absensi <strong>{submittedRecord.nama}</strong> ({submittedRecord.tipe}) di <strong>{submittedRecord.lokasi}</strong> sudah diterima dan menunggu tinjauan admin.
+                </p>
+                <p className="text-sm text-slate-600">{submittedRecord.timestamp}</p>
+                <div className="flex flex-col gap-3">
+                  <a href={generateWhatsAppMessage(submittedRecord)} target="_blank" rel="noopener noreferrer"
+                    className="min-h-11 flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700">
+                    Kirim Bukti ke WhatsApp Admin
+                  </a>
+                  <button type="button" autoFocus onClick={() => setSubmittedRecord(null)} className="min-h-11 rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">Selesai</button>
                 </div>
-              </div>
-            )}
+              </div>}
+            </Modal>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 bg-slate-50/50">
@@ -672,6 +599,8 @@ _Foto selfie telah tersimpan di sistem._`;
 
                 {/* Identitas */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="text-xs text-slate-700">Perusahaan<input maxLength={150} value={companyName} onChange={e=>setCompanyName(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+                  <label className="text-xs text-slate-700">Jabatan<input maxLength={100} value={jobTitle} onChange={e=>setJobTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Nama Lengkap <span className="text-red-500">*</span>
@@ -778,11 +707,11 @@ _Foto selfie telah tersimpan di sistem._`;
                         {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
                       </option>
                       {(jenis === 'Crew Store'
-                        ? locations.stores
+                        ? locations.stores.map(s => ({ id: s.id, name: s.name }))
                         : jenis === 'Kantor'
-                          ? kantorLocations
-                          : locations.events.map((event) => ({ id: event.id, name: event.event_name })))
-                        .map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                          ? locations.offices.map(s => ({ id: s.id, name: s.name }))
+                          : locations.events.map(e => ({ id: e.id, name: e.event_name }))
+                      ).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
 
@@ -823,11 +752,7 @@ _Foto selfie telah tersimpan di sistem._`;
                           </span>
                         </div>
                         {locError && <p role="status" className="text-xs text-amber-700">{locError}</p>}
-                        {address && (
-                          <p className="text-xs text-slate-600 pt-0.5 leading-relaxed">
-                            {address}
-                          </p>
-                        )}
+                        <p className="text-xs text-slate-600 pt-0.5">Lokasi penugasan: {getLocationText() || 'Tidak dipilih'}. Bukti posisi perangkat menggunakan koordinat GPS di atas.</p>
                       </div>
                     ) : (
                       <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
@@ -904,7 +829,7 @@ _Foto selfie telah tersimpan di sistem._`;
 
                             <div className="border-l-2 border-amber-400 pl-2 text-white text-[11px] leading-tight">
                               <p className="font-bold">{currentTimeFormatted.dateFull}</p>
-                              <p className="text-slate-200 line-clamp-2 mt-0.5">{address || getLocationText()}</p>
+                              <p className="text-slate-200 line-clamp-2 mt-0.5">{`Penugasan: ${getLocationText() || 'Tidak dipilih'}`}</p>
                             </div>
                           </div>
                         </div>

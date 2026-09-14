@@ -144,7 +144,7 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
 
   const info = [
     ['Event ID', eventId],
-    ['Kode Event', event.event_code],
+    ['Perusahaan', event.company_name || 'Belum ditetapkan'],
     ['Nama Event', eventName],
     ['Klien', event.client_name || '-'],
     ['Cabang', event.branch?.name || '-'],
@@ -179,6 +179,11 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
     y = (doc as any).lastAutoTable.finalY + 12;
   }
 
+  if (assignment.members?.length) {
+    if(y > 220){doc.addPage();y=20;}
+    autoTable(doc,{startY:y,head:[['Nama Crew','Perusahaan','Jabatan','Tugas Event']],body:assignment.members.map(member=>[member.name,member.company_name||'Belum diisi',member.job_title||'Belum diisi',member.position||'-']),theme:'grid',margin:{left:14}});
+    y=(doc as any).lastAutoTable.finalY+12;
+  }
   // Transportasi
   if (y > 235) { doc.addPage(); y = 20; }
   doc.setFontSize(14);

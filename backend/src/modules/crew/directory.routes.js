@@ -49,7 +49,19 @@ async function save(req, res, next) {
     if (!["branches", "stores", "events"].includes(table))
       throw fail("Jenis direktori tidak valid.", 404)
     if (req.params.id) uuid(req.params.id)
-    const body = req.body
+    const body = { ...req.body }
+    // Hidden internal codes keep existing references stable on edits.
+    const codeKey = table === "events" ? "event_code" : "code"
+    if (!body[codeKey]) {
+      if (req.params.id) {
+        const {data: existing, error} = await db.from(table).select(codeKey).eq("id", req.params.id).maybeSingle()
+        if (error) throw fail("Lokasi belum dapat diperiksa.", 503)
+        if (!existing) throw fail("Lokasi tidak ditemukan.", 404)
+        body[codeKey] = existing[codeKey]
+      } else body[codeKey] = "LOC-" + require("node:crypto").randomUUID().replace(/-/g, "").slice(0, 20)
+    }
+    const company_name = body.company_name === undefined ? undefined : String(body.company_name).trim()
+    if (company_name !== undefined && company_name.length > 150) throw fail('Nama perusahaan maksimal 150 karakter.')
     let fields
     if (table === "branches")
       fields = { code: text(body, "code", 30), name: text(body, "name", 150) }
@@ -141,6 +153,7 @@ async function save(req, res, next) {
           "Cabang lokasi yang sudah ditetapkan tidak dapat dipindah di sini. Buat lokasi baru agar riwayat tetap akurat.",
         )
     }
+    if (company_name !== undefined) fields.company_name = company_name
     let query = req.params.id
       ? db.from(table).update(fields).eq("id", req.params.id)
       : db.from(table).insert(fields)

@@ -20,7 +20,7 @@ function fail(message, status = 400) {
 async function ownCrew(userId) {
   const { data, error } = await db
     .from('crew')
-    .select('id, employee_code, base_salary, user:users(full_name)')
+    .select('id, company_name, job_title, employee_code, base_salary, user:users(full_name)')
     .eq('user_id', userId)
     .eq('crew_type', 'CREW_EVENT')
     .maybeSingle();
@@ -48,7 +48,7 @@ router.get('/workspace', async (req, res, next) => {
     const { data: assignments, error } = await db
       .from('event_assignments')
       .select(`id, position, status,
-        event:events!inner(id,event_code,event_name,client_name,event_date,start_time,end_time,pic_crew_id,status,branch:branches(name),event_locations(address),pic:crew!events_pic_crew_id_fkey(user:users(full_name))),
+        event:events!inner(id,company_name,event_code,event_name,client_name,event_date,start_time,end_time,pic_crew_id,status,branch:branches(name),event_locations(address),pic:crew!events_pic_crew_id_fkey(user:users(full_name))),
         event_schedules(id,schedule_date,start_time,end_time,status,overtime_preapproved)`)
       .eq('crew_id', crew.id)
       .order('id');
@@ -62,7 +62,7 @@ router.get('/workspace', async (req, res, next) => {
     if (eventIds.length) {
       const [workflowResult, teamResult] = await Promise.all([
         db.from('event_workflows').select('event_id,data,current_step,max_reached,updated_at').in('event_id', eventIds),
-        db.from('event_assignments').select('id,event_id,crew_id,position,status,crew:crew(user:users(full_name))').in('event_id', eventIds),
+        db.from('event_assignments').select('id,event_id,crew_id,position,status,crew:crew(company_name,job_title,user:users(full_name))').in('event_id', eventIds),
       ]);
       if (workflowResult.error) throw fail(workflowResult.error.message, 422);
       if (teamResult.error) throw fail(teamResult.error.message, 422);
@@ -98,7 +98,7 @@ router.get('/workspace', async (req, res, next) => {
         ...row,
         workflow: workflowByEvent[row.event.id] || { event_id: row.event.id, data: {}, current_step: 1, max_reached: 1, updated_at: null },
         team: teamByEvent[row.event.id] || [],
-        members:teamRows.filter(member=>member.event_id===row.event.id).map(member=>({id:member.id,crew_id:member.crew_id,name:member.crew?.user?.full_name||'Crew',position:member.position,status:member.status})),
+        members:teamRows.filter(member=>member.event_id===row.event.id).map(member=>({id:member.id,crew_id:member.crew_id,name:member.crew?.user?.full_name||'Crew',company_name:member.crew?.company_name||'',job_title:member.crew?.job_title||'',position:member.position,status:member.status})),
         attendance: attendanceByAssignment[row.id] || [],
       })),
     });

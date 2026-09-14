@@ -21,6 +21,9 @@ const ROLE_DB_TO_FRONTEND: Record<string, FrontendRole> = {
 };
 
 export interface AuthUser {
+  company_name?: string;
+  job_title?: string;
+  branch_name?: string;
   id: string;
   full_name: string;
   email: string;

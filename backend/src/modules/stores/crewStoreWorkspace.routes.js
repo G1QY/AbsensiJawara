@@ -7,7 +7,7 @@ router.use(requireRole(ROLES.CREW_STORE));
 const fail=(message,status=422)=>Object.assign(new Error(message),{status});
 
 router.get('/',async(req,res,next)=>{try{
-  const {data:crew,error:crewError}=await db.from('crew').select('id,employee_code,base_salary,status,user:users(full_name)').eq('user_id',req.user.id).eq('crew_type','CREW_STORE').maybeSingle();
+  const {data:crew,error:crewError}=await db.from('crew').select('id,company_name,job_title,employee_code,base_salary,status,user:users(full_name)').eq('user_id',req.user.id).eq('crew_type','CREW_STORE').maybeSingle();
   if(crewError)throw fail(crewError.message);if(!crew)throw fail('Profil Crew Store tidak ditemukan.',404);
   const workingDate=require('../../utils/attendanceTime').wibDate(new Date());
   const {data:assignment,error:assignmentError}=await db.from('store_assignments').select('id,status,start_date,end_date,store:stores(id,name,status,branch:branches(name))').eq('crew_id',crew.id).eq('status','ACTIVE').lte('start_date',workingDate).or(`end_date.is.null,end_date.gte.${workingDate}`).maybeSingle();

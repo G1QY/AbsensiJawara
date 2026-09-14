@@ -19,6 +19,8 @@ function validateCrew(body, creating = false) {
   for (const [key, min, max] of [
     ["fullName", 2, 150],
     ["phoneNumber", 0, 30],
+    ["companyName", 0, 150],
+    ["jobTitle", 0, 100],
   ]) {
     if (
       body[key] !== undefined ||
@@ -43,7 +45,7 @@ function validateCrew(body, creating = false) {
       throw fail("Kode karyawan harus 5–30 karakter dan hanya memakai huruf, angka, atau tanda hubung.")
     out.employeeCode = body.employeeCode.trim().toUpperCase()
   }
-  if (creating && body.employeeCode === undefined) {
+  if (creating && body.employeeCode === undefined && body.employeeNumber !== undefined) {
     if (!Number.isInteger(body.employeeNumber) || body.employeeNumber < 1 || body.employeeNumber > 999999)
       throw fail("Nomor karyawan harus angka 1 sampai 999999.")
     out.employeeNumber = body.employeeNumber

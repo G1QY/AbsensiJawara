@@ -1,0 +1,25 @@
+// Run from project root with PGLITE_MODULE set to installed @electric-sql/pglite. Uses only an in-memory database.
+const {PGlite}=require(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const fs=require('fs'),assert=require('assert/strict');
+(async()=>{const db=new PGlite();
+await db.exec(`create schema auth; create role anon; create role authenticated; create role service_role bypassrls;
+create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');
+create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
+for(const f of ['foundation.sql','workforce.sql','attendance.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8').replace('create extension if not exists "pgcrypto";',''));
+await db.exec(`create table public.audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());`);
+await db.exec(fs.readFileSync('supabase/migrations/admin_branches_crew.sql','utf8'));
+await db.exec(fs.readFileSync('sql/crew_company_job.sql','utf8'));
+await db.exec(fs.readFileSync('sql/crew_company_job.sql','utf8'));
+const admin='00000000-0000-4000-8000-000000000001',user='00000000-0000-4000-8000-000000000002';
+await db.exec(`insert into roles(code,name) values('SUPER_ADMIN','Admin'),('CREW_EVENT','Event'),('CREW_STORE','Store');
+insert into auth.users(id,email) values('${admin}','admin@example.test'),('${user}','crew@example.test');
+insert into user_roles(user_id,role_id) select '${admin}',id from roles where code='SUPER_ADMIN';`);
+const rpc=(actor,op,id,uid,data)=>db.query('select manage_crew($1,$2,$3,$4,$5) as id',[actor,op,id,uid,JSON.stringify(data)]);
+let result=await rpc(admin,'create',null,user,{employeeCode:'EMP-123456',fullName:'Test Crew',crewType:'CREW_STORE',companyName:'Fotosnaps',jobTitle:'Kasir',baseSalary:0});
+const id=result.rows[0].id;
+let row=(await db.query('select * from crew where id=$1',[id])).rows[0];assert.equal(row.company_name,'Fotosnaps');assert.equal(row.job_title,'Kasir');assert.equal(row.branch_id,null);
+await rpc(admin,'update',id,null,{jobTitle:'Supervisor'});row=(await db.query('select * from crew where id=$1',[id])).rows[0];assert.equal(row.company_name,'Fotosnaps');assert.equal(row.job_title,'Supervisor');assert.equal(row.employee_code,'EMP-123456');
+await assert.rejects(()=>rpc(user,'update',id,null,{companyName:'Bad'}));
+const role=(await db.query('select r.code from user_roles ur join roles r on ur.role_id=r.id where ur.user_id=$1',[user])).rows[0];assert.equal(role.code,'CREW_STORE');
+await assert.rejects(()=>rpc(admin,'update',id,null,{companyName:'x'.repeat(151)}));
+console.log('Local SQL: migration repeat, create, update/preserve, auth rejection, role unchanged, length rollback passed');await db.close();})().catch(e=>{console.error(e.message);process.exit(1)});

@@ -17,6 +17,7 @@ export interface CrewEventAssignment {
   event: {
     id: string;
     event_code: string;
+    company_name?: string;
     event_name: string;
     client_name: string | null;
     start_time?:string|null;end_time?:string|null;pic_crew_id?:string|null;
@@ -29,12 +30,12 @@ export interface CrewEventAssignment {
   event_schedules: Array<{ id: string; schedule_date: string; start_time: string; end_time: string; status: string; overtime_preapproved?: boolean }>;
   workflow: WorkflowState;
   team: string[];
-  members?:Array<{id:string;crew_id:string;name:string;position:string|null;status:string}>;
+  members?:Array<{id:string;crew_id:string;name:string;company_name?:string;job_title?:string;position:string|null;status:string}>;
   attendance: Array<{ id: string; attendance_date: string; check_in: string | null; check_out: string | null; check_in_photo_url?: string | null; check_out_photo_url?: string | null; status: string; review_status: string; late_minutes: number; overtime_minutes: number; overtime_status: string }>;
 }
 
 export interface CrewEventWorkspaceData {
-  crew: { id: string; employee_code: string; base_salary: number; user?: { full_name: string } | null };
+  crew: { id: string; company_name?: string; job_title?: string; employee_code: string; base_salary: number; user?: { full_name: string } | null };
   assignments: CrewEventAssignment[];
 }
 

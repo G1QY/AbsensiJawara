@@ -6,7 +6,7 @@ async function list(req, res, next) {
   try {
     const { data, error } = await supabase
       .from('attendance_corrections')
-      .select('*, crew:crew(employee_code, user:users(full_name))');
+      .select('*, crew:crew(company_name,job_title,employee_code, user:users(full_name))');
 
     if (error) throw Object.assign(new Error(error.message), { status: 400 });
     res.json(data);

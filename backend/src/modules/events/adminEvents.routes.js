@@ -4,7 +4,7 @@ const requireRole=require('../../middlewares/requireRole');
 const {uuid,fail}=require('../crew/crew.validation');
 const {logAudit}=require('../../utils/auditLogger');
 router.use(requireRole('SUPER_ADMIN','ADMIN_STORE','EVENT_MANAGER'));
-const select=`*,branch:branches(name),pic:crew!events_pic_crew_id_fkey(user:users(full_name)),event_locations(*),event_assignments(id,crew_id,position,status,crew:crew(id,employee_code,crew_type,base_salary,user:users(full_name,email)),event_schedules(*))`;
+const select=`*,branch:branches(name),pic:crew!events_pic_crew_id_fkey(user:users(full_name)),event_locations(*),event_assignments(id,crew_id,position,status,crew:crew(id,company_name,job_title,employee_code,crew_type,base_salary,user:users(full_name,email)),event_schedules(*))`;
 function check(error){if(error)throw fail(error.code==='40001'?error.message:error.code==='23505'?'Kode event sudah dipakai.':error.code?.startsWith('PGRST')||error.code==='42703'?'Jalankan migrasi admin_event_workspace terlebih dahulu.':error.message,error.code==='40001'?409:error.code==='42501'?403:422);}
 router.get('/',async(req,res,next)=>{try{
   const rows=[];for(let start=0;;start+=500){const {data,error}=await db.from('events').select(select).order('event_date',{ascending:false}).order('id').range(start,start+499);check(error);rows.push(...data);if(data.length<500)break;}
@@ -27,6 +27,7 @@ router.get('/:id/photos/url',async(req,res,next)=>{try{
  res.json({url:await require('../../utils/signedUrl').getSignedDownloadUrl(key)});
 }catch(error){next(error);}});
 function validate(b){
+  if(b.company_name!==undefined&&(typeof b.company_name!=='string'||b.company_name.length>150))throw fail('Nama perusahaan maksimal 150 karakter.');
   uuid(b.branch_id);if(b.pic_crew_id)uuid(b.pic_crew_id);
   for(const [k,max]of [['event_name',150],['event_code',30],['address',1000]])if(typeof b[k]!=='string'||!b[k].trim()||b[k].length>max)throw fail(`${k} wajib diisi.`);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(b.event_date)||!Number.isFinite(Date.parse(b.event_date))||new Date(b.event_date).toISOString().slice(0,10)!==b.event_date)throw fail('Tanggal tidak valid.');
@@ -34,10 +35,16 @@ function validate(b){
   if(!['DRAFT','SCHEDULED','ONGOING','COMPLETED','CANCELLED'].includes(b.status))throw fail('Status tidak valid.');
   if(typeof b.overtime_preapproved!=='boolean')throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
   if(typeof b.latitude!=='number'||!Number.isFinite(b.latitude)||Math.abs(b.latitude)>90||typeof b.longitude!=='number'||!Number.isFinite(b.longitude)||Math.abs(b.longitude)>180||!Number.isInteger(b.radius_meters)||b.radius_meters<1||b.radius_meters>10000)throw fail('Koordinat/radius tidak valid.');
-  return Object.fromEntries(['event_name','event_code','client_name','branch_id','event_date','start_time','end_time','status','pic_crew_id','address','latitude','longitude','radius_meters','expected_updated_at','overtime_preapproved'].filter(k=>b[k]!==undefined).map(k=>[k,b[k]]));
+  return Object.fromEntries(['company_name','event_name','event_code','client_name','branch_id','event_date','start_time','end_time','status','pic_crew_id','address','latitude','longitude','radius_meters','expected_updated_at','overtime_preapproved'].filter(k=>b[k]!==undefined).map(k=>[k,b[k]]));
 }
 async function save(req,res,next){try{
-  if(req.params.id)uuid(req.params.id);const fields=validate(req.body);
+  if(req.params.id)uuid(req.params.id);
+  const body={...req.body};
+  if(!body.event_code){
+    if(req.params.id){const {data:old,error}=await db.from('events').select('event_code').eq('id',req.params.id).maybeSingle();check(error);if(!old)throw fail('Event tidak ditemukan.',404);body.event_code=old.event_code;}
+    else body.event_code='EVT-'+require('node:crypto').randomUUID().replace(/-/g,'').slice(0,24);
+  }
+  const fields=validate(body);
   const {data,error}=await db.rpc('save_admin_event',{p_actor:req.user.id,p_id:req.params.id||null,p_data:fields});check(error);
   const {error:overtimeError}=await db.from('events').update({overtime_preapproved:fields.overtime_preapproved}).eq('id',data);
   if(overtimeError)throw fail('Event tersimpan, tetapi pilihan lembur belum tersimpan. Jalankan migrasi crew_overtime_approval_notifications.',503);

@@ -6,8 +6,8 @@ const { uuid, fail } = require('../crew/crew.validation');
 const { getSignedDownloadUrl } = require('../../utils/signedUrl');
 const { importGuest, upload } = require('./guestAttendance.routes');
 router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER));
-const selection = `*, crew:crew(employee_code,user:users(full_name,email,phone_number)),
-  store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(event_name)),
+const selection = `*, crew:crew(company_name,job_title,employee_code,user:users(full_name,email,phone_number)),
+  store_assignment:store_assignments(store:stores(name,location_kind)),event_assignment:event_assignments(event:events(event_name)),
   store_schedule:store_schedules(schedule_date,start_time,end_time,late_tolerance_minutes,overtime_preapproved),event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved)`;
 function check(error) {
   if (error) throw fail(error.code?.startsWith('PGRST') || ['42703','42P01'].includes(error.code)
@@ -52,34 +52,6 @@ router.patch('/:kind/:id/review',async(req,res,next)=>{
     const {error}=await db.rpc('review_attendance',{p_actor:req.user.id,p_kind:req.params.kind,p_id:req.params.id,p_target:target,p_decision:decision,p_note:note.trim()});
     if(error)throw fail(error.message,error.code==='40001'?409:error.code==='P0002'?404:error.code==='42501'?403:422);
     res.json({message:'Keputusan tersimpan di server.'});
-  }catch(error){next(error);}
-});
-router.delete('/:kind/:id',async(req,res,next)=>{
-  try {
-    uuid(req.params.id);const kind=req.params.kind;
-    if(!['registered','guest'].includes(kind))throw fail('Sumber absensi tidak valid.');
-
-    if(kind==='guest') {
-      const { data: guest, error: guestError } = await db.from('guest_attendances').select('photo_key').eq('id', req.params.id).maybeSingle();
-      check(guestError);
-      if(!guest)throw fail('Absensi guest tidak ditemukan.',404);
-
-      const { error } = await db.from('guest_attendances').delete().eq('id', req.params.id);
-      check(error);
-
-      if(guest.photo_key) {
-        try {
-          const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
-          const { s3, BUCKET_NAME } = require('../../config/s3Client');
-          await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: guest.photo_key })).catch(()=>{});
-        } catch {}
-      }
-    } else {
-      const { error } = await db.from('attendance_logs').delete().eq('id', req.params.id);
-      check(error);
-    }
-
-    res.json({message:'Absensi berhasil dihapus.'});
   }catch(error){next(error);}
 });
 module.exports=router;

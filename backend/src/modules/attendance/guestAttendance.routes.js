@@ -35,6 +35,7 @@ async function save(req,res,next,legacy=false) {
   let key=null;
   try {
     const b=req.body;
+    const company_name=string(b,'companyName',150),job_title=string(b,'jobTitle',100);
     const full_name=string(b,'fullName',150,true),phone=string(b,'phone',30,true),position=string(b,'position',100),note=string(b,'note',2000),address=string(b,'address',2000);
     if(!/^[+0-9 ()-]{7,30}$/.test(phone))throw fail('Nomor HP tidak valid.');
     if(!['CREW_EVENT','CREW_STORE'].includes(b.crewType)||!['IN','OUT'].includes(b.clockType))throw fail('Jenis absensi tidak valid.');
@@ -69,7 +70,7 @@ async function save(req,res,next,legacy=false) {
     try{photo=await sharp(req.file.buffer,{limitInputPixels:20000000}).rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).jpeg({quality:85}).toBuffer();}
     catch{throw fail('File foto tidak dapat dibaca.');}
     const id=crypto.randomUUID();key=`guest-attendance/${id}.jpg`;await uploadPrivateObject(key,photo,'image/jpeg');
-    const {data,error}=await db.from('guest_attendances').insert({id,import_key,submission_key,legacy_id,full_name,phone,crew_type:b.crewType,assignment_kind,store_id,event_id,location_name,position,clock_type:b.clockType,occurred_at,time_source:legacy?'LEGACY_DEVICE':'SERVER',photo_key:key,latitude,longitude,accuracy,address,note}).select('id,occurred_at').single();
+    const {data,error}=await db.from('guest_attendances').insert({id,import_key,submission_key,legacy_id,full_name,phone,company_name,job_title,crew_type:b.crewType,assignment_kind,store_id,event_id,location_name,position,clock_type:b.clockType,occurred_at,time_source:legacy?'LEGACY_DEVICE':'SERVER',photo_key:key,latitude,longitude,accuracy,address,note}).select('id,occurred_at').single();
     if(error) {
       await s3.send(new DeleteObjectCommand({Bucket:BUCKET_NAME,Key:key})).catch(()=>{});key=null;
       if(error.code==='23505'){const existing=await findExisting();if(existing.data)return res.json(existing.data);}

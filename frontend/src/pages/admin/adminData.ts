@@ -1,9 +1,11 @@
 export interface Branch {
+  company_name?: string
   id: string
   code: string
   name: string
 }
 export interface Store {
+  company_name?: string
   location_kind?: "STORE" | "OFFICE"
   id: string
   code: string
@@ -16,6 +18,7 @@ export interface Store {
   status: string
 }
 export interface Event {
+  company_name?: string
   id: string
   event_code: string
   event_name: string
@@ -30,6 +33,8 @@ export interface Directory {
   events: Event[]
 }
 export interface Crew {
+  company_name?: string
+  job_title?: string
   id: string
   employee_code: string
   crew_type: "CREW_EVENT" | "CREW_STORE"

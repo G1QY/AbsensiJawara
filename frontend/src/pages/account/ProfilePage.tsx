@@ -58,6 +58,7 @@ export default function ProfilePage() {
   }
   return <div className="account-page">
     <div className="account-heading"><span className="ui-eyebrow">AKUN ANDA</span><h2>Profil Saya</h2><p>Kelola identitas dan foto yang ditampilkan di JAWARA.</p></div>
+    {!guest && <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 p-4"><p>Perusahaan: {auth?.user.company_name || 'Belum ditetapkan'}</p><p>Jabatan: {auth?.user.job_title || 'Belum ditetapkan'}</p><p className="text-xs text-slate-500 sm:col-span-2">Perubahan perusahaan dan jabatan dilakukan oleh admin.</p></div>}
     {guest && <p className="ui-info">Mode Guest Crew. Nama, email kontak, dan foto hanya berlaku selama sesi ini. Data ini tidak membuat akun login baru.</p>}
     {loading && <p role="status">Memuat profil akun…</p>}
     {error && <p className="ui-error" role="alert">{error}</p>}

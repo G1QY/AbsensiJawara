@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useModalHistory } from '../../lib/useModalHistory';
 
 interface ModalProps {
@@ -21,8 +22,8 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label={title} className={`relative bg-white rounded-2xl shadow-2xl w-full max-h-[90dvh] flex flex-col ${sizeMap[size]} animate-fade-in`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -41,7 +42,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
           {children}
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 
@@ -56,8 +57,8 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
 }) {
   useModalHistory(open, onClose);
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label={title} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in p-6">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger ? 'bg-red-100' : 'bg-blue-100'}`}>
@@ -76,6 +77,6 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }

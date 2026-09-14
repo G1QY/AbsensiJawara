@@ -5,7 +5,7 @@ const { ROLES } = require('../../config/constants');
 
 // GET/POST/PATCH /event-assignments
 const controller = crudFactory('event_assignments', {
-  selectQuery: '*, crew:crew(id, employee_code, user:users(full_name)), event:events(event_name)',
+  selectQuery: '*, crew:crew(id, company_name, job_title, employee_code, user:users(full_name)), event:events(event_name)',
 });
 const canManage = requireRole(ROLES.SUPER_ADMIN, ROLES.EVENT_MANAGER);
 

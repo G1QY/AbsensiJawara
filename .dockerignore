@@ -9,3 +9,8 @@
 **/*.pem
 **/*.key
 backups
+
+# Generated QA artifacts
+frontend/qa-browser-*
+frontend/qa-final
+frontend/undefined

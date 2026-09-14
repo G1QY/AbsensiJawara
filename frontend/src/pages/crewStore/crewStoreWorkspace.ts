@@ -3,7 +3,7 @@ import {api,ApiError} from '../../lib/apiClient';
 import {useAuth} from '../../lib/AuthContext';
 
 export interface StoreAttendance {id:string;attendance_date:string;check_in:string|null;check_out:string|null;status:string;review_status:string;late_minutes:number;overtime_minutes:number;overtime_status:string}
-export interface StoreWorkspace {crew:{id:string;employee_code:string;base_salary:number;status:string;user?:{full_name:string}|null};assignment:{id:string;status:string;start_date:string;end_date:string|null;store?:{id:string;name:string;status:string;branch?:{name:string}|null}|null}|null;schedules:Array<{id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}>;attendance:StoreAttendance[];permissions:Array<{start_date:string;end_date:string;type:'SICK'|'PERMISSION';status:string}>}
+export interface StoreWorkspace {crew:{id:string;company_name?:string;job_title?:string;employee_code:string;base_salary:number;status:string;user?:{full_name:string}|null};assignment:{id:string;status:string;start_date:string;end_date:string|null;store?:{id:string;name:string;status:string;branch?:{name:string}|null}|null}|null;schedules:Array<{id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}>;attendance:StoreAttendance[];permissions:Array<{start_date:string;end_date:string;type:'SICK'|'PERMISSION';status:string}>}
 
 export function useStoreWorkspace(){
  const {auth}=useAuth();const[data,setData]=useState<StoreWorkspace|null>(null);const[loading,setLoading]=useState(true);const[error,setError]=useState('');

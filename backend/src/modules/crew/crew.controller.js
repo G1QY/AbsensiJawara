@@ -132,7 +132,9 @@ async function create(req, res, next) {
   let committed = false
   try {
     const fields = validateCrew(req.body, true)
-    fields.employeeCode = await employeeCode(fields)
+    fields.employeeCode = fields.employeeCode || fields.employeeNumber
+      ? await employeeCode(fields)
+      : "EMP-" + require("node:crypto").randomUUID().replace(/-/g, "").slice(0, 24)
     delete fields.employeeNumber
     delete fields.codeSourceId
     const email = req.body.email.trim().toLowerCase()
