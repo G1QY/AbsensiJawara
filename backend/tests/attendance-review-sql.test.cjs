@@ -6,10 +6,10 @@ test('guest/registered review uses locked UUID rows and atomic audit', {skip:!pr
       create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');
       create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
     const dir=path.resolve(__dirname,'../../supabase/migrations');
-    for(const file of ['001_foundation.sql','002_workforce.sql','003_attendance.sql','006_attendance_calendar_fields.sql'])await db.exec(fs.readFileSync(path.join(dir,file),'utf8').replace('create extension if not exists "pgcrypto";',''));
+    for(const file of ['foundation.sql','workforce.sql','attendance.sql','attendance_calendar_fields.sql'])await db.exec(fs.readFileSync(path.join(dir,file),'utf8').replace('create extension if not exists "pgcrypto";',''));
     await db.exec(`create table audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());
       create table notifications(id uuid primary key default gen_random_uuid(),user_id uuid not null references users(id),type text not null,title text not null,body text,read_at timestamptz,created_at timestamptz default now());`);
-    await db.exec(fs.readFileSync(path.join(dir,'20260831121350_attendance_review_guest.sql'),'utf8'));
+    await db.exec(fs.readFileSync(path.join(dir,'attendance_review_guest.sql'),'utf8'));
     await db.exec(fs.readFileSync(path.join(dir,'20260901021500_crew_overtime_approval_notifications.sql'),'utf8'));
     const admin='00000000-0000-4000-8000-000000000001',user='00000000-0000-4000-8000-000000000002';
     await db.exec(`insert into roles(code,name)values('SUPER_ADMIN','Admin'),('CREW_EVENT','Crew');insert into auth.users(id,email)values('${admin}','admin@test.invalid'),('${user}','crew@test.invalid');insert into user_roles(user_id,role_id)select '${admin}',id from roles where code='SUPER_ADMIN';`);

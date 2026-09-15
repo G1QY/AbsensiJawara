@@ -279,7 +279,7 @@ export default function LoginPage() {
             href={waAdminUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[12px] font-medium text-[#4c4451] hover:text-[#25D366] uppercase tracking-wider transition-colors inline-flex items-center gap-1.5 group"
+            className="text-[12px] font-medium text-[#1a1c1c] hover:text-[#25D366] uppercase tracking-wider transition-colors inline-flex items-center gap-1.5 group"
             title="Hubungi Admin via WhatsApp untuk bantuan akses akun"
           >
             <span>Hubungi Admin</span>
@@ -344,7 +344,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={backToLogin}
-        className="flex items-center gap-1.5 text-[12px] font-medium text-[#4c4451] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
+        className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1c1c] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -354,7 +354,7 @@ export default function LoginPage() {
 
       <div className="space-y-1.5">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Lupa Sandi?</h1>
-        <p className="text-[14px] text-[#4c4451]">
+        <p className="text-[14px] text-[#1a1c1c]">
           Masukkan email akun Anda. Kami akan mengirimkan kode OTP untuk mengatur ulang password.
         </p>
       </div>
@@ -403,7 +403,7 @@ export default function LoginPage() {
         </div>
 
         <div className="pt-2 text-center">
-          <p className="text-[12px] text-[#7d7483]">
+          <p className="text-[12px] text-[#1a1c1c]">
             Perlu bantuan akses akun?{' '}
             <a
               href={waAdminUrl}
@@ -426,7 +426,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => goToStep('forgot')}
-        className="flex items-center gap-1.5 text-[12px] font-medium text-[#4c4451] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
+        className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1c1c] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -436,7 +436,7 @@ export default function LoginPage() {
 
       <div className="space-y-1.5">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Verifikasi OTP</h1>
-        <p className="text-[14px] text-[#4c4451]">
+        <p className="text-[14px] text-[#1a1c1c]">
           Masukkan kode 6 digit yang dikirim ke <span className="font-semibold text-[#1a1c1c]">{forgotEmail}</span>
         </p>
       </div>
@@ -456,7 +456,7 @@ export default function LoginPage() {
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleVerifyOtp(); }} noValidate>
         {/* OTP Inputs */}
         <div className="space-y-1">
-          <label className="block text-[12px] font-medium text-[#4c4451] uppercase tracking-wider">
+          <label className="block text-[12px] font-medium text-[#1a1c1c] uppercase tracking-wider">
             Kode OTP
           </label>
           <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
@@ -524,13 +524,13 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => goToStep('otp-verify')}
-        className="flex items-center gap-1.5 text-[12px] font-medium text-[#4c4451] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
+        className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1c1c] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
       >
         Kembali
       </button>
       <div className="space-y-1.5">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Buat Password Baru</h1>
-        <p className="text-[14px] text-[#4c4451]">OTP sudah terverifikasi. Masukkan password baru minimal 8 karakter.</p>
+        <p className="text-[14px] text-[#1a1c1c]">OTP sudah terverifikasi. Masukkan password baru minimal 8 karakter.</p>
       </div>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleResetSubmit(); }} noValidate>
         <FloatingInput
@@ -571,7 +571,7 @@ export default function LoginPage() {
 
       <div className="space-y-2">
         <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Password Berhasil Diubah!</h1>
-        <p className="text-[14px] text-[#4c4451]">
+        <p className="text-[14px] text-[#1a1c1c]">
           Password Anda telah diperbarui. Silakan login menggunakan password baru.
         </p>
       </div>
@@ -628,7 +628,7 @@ export default function LoginPage() {
             {renderStepContent()}
           </div>
 
-          <p className="text-[11px] text-[#7d7483] text-center">&copy; 2026 JAWARA. All rights reserved.</p>
+          <p className="text-[11px] text-[#1a1c1c] text-center">&copy; 2026 JAWARA. All rights reserved.</p>
         </div>
       </div>
 

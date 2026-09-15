@@ -1,3 +1,4 @@
+import { removeGuestRecord } from '../guest/GuestCrewPortal';
 import { gpsLink } from './attendanceData';
 import ExportButtons from '../../components/ui/ExportButtons';
 import {useState,useEffect} from 'react';
@@ -15,6 +16,8 @@ function ApprovalBadge({value}:{value:string}) {
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${tone}`}>{label}</span>;
 }
 export default function AdminAbsensi() {
+  const [deleting,setDeleting]=useState<AttendanceRow|null>(null);
+  const [deleteReason,setDeleteReason]=useState('');
   const [rows,setRows]=useState<AttendanceRow[]>([]);
   const [filters,setFilters]=useState<Filters>(emptyFilters);
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
@@ -26,7 +29,7 @@ export default function AdminAbsensi() {
     setLoading(true);setError('');
     try {
       const data=await api.get<{registered:RegisteredAttendance[];guest:ServerGuest[]}>('/admin-attendance');
-      const legacy=getGuestAttendances().filter(g=>!data.guest.some(s=>s.id===g.serverId||(s.legacy_id===g.id&&s.phone===g.hp&&s.full_name===g.nama)));
+      const legacy=getGuestAttendances().filter(g=>!g.serverId&&!data.guest.some(s=>s.id===g.serverId||(s.legacy_id===g.id&&s.phone===g.hp&&s.full_name===g.nama)));
       setRows([...data.registered.map(fromRegistered),...data.guest.map(fromGuest),...legacy.map(fromLocal)].sort((a,b)=>(b.clockIn||b.clockOut||'').localeCompare(a.clockIn||a.clockOut||'')));
     }catch(e){setError(message(e));}finally{setLoading(false);}
   }
@@ -39,6 +42,17 @@ export default function AdminAbsensi() {
   async function open(a:AttendanceRow,isReview=false) {
     setBusy(true);setModalError('');setNote('');setTarget(a.review==='PENDING'?'attendance':'overtime');setLegacyDate('');
     try{const full=await getDetail(a);if(isReview)setReview(full);else setDetail(full);}catch(e){setError(message(e));}finally{setBusy(false);}
+  }
+  async function removeAttendance() {
+    if(!deleting || !deleteReason.trim())return;
+    setBusy(true);setModalError('');
+    try {
+      if(deleting.source!=='local') await api.delete(`/admin-attendance/${deleting.source}/${deleting.id}`,{reason:deleteReason.trim()});
+      removeGuestRecord(deleting.id);
+      setDeleting(null);setDetail(null);setReview(null);
+      setNotice('Absensi dihapus. Rekap dan ekspor mengikuti data terbaru.');
+      await load();
+    }catch(e){setModalError(message(e));}finally{setBusy(false);}
   }
   async function importLegacy() {
     if(!review?.legacy)return;setBusy(true);setModalError('');
@@ -117,8 +131,11 @@ export default function AdminAbsensi() {
       <td className="p-3 min-w-36 text-slate-700">{stamp(a.clockOut)}</td><td className="p-3 min-w-28 text-slate-700">{a.overtimeMinutes===null?'Belum dihitung':`${a.overtimeMinutes} menit`}</td>
       <td className="p-3"><ApprovalBadge value={a.source==='local'?'PENDING':a.review}/></td>
       <td className="p-3"><ApprovalBadge value={a.overtimeStatus}/></td>
-      <td className="p-3 sticky right-0 bg-white"><div className="flex flex-col items-start gap-2">{needsReview(a)?<button disabled={busy||!!error} className={primary+' whitespace-nowrap'} onClick={()=>void open(a,true)}>{a.source==='local'?'Simpan & Tinjau':a.review==='PENDING'?'Tinjau Absensi':'Tinjau Lembur'}</button>:<span className="text-xs font-semibold text-emerald-700">Keputusan selesai</span>}<button disabled={busy} className="text-blue-700 text-xs font-semibold whitespace-nowrap" onClick={()=>void open(a)}>Lihat Detail</button></div></td>
+      <td className="p-3 sticky right-0 bg-white"><div className="flex flex-col items-start gap-2">{needsReview(a)?<button disabled={busy||!!error} className={primary+' whitespace-nowrap'} onClick={()=>void open(a,true)}>{a.source==='local'?'Simpan & Tinjau':a.review==='PENDING'?'Tinjau Absensi':'Tinjau Lembur'}</button>:<span className="text-xs font-semibold text-emerald-700">Keputusan selesai</span>}<button disabled={busy} className="text-blue-700 text-xs font-semibold whitespace-nowrap" onClick={()=>void open(a)}>Lihat Detail</button><button disabled={busy} className="text-red-700 text-xs font-semibold" onClick={()=>{setDeleting(a);setDeleteReason('');setModalError('')}}>Hapus</button></div></td>
     </tr>)}</tbody></table></div>{!filtered.length&&<p className="text-sm text-slate-500 p-8 text-center">{loading?'Memuat absensi...':'Tidak ada absensi yang sesuai filter.'}</p>}</div>
+    <Modal open={!!deleting} onClose={()=>{if(!busy)setDeleting(null)}} title="Hapus Absensi">
+      {deleting&&<div className="space-y-4"><p className="text-sm">Hapus absensi {deleting.name} pada {deleting.date}? Catatan ini akan dikeluarkan dari rekap. Catatan lembur dan koreksi terkait ikut dihapus.</p><label className="block text-sm">Alasan penghapusan<textarea maxLength={1000} className={control+' mt-1'} value={deleteReason} onChange={e=>setDeleteReason(e.target.value)} /></label>{modalError&&<p role="alert" className="text-sm text-red-700">{modalError}</p>}<div className="flex justify-end gap-3"><button className={button} disabled={busy} onClick={()=>setDeleting(null)}>Batal</button><button className="rounded-xl bg-red-700 px-4 py-2 text-sm text-white disabled:opacity-50" disabled={busy||!deleteReason.trim()} onClick={()=>void removeAttendance()}>{busy?'Menghapus…':'Hapus Absensi'}</button></div></div>}
+    </Modal>
     <Modal open={!!detail} onClose={()=>setDetail(null)} title="Detail Absensi" size="lg">{detail&&<div className="space-y-4">{identity(detail)}<p className="text-sm text-slate-600">Jadwal: {scheduleLabel(detail.schedule)} • {detail.date||'Tanggal belum terbaca'}</p>{calculation(detail)}{positions(detail)}{photos(detail)}<p className="text-sm text-slate-700 whitespace-pre-wrap">Catatan admin: {detail.reviewNote||'Belum ada catatan.'}</p><p className="text-xs text-slate-500">{detail.timeSource==='LEGACY_DEVICE'?'Waktu berasal dari perangkat pada data lama. Bukan waktu server.':'Waktu penerimaan absensi berasal dari server.'} Foto masuk dan pulang tidak dipasangkan otomatis berdasarkan nama/HP guest.</p></div>}</Modal>
     <Modal open={!!review} onClose={()=>{if(!busy)setReview(null);}} title="Tinjau Pengajuan Absensi" size="lg">{review&&<div className="space-y-4">{identity(review)}{positions(review)}{photos(review)}
       {modalError&&<p role="alert" className="bg-red-50 text-red-700 p-3 rounded-xl text-sm">{modalError}</p>}

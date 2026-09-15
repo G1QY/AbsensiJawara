@@ -4,7 +4,7 @@ const requireRole=require('../../middlewares/requireRole');
 const {uuid,fail}=require('../crew/crew.validation');
 const {logAudit}=require('../../utils/auditLogger');
 router.use(requireRole('SUPER_ADMIN','ADMIN_STORE','EVENT_MANAGER'));
-const select=`*,branch:branches(name),pic:crew!events_pic_crew_id_fkey(user:users(full_name)),event_locations(*),event_assignments(id,crew_id,position,status,crew:crew(id,company_name,job_title,employee_code,crew_type,base_salary,user:users(full_name,email)),event_schedules(*))`;
+const select=`*,branch:branches(name,city_name),pic:crew!events_pic_crew_id_fkey(user:users(full_name)),event_locations(*),event_assignments(id,crew_id,position,status,crew:crew(id,company_name,job_title,employee_code,crew_type,base_salary,user:users(full_name,email)),event_schedules(*))`;
 function check(error){if(error)throw fail(error.code==='40001'?error.message:error.code==='23505'?'Kode event sudah dipakai.':error.code?.startsWith('PGRST')||error.code==='42703'?'Jalankan migrasi admin_event_workspace terlebih dahulu.':error.message,error.code==='40001'?409:error.code==='42501'?403:422);}
 router.get('/',async(req,res,next)=>{try{
   const rows=[];for(let start=0;;start+=500){const {data,error}=await db.from('events').select(select).order('event_date',{ascending:false}).order('id').range(start,start+499);check(error);rows.push(...data);if(data.length<500)break;}
@@ -13,9 +13,16 @@ router.get('/',async(req,res,next)=>{try{
 router.get('/:id',async(req,res,next)=>{try{
   uuid(req.params.id);const {data:event,error}=await db.from('events').select(select).eq('id',req.params.id).maybeSingle();check(error);if(!event)throw fail('Event tidak ditemukan.',404);
   const attendance=[];for(let start=0;;start+=500){const {data,error}=await db.from('attendance_logs').select('id,crew_id,attendance_date,check_in,check_out,check_in_photo_url,check_out_photo_url,status,review_status,late_minutes,overtime_minutes,overtime_status,check_in_note,check_out_note,event_assignment:event_assignments!inner(event_id)').eq('event_assignment.event_id',req.params.id).order('id').range(start,start+499);check(error);attendance.push(...data);if(data.length<500)break;}
-  const {data:audit,error:auditError}=await db.from('audit_logs').select('id,action,created_at').eq('entity_type','events').eq('entity_id',req.params.id).order('created_at',{ascending:false}).limit(100);check(auditError);
+  const {data:audit,error:auditError}=await db.from('audit_logs').select('id,action,created_at,actor_user_id,new_data,old_data,actor:users(full_name)').eq('entity_type','events').eq('entity_id',req.params.id).order('created_at',{ascending:false}).limit(100);check(auditError);
   const {data:workflow,error:workflowError}=await db.from('event_workflows').select('event_id,data,current_step,max_reached,updated_at').eq('event_id',event.id).maybeSingle();check(workflowError);
-  res.json({...event,attendance,audit,workflow:workflow||{event_id:event.id,data:{},current_step:1,max_reached:1,updated_at:null}});
+  const crewIds = [...new Set((audit || []).map(row=>row.new_data?.crew_id || row.old_data?.crew_id).filter(Boolean))];
+  const crewNames = new Map();
+  if (crewIds.length) {
+    const result = await db.from('crew').select('id,user:users(full_name)').in('id',crewIds); check(result.error);
+    for (const row of result.data || []) crewNames.set(row.id,row.user?.full_name);
+  }
+  const namedAudit = (audit || []).map(row=>({id:row.id,action:row.action,created_at:row.created_at,actor_name:row.actor?.full_name || row.new_data?.actor_name || (row.actor_user_id?'Pengguna tidak tersedia':'Sistem'),subject_name:crewNames.get(row.new_data?.crew_id || row.old_data?.crew_id) || row.new_data?.crew_name || row.old_data?.crew_name || event.event_name}));
+  res.json({...event,attendance,audit:namedAudit,workflow:workflow||{event_id:event.id,data:{},current_step:1,max_reached:1,updated_at:null}});
 }catch(e){next(e);}});
 router.get('/:id/photos/url',async(req,res,next)=>{try{
  uuid(req.params.id);const key=String(req.query.key||'');

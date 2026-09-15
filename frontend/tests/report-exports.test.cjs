@@ -17,3 +17,10 @@ test('wide multi-page PDF includes all rows and saves as actual PDF',async()=>{
  assert.ok(doc.getNumberOfPages()>1);const output=doc.output();assert.ok(output.startsWith('%PDF-'));assert.ok(output.includes('Crew 64'));assert.ok(output.includes('Nilai-64-19'));
  if(process.env.EXPORT_PROOF_DIR)fs.writeFileSync(path.join(process.env.EXPORT_PROOF_DIR,'export-proof.pdf'),Buffer.from(doc.output('arraybuffer')));
 });
+const {eventFinancials}=load('lib/eventResultsData.ts');
+test('event reports use cash plus transfer, preserving explicit zero over old totals',()=>{
+ assert.equal(eventFinancials({omset_tunai:700000,omset_transfer:200000,omset_nominal:1}).revenue,900000);
+ assert.equal(eventFinancials({omset_tunai:0,omset_transfer:0,omset_nominal:900000}).revenue,0);
+ assert.equal(eventFinancials({omset_nominal:900000}).cash,900000);
+ assert.equal(eventFinancials({omset_tunai:700000,omset_transfer:200000,transportasi_pergi_nominal:50000,transportasi_pulang_nominal:50000,kuota_nominal:15000}).net,785000);
+});

@@ -1,3 +1,4 @@
+import EmploymentSummary from '../../components/layout/EmploymentSummary';
 import { eventAddress, eventIsFinished, eventSchedule, idClock, idDate, useCrewEventWorkspace } from './crewEventWorkspace';
 
 export default function CrewEventDashboard({ onStartWorkflow }: { onStartWorkflow: () => void }) {
@@ -10,7 +11,7 @@ export default function CrewEventDashboard({ onStartWorkflow }: { onStartWorkflo
   const schedule = active && eventSchedule(active);
   const attendance = active?.attendance.find(item => item.attendance_date === active.event.event_date) || active?.attendance[0];
   return <div className="p-4 sm:p-6 space-y-4">
-    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white"><p className="text-xs text-blue-100">Selamat datang,</p><h1 className="text-xl font-bold mt-1">{data?.crew.user?.full_name || 'Crew Event'}</h1><p className="text-xs text-blue-100 mt-1">{new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jakarta'})} • Crew Event</p></section>
+    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white"><p className="text-xs text-blue-100">Selamat datang,</p><h1 className="text-xl font-bold mt-1">{data?.crew.user?.full_name || 'Crew Event'}</h1><p className="text-xs text-blue-100 mt-1">{new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jakarta'})} • Crew Event</p></section><EmploymentSummary />
     {active ? <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden"><div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><h2 className="font-semibold text-sm text-slate-900">Event Hari Ini / Berikutnya</h2><span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700">{active.event.status}</span></div><div className="p-5"><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4"><div><span className="font-mono text-xs text-blue-600">{active.event.event_code}</span><h3 className="font-bold text-lg text-slate-900 mt-1">{active.event.event_name}</h3><p className="text-sm text-slate-500 mt-1">{eventAddress(active)}</p></div><button onClick={onStartWorkflow} className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold">Lanjutkan Workflow</button></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">{[
       ['Jadwal', schedule ? `${schedule.start_time.slice(0,5)}–${schedule.end_time.slice(0,5)}` : 'Belum diatur'],
       ['PIC', active.event.pic?.user?.full_name || 'Belum ditentukan'],

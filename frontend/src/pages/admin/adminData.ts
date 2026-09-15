@@ -1,10 +1,12 @@
 export interface Branch {
+  city_name?: string
   company_name?: string
   id: string
   code: string
   name: string
 }
 export interface Store {
+  deleted_at?: string | null
   company_name?: string
   location_kind?: "STORE" | "OFFICE"
   id: string
@@ -28,6 +30,7 @@ export interface Event {
   status: string
 }
 export interface Directory {
+  archivedStores?: Store[]
   branches: Branch[]
   stores: Store[]
   events: Event[]
@@ -41,7 +44,7 @@ export interface Crew {
   status: "ACTIVE" | "INACTIVE"
   base_salary: number
   branch_id: string | null
-  branch: { id: string; name: string } | null
+  branch: { id: string; name: string; city_name?: string } | null
   avatarUrl?: string
   user: { id: string; full_name: string; email: string; phone_number: string }
   store_assignments: {

@@ -49,7 +49,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const api = {
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, data?: unknown) => request<T>(path, { method: 'DELETE', body: data ? JSON.stringify(data) : undefined }),
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   post: <T>(path: string, data?: unknown, opts?: RequestOptions) =>
     request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined, ...opts }),
