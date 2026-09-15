@@ -593,8 +593,18 @@ _Foto selfie telah tersimpan di sistem._`;
 
                 {/* Identitas */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="text-xs text-slate-700">Perusahaan<input maxLength={150} value={companyName} onChange={e=>setCompanyName(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-                  <label className="text-xs text-slate-700">Jabatan<input maxLength={100} value={jobTitle} onChange={e=>setJobTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Perusahaan
+                    </label>
+                    <input maxLength={150} value={companyName} onChange={e=>setCompanyName(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Jabatan
+                    </label>
+                    <input maxLength={100} value={jobTitle} onChange={e=>setJobTitle(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                  </div>
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Nama Lengkap <span className="text-red-500">*</span>
