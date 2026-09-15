@@ -4,10 +4,10 @@ test('event workspace transaction, schedules, protection, audit and privileges',
  try{
  await db.exec(`create schema auth; create role anon; create role authenticated; create role service_role bypassrls; create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
  const root=path.resolve(__dirname,'../../supabase/migrations');
- for(const name of ['001_foundation.sql','002_workforce.sql','003_attendance.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8').replace('create extension if not exists "pgcrypto";',''));
+ for(const name of ['foundation.sql','workforce.sql','attendance.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8').replace('create extension if not exists "pgcrypto";',''));
  await db.exec(`create table public.audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());`);
- await db.exec(fs.readFileSync(path.join(root,'20260831110840_admin_branches_crew.sql'),'utf8'));
- await db.exec(fs.readFileSync(path.join(root,'20260831194049_admin_event_workspace.sql'),'utf8'));
+ await db.exec(fs.readFileSync(path.join(root,'admin_branches_crew.sql'),'utf8'));
+ await db.exec(fs.readFileSync(path.join(root,'admin_event_workspace.sql'),'utf8'));
  const admin='00000000-0000-4000-8000-000000000001',user='00000000-0000-4000-8000-000000000002';
  await db.exec(`insert into roles(code,name) values('SUPER_ADMIN','Admin'),('CREW_EVENT','Event'); insert into auth.users(id,email) values('${admin}','admin@test.local'),('${user}','crew@test.local'); insert into user_roles(user_id,role_id) select '${admin}',id from roles where code='SUPER_ADMIN';`);
  const branch=(await db.query('select id from branches limit 1')).rows[0].id;

@@ -15,9 +15,9 @@ test(
     create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');
     create function auth.uid() returns uuid language sql as $$select null::uuid$$;`)
     for (const name of [
-      "001_foundation.sql",
-      "002_workforce.sql",
-      "003_attendance.sql",
+      "foundation.sql",
+      "workforce.sql",
+      "attendance.sql",
     ]) {
       await db.exec(
         fs
@@ -30,7 +30,7 @@ test(
     )
     await db.exec(
       fs.readFileSync(
-        path.join(migrationDir, "20260831110840_admin_branches_crew.sql"),
+        path.join(migrationDir, "admin_branches_crew.sql"),
         "utf8",
       ),
     )

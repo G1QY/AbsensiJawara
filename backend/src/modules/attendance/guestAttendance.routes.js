@@ -20,11 +20,12 @@ router.use((req,res,next)=>{
 router.get('/options',async(req,res,next)=>{
   try {
     const [{data:stores,error:a},{data:events,error:b}]=await Promise.all([
-      db.from('stores').select('id,name,location_kind').eq('status','ACTIVE').order('name'),
+      db.from('stores').select('id,name,location_kind,branch:branches(name,city_name)').eq('status','ACTIVE').is('deleted_at',null).order('name'),
       db.from('events').select('id,event_name,event_date').in('status',['SCHEDULED','ONGOING']).order('event_date')
     ]);
     if(a||b)throw fail('Pilihan lokasi belum dapat dimuat.',503);
-    res.json({stores: stores.filter(s=>s.location_kind!=='OFFICE'), offices: stores.filter(s=>s.location_kind==='OFFICE'), events});
+    const locations=stores.map(s=>({...s,name:[s.name,...[s.branch?.city_name,s.branch?.name].filter((v,i,a)=>v&&a.indexOf(v)===i)].filter(Boolean).join(' · ')}));
+    res.json({stores: locations.filter(s=>s.location_kind!=='OFFICE'), offices: locations.filter(s=>s.location_kind==='OFFICE'), events});
   }catch(error){next(error);}
 });
 function string(body,key,max,required=false) {
@@ -51,11 +52,11 @@ async function save(req,res,next,legacy=false) {
     if(legacy)location_name=string(b,'locationName',250,true);
     else if(b.locationId !== undefined && b.locationId !== null && b.locationId !== '') {
       const id=uuid(b.locationId),store=b.crewType==='CREW_STORE';
-      const {data,error}=await db.from(store?'stores':'events').select(store?'id,name,status,location_kind':'id,event_name,status').eq('id',id).maybeSingle();
+      const {data,error}=await db.from(store?'stores':'events').select(store?'id,name,status,deleted_at,location_kind,branch:branches(name,city_name)':'id,event_name,status').eq('id',id).maybeSingle();
       if(error)throw fail('Lokasi belum dapat diverifikasi.',503);
-      if(!data||!(store?['ACTIVE']:['SCHEDULED','ONGOING']).includes(data.status))throw fail('Pilih lokasi aktif yang tersedia di sistem.');
+      if(!data||data.deleted_at||!(store?['ACTIVE']:['SCHEDULED','ONGOING']).includes(data.status))throw fail('Pilih lokasi aktif yang tersedia di sistem.');
       if(store && (data.location_kind==='OFFICE') !== (assignment_kind==='OFFICE')) throw fail('Jenis lokasi tidak sesuai penugasan.');
-      location_name=store?data.name:data.event_name;if(store)store_id=id;else event_id=id;
+      location_name=store?[data.name,...[data.branch?.city_name,data.branch?.name].filter((v,i,a)=>v&&a.indexOf(v)===i)].filter(Boolean).join(' · ').slice(0,250):data.event_name;if(store)store_id=id;else event_id=id;
     }
     const occurred_at=legacy?string(b,'occurredAt',40,true):new Date().toISOString();
     if(!/^\d{4}-\d{2}-\d{2}T.*(Z|[+-]\d{2}:\d{2})$/.test(occurred_at)||!Number.isFinite(Date.parse(occurred_at))||Date.parse(occurred_at)>Date.now()+300000)throw fail('Tanggal/jam absensi tidak valid.');

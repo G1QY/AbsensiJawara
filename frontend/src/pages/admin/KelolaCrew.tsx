@@ -1,3 +1,4 @@
+import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
 import CrewCsvImport from "./CrewCsvImport"
 import { useState, useEffect, type FormEvent } from "react"
@@ -233,7 +234,7 @@ export default function KelolaCrew() {
         c.company_name,
         c.job_title,
         c.user.phone_number,
-        c.branch?.name,
+        branchLabel(c.branch),
         ...sources(c),
       ]
         .join(" ")
@@ -301,7 +302,7 @@ export default function KelolaCrew() {
           + Tambah Crew
         </button>
       </div>
-      {!loading && !error && <ExportButtons filename="Daftar-Crew" title="Daftar Crew" subtitle="Mengikuti pencarian dan filter Kelola Crew" headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',c.branch?.name||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
+      {!loading && !error && <ExportButtons filename="Daftar-Crew" title="Daftar Crew" subtitle="Mengikuti pencarian dan filter Kelola Crew" headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
       {showImport && <CrewCsvImport onClose={()=>setShowImport(false)} onSaved={reload} existingEmails={crew.map(c=>c.user.email)} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <select
@@ -323,7 +324,7 @@ export default function KelolaCrew() {
           <option value="">Semua cabang</option>
           {directory.branches.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.name}
+              {branchLabel(b)}
             </option>
           ))}
         </select>
@@ -399,7 +400,7 @@ export default function KelolaCrew() {
                   </td>
                   <td className="p-4 text-slate-700">{c.company_name || "Belum ditetapkan"}</td>
                   <td className="p-4 text-slate-700">{c.job_title || "Belum ditetapkan"}</td>
-                  <td className="p-4 text-slate-700">{c.branch?.name || "Belum ditetapkan"}</td>
+                  <td className="p-4 text-slate-700">{branchLabel(c.branch) || "Belum ditetapkan"}</td>
                   <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || "Belum ditugaskan"}</td>
                   <td className="p-4 whitespace-nowrap text-blue-700">
                     {crewKind(c)}
@@ -590,7 +591,7 @@ export default function KelolaCrew() {
                 <option value="">Belum ditetapkan</option>
                 {directory.branches.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name}
+                    {branchLabel(b)}
                   </option>
                 ))}
               </select>
@@ -665,7 +666,7 @@ export default function KelolaCrew() {
                 ["Nomor HP", detail.user.phone_number || "Belum diisi"],
                 ["Perusahaan", detail.company_name || "Belum ditetapkan"],
                 ["Jabatan", detail.job_title || "Belum ditetapkan"],
-                ["Cabang", detail.branch?.name || "Belum ditetapkan"],
+                ["Cabang", branchLabel(detail.branch) || "Belum ditetapkan"],
                 ["Gaji Pokok", money(detail.base_salary)],
                 ["Jumlah Event", eventCount(detail)],
               ].map(([label, value]) => (

@@ -1,3 +1,6 @@
+import { eventFinancials } from '../../lib/eventResultsData';
+import { branchLabel } from '../../lib/locationLabel';
+import EventResults, { EventPhoto } from '../../components/events/EventResults';
 import { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -117,6 +120,7 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
   const eventId = event.id;
   const eventName = event.event_name;
   const reportStatus = event.status;
+  const financials = eventFinancials(data);
   const photos = reportPhotoKeys(assignment, data);
   const loadedPhotos = await Promise.all(photos.map(async photo => ({ ...photo, dataUrl: await photoDataUrl(eventId, photo.key, photoBase) })));
   const doc = new jsPDF();
@@ -147,13 +151,13 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
     ['Perusahaan', event.company_name || 'Belum ditetapkan'],
     ['Nama Event', eventName],
     ['Klien', event.client_name || '-'],
-    ['Cabang', event.branch?.name || '-'],
+    ['Cabang', branchLabel(event.branch) || '-'],
     ['PIC', event.pic?.user?.full_name || '-'],
     ['Lokasi', event.event_locations?.[0]?.address || '-'],
     ['Tanggal Event', eventPeriod],
     ['Waktu Event', event.start_time && event.end_time ? `${timeText(event.start_time)} sampai ${timeText(event.end_time)}` : firstSchedule && lastSchedule ? `${timeText(firstSchedule.start_time)} sampai ${timeText(lastSchedule.end_time)}` : '-'],
-    ['Jumlah Crew', `${assignment.team.length} crew`],
-    ['Tanggal Export', new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
+    ['Jumlah Crew', `${assignment.members?.length ?? assignment.team.length} crew`],
+    ['Tanggal Export (WIB)', new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' })],
     ['Status', `${reportStatus} (${assignment.workflow.max_reached}/${TOTAL_STEPS})`],
   ];
   autoTable(doc, {
@@ -193,8 +197,8 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
     startY: y,
     head: [['Arah', 'Tanggal', 'Jam', 'Layanan', 'Kendaraan', 'Nominal']],
     body: [
-      ['Pergi', eventDateText(data.transportasi_pergi_tanggal || startDate), timeText(data.transportasi_pergi_jam), transportValue(data, 'pergi', 'layanan', 'Lalamove'), transportValue(data, 'pergi', 'kendaraan'), fmt(Number(data.transportasi_pergi_nominal) || 0)],
-      ['Pulang', eventDateText(data.transportasi_pulang_tanggal || endDate), timeText(data.transportasi_pulang_jam), transportValue(data, 'pulang', 'layanan', 'Lalamove'), transportValue(data, 'pulang', 'kendaraan'), fmt(Number(data.transportasi_pulang_nominal) || 0)],
+      ['Pergi', eventDateText(data.transportasi_pergi_tanggal || startDate), timeText(data.transportasi_pergi_jam), transportValue(data, 'pergi', 'layanan', 'Layanan belum diisi'), transportValue(data, 'pergi', 'kendaraan'), fmt(Number(data.transportasi_pergi_nominal) || 0)],
+      ['Pulang', eventDateText(data.transportasi_pulang_tanggal || endDate), timeText(data.transportasi_pulang_jam), transportValue(data, 'pulang', 'layanan', 'Layanan belum diisi'), transportValue(data, 'pulang', 'kendaraan'), fmt(Number(data.transportasi_pulang_nominal) || 0)],
     ],
     theme: 'grid',
     headStyles: { fillColor: [37, 99, 235] },
@@ -215,9 +219,9 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
       ['Setup Ready', (data[`setup_ready_photo_${assignment.id}`] || data.setup_ready_photo) ? 'Foto tersedia' : 'Belum ada foto'],
       ['Kondisi Event Selesai', (data[`event_finished_photo_${assignment.id}`] || data.event_finished_photo) ? 'Foto tersedia' : 'Belum ada foto'],
       ['Kuota/Orbit', `${Number(data.kuota_gb) || 0} GB, ${data.kuota_provider || 'provider belum diisi'}, ${fmt(Number(data.kuota_nominal) || 0)}`],
-      ['Omset Tunai', fmt(Number(data.omset_tunai) || 0)],
-      ['Omset Transfer', fmt(Number(data.omset_transfer) || 0)],
-      ['Total Omset Event', fmt(Number(data.omset_nominal) || 0)],
+      ['Omset Tunai', fmt(financials.cash)],
+      ['Omset Transfer', fmt(financials.transfer)],
+      ['Total Omset Event', fmt(financials.revenue)],
     ],
     theme: 'grid',
     headStyles: { fillColor: [37, 99, 235] },
@@ -233,14 +237,14 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
   const invBefore = data.inventory_before_items || [];
   const invAfter = data.inventory_after_items || [];
   const invRows = invBefore.map((item: any, i: number) => {
-    const afterItem = invAfter[i] || {};
-    const selisih = (afterItem.jumlah ?? item.jumlah) - item.jumlah;
+    const afterItem = invAfter[i];
+    const selisih = afterItem ? Number(afterItem.jumlah) - Number(item.jumlah) : null;
     return [
       item.nama || '-',
       item.jumlah?.toString() || '0',
-      (afterItem.jumlah ?? item.jumlah)?.toString() || '0',
-      selisih.toString(),
-      selisih === 0 ? 'Sesuai' : 'Kurang',
+      afterItem ? String(afterItem.jumlah) : 'Belum diisi',
+      selisih === null ? 'Belum diperiksa' : String(selisih),
+      !afterItem ? 'Belum diperiksa' : selisih === 0 && afterItem.kondisi === 'Baik' ? 'Sesuai' : 'Selisih / Masalah',
     ];
   });
   if (invRows.length > 0) {
@@ -260,8 +264,8 @@ async function exportEventPDF(assignment: CrewEventAssignment, data: Record<stri
   doc.setFontSize(14);
   doc.text('Rekap Keuangan', 14, y);
   y += 6;
-  const omset = Number(data.omset_nominal) || (Number(data.omset_tunai) || 0) + (Number(data.omset_transfer) || 0);
-  const pengeluaran = (Number(data.transportasi_pergi_nominal) || 0) + (Number(data.transportasi_pulang_nominal) || 0) + (Number(data.kuota_nominal) || 0);
+  const omset = financials.revenue;
+  const pengeluaran = financials.cost;
   autoTable(doc, {
     startY: y,
     head: [['Keterangan', 'Jumlah']],
@@ -566,7 +570,7 @@ function StepOngoing({ onSave, onNext, data, assignment, completed }: {
   const duration = [Math.floor(elapsed / 3600000), Math.floor((elapsed % 3600000) / 60000), Math.floor((elapsed % 60000) / 1000)].map(value => String(value).padStart(2, '0')).join(':');
   const heading = isCancelled ? 'Event Dibatalkan' : assignment.event.status === 'COMPLETED' ? 'Event Selesai' : isFinished ? 'Tugas Anda Selesai' : assignment.event.status === 'SCHEDULED' ? 'Event Terjadwal' : 'Event Sedang Berlangsung';
   const period = firstSchedule && lastSchedule ? (firstSchedule.schedule_date === lastSchedule.schedule_date ? eventDateText(firstSchedule.schedule_date) : `${eventDateText(firstSchedule.schedule_date)} – ${eventDateText(lastSchedule.schedule_date)}`) : eventDateText(assignment.event.event_date);
-  const location = assignment.event.event_locations?.[0]?.address || assignment.event.branch?.name || 'Lokasi belum diisi';
+  const location = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || 'Lokasi belum diisi';
   return (
     <div className="space-y-5">
       <div className="text-center py-6">
@@ -798,54 +802,6 @@ function StepComparison({ onSave, onNext, data }: {
   );
 }
 
-function StepFinish({ onBack, onExportPDF, onEdit, data, exporting }: {
-  onBack: () => void;
-  onExportPDF: () => Promise<void>;
-  onEdit: () => void;
-  data: any;
-  exporting: boolean;
-}) {
-  const omset = data.omset_nominal || 0;
-  const pengeluaran = (data.transportasi_pergi_nominal || 0) + (data.transportasi_pulang_nominal || 0) + (data.kuota_nominal || 0);
-
-  return (
-    <div className="text-center py-8 space-y-5">
-      <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-        <svg className="w-12 h-12 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-      </div>
-      <div>
-        <h3 className="text-2xl font-bold text-slate-900 mb-2">Event Selesai!</h3>
-        <p className="text-slate-500">Semua step workflow telah diselesaikan.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-left">
-        {[
-          { label: 'Omset', val: fmt(omset), color: 'emerald' },
-          { label: 'Pengeluaran', val: fmt(pengeluaran), color: 'red' },
-          { label: 'Kuota', val: `${Number(data.kuota_gb) || 0} GB`, color: 'blue' },
-          { label: 'Selisih', val: fmt(omset - pengeluaran), color: omset - pengeluaran >= 0 ? 'emerald' : 'red' },
-        ].map(s => (
-          <div key={s.label} className="bg-slate-50 rounded-xl p-3">
-            <p className="text-xs text-slate-400">{s.label}</p>
-            <p className={`font-bold text-sm mt-0.5 ${s.color === 'emerald' ? 'text-emerald-700' : s.color === 'red' ? 'text-red-600' : s.color === 'blue' ? 'text-blue-700' : 'text-slate-800'}`}>{s.val}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid sm:grid-cols-3 gap-3">
-        <button onClick={onEdit} className="px-4 py-2.5 rounded-xl border border-blue-200 text-sm font-semibold text-blue-700">Edit Data</button>
-        <button disabled={exporting} onClick={onExportPDF} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:bg-slate-100 flex items-center justify-center gap-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          {exporting ? 'Menyiapkan PDF…' : 'Export PDF'}
-        </button>
-        <button onClick={onBack} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
-          Kembali ke Dashboard
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ---------- Main Component ----------
 
 interface EventWorkflowProps {
@@ -877,9 +833,10 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
   const schedules = [...(assignment.event_schedules || [])].sort((a, b) => a.schedule_date.localeCompare(b.schedule_date) || a.start_time.localeCompare(b.start_time));
   const firstEventDate = schedules[0]?.schedule_date || assignment.event.event_date;
   const lastEventDate = schedules[schedules.length - 1]?.schedule_date || assignment.event.event_date;
-  const eventLocationName = assignment.event.event_locations?.[0]?.address || assignment.event.branch?.name || 'Lokasi event';
-  const [workflowData, setWorkflowData] = useState<Record<string, any>>(() => getWorkflowData(eventId));
+  const eventLocationName = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || 'Lokasi event';
+  const [workflowData, setWorkflowData] = useState<Record<string, any>>(() => ({ ...assignment.workflow.data }));
   const [saveError, setSaveError] = useState('');
+  const [reviewTab,setReviewTab] = useState<'Inventory'|'Operasional'>('Inventory');
   const dirty = useRef(false);
   const [revision, setRevision] = useState<string | null>(assignment.workflow.updated_at || null);
   const [saving, setSaving] = useState(false);
@@ -889,7 +846,7 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
     return initialStep > 1 ? initialStep : (saved || 1);
   });
   const [maxReached, setMaxReached] = useState(() => {
-    return workflowData._maxReached || currentStep;
+    return assignment.workflow.max_reached || currentStep;
   });
 
   useEffect(() => {
@@ -987,11 +944,17 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
       case 12: return <StepInventoryAfter {...props} />;
       case 13: return <StepComparison {...props} />;
       case 14: return <AttendanceAction mode="OUT" eventId={eventId} onContinue={next} />;
-      case 15: return <StepFinish onBack={onBack} onExportPDF={handleExportPDF} onEdit={() => setCurrentStep(1)} data={workflowData} exporting={exporting} />;
       default: return null;
     }
   };
 
+  if (maxReached >= TOTAL_STEPS || assignment.workflow.max_reached >= TOTAL_STEPS || ['COMPLETED','CANCELLED'].includes(assignment.event.status) || assignment.status !== 'ACTIVE') return <div className="p-4 sm:p-6 space-y-5">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3"><button onClick={onBack} className="text-sm text-blue-700">Kembali ke Event Saya</button><div className="flex flex-wrap justify-between items-center gap-3"><div><h1 className="text-xl font-semibold">Tinjau Workflow</h1><p className="text-sm text-slate-500">{eventName}</p></div><button disabled={exporting} onClick={handleExportPDF} className="rounded-xl border border-slate-200 px-4 py-2 text-sm">{exporting?'Menyiapkan…':'Export PDF'}</button></div><p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Data workflow sudah dikunci. Anda dapat meninjau hasil dan bukti yang tersimpan.</p></section>
+    {saveError && <p role="alert" className="text-red-700">{saveError}</p>}
+    <section className="rounded-2xl border border-slate-200 bg-white p-4"><h2 className="mb-3 font-semibold">Bukti Kehadiran Event</h2><div className="grid sm:grid-cols-2 gap-4"><EventPhoto eventId={eventId} value={workflowData[`setup_ready_photo_${assignment.id}`]} label="Setup Ready"/><EventPhoto eventId={eventId} value={workflowData[`event_finished_photo_${assignment.id}`]} label="Event Selesai"/></div></section>
+    <div className="flex gap-2">{(['Inventory','Operasional'] as const).map(tab=><button key={tab} onClick={()=>setReviewTab(tab)} className={`rounded-xl px-4 py-2 text-sm ${reviewTab===tab?'bg-blue-600 text-white':'border border-slate-200 bg-white'}`}>{tab}</button>)}</div>
+    <EventResults eventId={eventId} eventName={eventName} eventDate={firstEventDate} data={workflowData} tab={reviewTab} context={{Perusahaan:assignment.event.company_name || '', Cabang:branchLabel(assignment.event.branch)}}/>
+  </div>;
   return (
     <WorkflowEventContext.Provider value={eventId}><WorkflowAssignmentContext.Provider value={assignment.id}><div className="event-workflow p-3 sm:p-6 space-y-4 sm:space-y-5 max-w-2xl mx-auto">
       {/* Back button */}

@@ -2,7 +2,7 @@ import { readDeviceLocation } from '../../lib/deviceLocation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
-import Modal from '../../components/ui/Modal';
+import AttendanceSuccessDialog from '../../components/attendance/AttendanceSuccessDialog';
 import DeviceLocationMap from '../../components/maps/DeviceLocationMap';
 
 export interface GuestAttendanceRecord {
@@ -47,6 +47,10 @@ export function saveGuestAttendance(record: GuestAttendanceRecord) {
   const updated = [record, ...list];
   localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated));
   return updated;
+}
+
+export function removeGuestRecord(id: string) {
+  try { localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(getGuestAttendances().filter(row=>row.id!==id && row.serverId!==id))); } catch { /* Server data remains authoritative. */ }
 }
 
 export function markGuestSynced(record: GuestAttendanceRecord, serverId: string) {
@@ -563,21 +567,11 @@ _Foto selfie telah tersimpan di sistem._`;
         {/* TAB 1: FORM ABSENSI */}
         {activeTab === 'absen' && (
           <div className="space-y-6">
-            <Modal open={!!submittedRecord} onClose={() => setSubmittedRecord(null)} title="Absensi berhasil dikirim" size="sm">
-              {submittedRecord && <div className="space-y-4">
-                <p role="status" className="text-sm text-slate-700 leading-relaxed">
-                  Absensi <strong>{submittedRecord.nama}</strong> ({submittedRecord.tipe}) di <strong>{submittedRecord.lokasi}</strong> sudah diterima dan menunggu tinjauan admin.
-                </p>
-                <p className="text-sm text-slate-600">{submittedRecord.timestamp}</p>
-                <div className="flex flex-col gap-3">
-                  <a href={generateWhatsAppMessage(submittedRecord)} target="_blank" rel="noopener noreferrer"
-                    className="min-h-11 flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700">
-                    Kirim Bukti ke WhatsApp Admin
-                  </a>
-                  <button type="button" autoFocus onClick={() => setSubmittedRecord(null)} className="min-h-11 rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700">Selesai</button>
-                </div>
-              </div>}
-            </Modal>
+            <AttendanceSuccessDialog open={!!submittedRecord} name={submittedRecord?.nama || ''}
+              clockType={submittedRecord?.tipe || ''} location={submittedRecord?.lokasi || ''}
+              timestamp={submittedRecord?.timestamp || ''}
+              whatsappUrl={submittedRecord ? generateWhatsAppMessage(submittedRecord) : ''}
+              onClose={() => setSubmittedRecord(null)} />
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 bg-slate-50/50">

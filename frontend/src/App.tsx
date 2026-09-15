@@ -1,4 +1,3 @@
-import EmploymentSummary from './components/layout/EmploymentSummary';
 import { useCallback, useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import { useAuth } from './lib/AuthContext';
@@ -156,7 +155,7 @@ export default function App() {
           onProfile={() => navigate('account-profile')}
           onSettings={() => navigate('account-settings')}
         />
-        <main key={activePage} className={`employee-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${role !== 'admin' ? 'employee-mobile' : ''}`}>{(role === 'crew_store' || role === 'crew_event') && <EmploymentSummary />}{renderContent()}</main>
+        <main key={activePage} className={`employee-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${role !== 'admin' ? 'employee-mobile' : ''}`}>{renderContent()}</main>
       </div>
       <ToastContainer toasts={toasts} onRemove={id => setToasts(items => items.filter(item => item.id !== id))} />
     </div>

@@ -28,9 +28,9 @@ function createProfileService({ db, sessionClient, signUrl, upload, remove, resi
     const key = user.user_metadata?.avatar_key;
     let avatarUrl = '';
     if (typeof key === 'string' && avatarPattern(id).test(key)) avatarUrl = await signUrl(key, 3600);
-    const {data: employment, error: employmentError} = await db.from('crew').select('company_name,job_title,branch:branches(name)').eq('user_id',id).is('deleted_at',null).maybeSingle();
+    const {data: employment, error: employmentError} = await db.from('crew').select('company_name,job_title,branch:branches(name,city_name)').eq('user_id',id).is('deleted_at',null).maybeSingle();
     if (employmentError) throw fail('Informasi perusahaan dan jabatan belum dapat dimuat.',503);
-    return { ...profile, company_name: employment?.company_name || '', job_title: employment?.job_title || '', branch_name: employment?.branch?.name || '', phone: profile.phone_number || '', avatarUrl, pendingEmail: user.new_email || '' };
+    return { ...profile, company_name: employment?.company_name || '', job_title: employment?.job_title || '', branch_name: [employment?.branch?.city_name,employment?.branch?.name].filter((v,i,a)=>v && a.indexOf(v)===i).join(' / '), phone: profile.phone_number || '', avatarUrl, pendingEmail: user.new_email || '' };
   }
   async function update(id, body) {
     const fields = validateProfile(body);

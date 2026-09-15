@@ -23,7 +23,7 @@ export interface CrewEventAssignment {
     start_time?:string|null;end_time?:string|null;pic_crew_id?:string|null;
     event_date: string;
     status: 'DRAFT' | 'SCHEDULED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
-    branch?: { name: string } | null;
+    branch?: { name: string; city_name?: string } | null;
     event_locations?: Array<{ address: string | null }>;
     pic?: { user?: { full_name: string } | null } | null;
   };

@@ -7,7 +7,7 @@ const { getSignedDownloadUrl } = require('../../utils/signedUrl');
 const { importGuest, upload } = require('./guestAttendance.routes');
 router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER));
 const selection = `*, crew:crew(company_name,job_title,employee_code,user:users(full_name,email,phone_number)),
-  store_assignment:store_assignments(store:stores(name,location_kind)),event_assignment:event_assignments(event:events(event_name)),
+  store_assignment:store_assignments(store:stores(name,location_kind,branch:branches(name,city_name))),event_assignment:event_assignments(event:events(event_name,branch:branches(name,city_name))),
   store_schedule:store_schedules(schedule_date,start_time,end_time,late_tolerance_minutes,overtime_preapproved),event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved)`;
 function check(error) {
   if (error) throw fail(error.code?.startsWith('PGRST') || ['42703','42P01'].includes(error.code)
@@ -52,6 +52,17 @@ router.patch('/:kind/:id/review',async(req,res,next)=>{
     const {error}=await db.rpc('review_attendance',{p_actor:req.user.id,p_kind:req.params.kind,p_id:req.params.id,p_target:target,p_decision:decision,p_note:note.trim()});
     if(error)throw fail(error.message,error.code==='40001'?409:error.code==='P0002'?404:error.code==='42501'?403:422);
     res.json({message:'Keputusan tersimpan di server.'});
+  }catch(error){next(error);}
+});
+router.delete('/:kind/:id',async(req,res,next)=>{
+  try {
+    const id=uuid(req.params.id);
+    if(!['registered','guest'].includes(req.params.kind))throw fail('Sumber absensi tidak valid.');
+    const reason=req.body?.reason;
+    if(typeof reason!=='string'||!reason.trim()||reason.length>1000)throw fail('Alasan penghapusan wajib diisi (maksimal 1000 karakter).');
+    const {error}=await db.rpc('delete_admin_attendance',{p_actor:req.user.id,p_kind:req.params.kind,p_id:id,p_reason:reason.trim()});
+    if(error)throw fail(error.message,error.code==='42501'?403:error.code==='P0002'?404:error.code==='23503'?409:422);
+    res.json({id,message:'Absensi dihapus. Rekap diperbarui dan penghapusan tercatat di audit log.'});
   }catch(error){next(error);}
 });
 module.exports=router;

@@ -1,3 +1,4 @@
+import { branchLabel } from '../../lib/locationLabel';
 import { useEffect, useState, type ReactNode } from "react"
 import { api } from "../../lib/apiClient"
 import DirectoryManager from "./DirectoryManager"
@@ -258,7 +259,7 @@ export default function AdminPages({
                 rows={crew.map((c) => [
                   c.user.full_name,
                   c.user.email,
-                  c.branch?.name || "Belum ditetapkan",
+                  branchLabel(c.branch) || "Belum ditetapkan",
                   c.status === "ACTIVE" ? "Aktif" : "Non-Aktif",
                   money(c.base_salary),
                 ])}

@@ -1,11 +1,11 @@
 // Real browser form/media flow with fake camera/GPS and explicit HTTP fixtures.
-const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE || process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve('dist');
 const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req.url,'http://localhost').pathname.replace(/^\/$/,'/index.html'));fs.readFile(file,(e,data)=>{if(e){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':file.endsWith('.jpg')?'image/jpeg':'text/html');res.end(data);});});
 (async()=>{
-  const binary=(await import(process.env.CHROMIUM_MODULE)).default;await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
-  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE||await binary.executablePath(),args:binary.args});
+  const binary=process.env.CHROMIUM_MODULE?(await import(process.env.CHROMIUM_MODULE)).default:null;await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+  const browser=await chromium.launch({headless:true,...(binary?{executablePath:process.env.CHROMIUM_EXECUTABLE||await binary.executablePath(),args:binary.args}:{})});
   try{
     const page=await browser.newPage({viewport:{width:1365,height:950},permissions:['geolocation'],geolocation:{latitude:-6.9,longitude:107.6,accuracy:20}});const errors=[],submissions=[];
     page.on('pageerror',e=>errors.push(e.message));
@@ -20,16 +20,25 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
       else if(url.pathname==='/api/guest-attendance'&&r.request().method()==='POST'){
         const body=r.request().postData();submissions.push(body);assert.match(body,/Event Uji Server|44444444-4444-4444-8444-444444444444/);assert.match(body,/Catatan uji server/);assert.match(body,/name="photo"/);assert.match(body,/name="locationSource"\r\n\r\ngps/);
         if(submissions.length===1){status=503;data={message:'Uji server belum tersedia'};}else {status=201;data={id:'55555555-5555-4555-8555-555555555555',occurred_at:'2026-08-31T06:04:00Z'};}
-      }else if(url.hostname==='nominatim.openstreetmap.org')data={display_name:'Lokasi Uji Bandung'};
+      }else if(url.hostname==='nominatim.openstreetmap.org')throw new Error('Absensi tidak boleh melakukan geocoding');
       else return r.abort();
       await r.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
     });
     await page.goto(origin);await page.getByRole('button',{name:'Masuk sebagai Guest Crew',exact:true}).click();await page.locator('#guest-name').fill('Guest Uji');await page.locator('#guest-phone').fill('081234567890');await page.getByRole('button',{name:'Lanjut ke Mode Guest',exact:true}).click();
     await page.getByLabel('Lokasi Event / Toko',{exact:true}).selectOption(locationId);
-    await page.getByText('Lokasi Uji Bandung',{exact:true}).first().waitFor();
+    await page.getByText('-6.900000, 107.600000',{exact:true}).first().waitFor();
     await page.getByRole('button',{name:'Buka Kamera Selfie'}).click();await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);await page.getByRole('button',{name:'Ambil Gambar Sekarang'}).click();await page.getByAltText('Bukti Kehadiran',{exact:true}).waitFor();
     await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').fill('Catatan uji server');await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByText('Uji server belum tersedia',{exact:true}).waitFor();assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'Catatan uji server');assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),1);
-    await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByRole('heading',{name:'Absensi Lapangan Berhasil Dikirim'}).waitFor();assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),0);assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'');
+    await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByRole('heading',{name:'Absensi berhasil dikirim'}).waitFor();assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),0);assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'');
+    const dialog=page.getByRole('dialog',{name:'Absensi berhasil dikirim'});
+    await dialog.waitFor();assert.equal(await page.evaluate(()=>document.getElementById('root').inert),true);
+    assert.equal(await dialog.getByRole('button',{name:'Tutup',exact:true}).evaluate(el=>document.activeElement===el),true);
+    await page.setViewportSize({width:375,height:812});const out=process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa';fs.mkdirSync(out,{recursive:true});
+    await dialog.evaluate(async el=>{await Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished));});
+    await page.screenshot({path:out+'/guest-success-mobile.png'});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    await page.keyboard.press('Tab');assert.equal(await dialog.getByRole('link').evaluate(el=>document.activeElement===el),true);
+    await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await page.evaluate(()=>document.getElementById('root').inert),false);
     const key=b=>b.match(/name="submissionKey"\r\n\r\n([^\r]+)/)[1];assert.equal(key(submissions[0]),key(submissions[1]));assert.equal(await page.evaluate(()=>localStorage.getItem('fotosnaps_guest_attendances')),null);assert.deepEqual(errors,[]);
     console.log('PASS guest browser: real options IDs, GPS/camera, failure retains photo/note, retry idempotency key, success only after server acceptance, no new local-only records.');
   }finally{await browser.close();server.close();}

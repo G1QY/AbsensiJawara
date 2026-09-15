@@ -4,11 +4,11 @@ test('store transfer preserves historical and open attendance; event reassignmen
  try{
  await db.exec(`create schema auth;create role anon;create role authenticated;create role service_role bypassrls;create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);
  const root=path.resolve(__dirname,'../../supabase/migrations');
- for(const name of ['001_foundation.sql','002_workforce.sql','003_attendance.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8').replace('create extension if not exists "pgcrypto";',''));
+ for(const name of ['foundation.sql','workforce.sql','attendance.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8').replace('create extension if not exists "pgcrypto";',''));
  await db.exec(`create table public.audit_logs(id uuid default gen_random_uuid(),actor_user_id uuid,action text,entity_type text,entity_id uuid,old_data jsonb,new_data jsonb,created_at timestamptz default now());`);
- for(const name of ['20260831110840_admin_branches_crew.sql','20260831194049_admin_event_workspace.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8'));
+ for(const name of ['admin_branches_crew.sql','admin_event_workspace.sql'])await db.exec(fs.readFileSync(path.join(root,name),'utf8'));
  await db.exec(`alter table events add column overtime_preapproved boolean default false;alter table store_schedules add column overtime_preapproved boolean default false;alter table event_schedules add column overtime_preapproved boolean default false;create unique index uq_schedule on store_schedules(store_assignment_id,schedule_date);`);
- await db.exec(fs.readFileSync(path.join(root,'20260907140529_assignment_attendance_transfer.sql'),'utf8'));
+ await db.exec(fs.readFileSync(path.join(root,'assignment_attendance_transfer.sql'),'utf8'));
  const user='00000000-0000-4000-8000-000000000001';await db.exec(`insert into auth.users(id,email) values('${user}','transfer@test.local');`);
  const one=async(sql,args=[]) => (await db.query(sql,args)).rows[0];
  const crew=(await one(`insert into crew(user_id,employee_code,crew_type,join_date) values($1,'TRANSFER','CREW_STORE',current_date-1) returning id`,[user])).id;

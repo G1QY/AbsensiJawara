@@ -8,7 +8,7 @@ const {
 } = require("./crew.validation")
 const { avatarPattern } = require("../profile/profile.service")
 const { getSignedDownloadUrl } = require("../../utils/signedUrl")
-const selection = `*, user:users(id,full_name,email,phone_number), branch:branches(id,name),
+const selection = `*, user:users(id,full_name,email,phone_number), branch:branches(id,name,city_name),
   store_assignments(id,status,start_date,end_date,store:stores(id,name,branch_id)),
   event_assignments(id,status,position,event:events(id,event_code,event_name,event_date,status,branch_id))`
 function check(error) {

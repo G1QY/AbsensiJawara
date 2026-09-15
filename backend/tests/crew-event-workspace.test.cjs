@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const userId = '00000000-0000-4000-8000-000000000001';
 const eventId = '00000000-0000-4000-8000-000000000002';
 const saved = [];
-let workflow = null;
+let workflow = null; let eventStatus='ONGOING'; let assignmentStatus='ACTIVE';
 
 const db = { from(table) {
   const filters = {};
@@ -14,7 +14,8 @@ const db = { from(table) {
     update(value) { payload = value; saved.push(value); workflow = value; return q; },
     async maybeSingle() {
       if (table === 'crew') return { data: { id: 'crew-1', employee_code: 'BDG-EVT-1', base_salary: 1000000, user: { full_name: 'Crew Uji' } }, error: null };
-      if (table === 'event_assignments') return { data: filters.event_id === eventId ? { id: 'assignment-1', event_id: eventId, status: 'ACTIVE' } : null, error: null };
+      if (table === 'event_assignments') return { data: filters.event_id === eventId ? { id: 'assignment-1', event_id: eventId, status: assignmentStatus } : null, error: null };
+      if (table === 'events') return {data:{status:eventStatus},error:null};
       if (table === 'event_workflows') return { data: workflow, error: null };
       return { data: null, error: null };
     },
@@ -54,5 +55,16 @@ test('Crew Event hanya dapat membuka dan menyimpan workflow event penugasannya',
     assert.equal(denied.status, 403);
     const wrongRole = await fetch(base+'/workspace', {headers:{'x-role':'ADMIN_STORE'}});
     assert.equal(wrongRole.status, 403);
+    for (const blocked of ['completed','ended','cancelled']) {
+      eventStatus=blocked==='cancelled'?'CANCELLED':blocked==='completed'?'COMPLETED':'ONGOING';
+      assignmentStatus=blocked==='ended'?'ENDED':'ACTIVE';
+      workflow.max_reached=blocked==='completed'?15:1;
+      const count=saved.length;
+      assert.equal((await fetch(base+`/events/${eventId}/workflow`)).status,200);
+      assert.equal((await fetch(base+`/events/${eventId}/workflow`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{omset_nominal:1},currentStep:1,maxReached:1})})).status,409);
+      assert.equal((await fetch(base+`/events/${eventId}/photos`,{method:'POST'})).status,409);
+      assert.equal((await fetch(base+`/events/${eventId}/checkpoints/SETUP_READY`,{method:'POST'})).status,409);
+      assert.equal(saved.length,count);
+    }
   } finally { await new Promise(resolve=>server.close(resolve)); }
 });

@@ -29,7 +29,7 @@ async function ownCrew(userId) {
   return data;
 }
 
-async function ownAssignment(userId, eventId) {
+async function ownAssignment(userId, eventId, writable = false) {
   const crew = await ownCrew(userId);
   const { data, error } = await db
     .from('event_assignments')
@@ -39,6 +39,14 @@ async function ownAssignment(userId, eventId) {
     .maybeSingle();
   if (error) throw fail(error.message, 422);
   if (!data) throw fail('Anda tidak ditugaskan pada event ini.', 403);
+  if (writable) {
+    const [event, workflow] = await Promise.all([
+      db.from('events').select('status').eq('id',eventId).maybeSingle(),
+      db.from('event_workflows').select('max_reached').eq('event_id',eventId).maybeSingle(),
+    ]);
+    if (event.error || workflow.error) throw fail('Status workflow belum dapat diperiksa.',503);
+    if (data.status !== 'ACTIVE' || !event.data || ['COMPLETED','CANCELLED'].includes(event.data.status) || workflow.data?.max_reached >= 15) throw fail('Workflow sudah dikunci. Data hanya dapat ditinjau.',409);
+  }
   return { crew, assignment: data };
 }
 
@@ -48,7 +56,7 @@ router.get('/workspace', async (req, res, next) => {
     const { data: assignments, error } = await db
       .from('event_assignments')
       .select(`id, position, status,
-        event:events!inner(id,company_name,event_code,event_name,client_name,event_date,start_time,end_time,pic_crew_id,status,branch:branches(name),event_locations(address),pic:crew!events_pic_crew_id_fkey(user:users(full_name))),
+        event:events!inner(id,company_name,event_code,event_name,client_name,event_date,start_time,end_time,pic_crew_id,status,branch:branches(name,city_name),event_locations(address),pic:crew!events_pic_crew_id_fkey(user:users(full_name))),
         event_schedules(id,schedule_date,start_time,end_time,status,overtime_preapproved)`)
       .eq('crew_id', crew.id)
       .order('id');
@@ -118,7 +126,7 @@ router.get('/events/:eventId/workflow', async (req, res, next) => {
 
 router.put('/events/:eventId/workflow', async (req, res, next) => {
   try {
-    const own = await ownAssignment(req.user.id, req.params.eventId);
+    const own = await ownAssignment(req.user.id, req.params.eventId, true);
     if (!req.body.data || typeof req.body.data !== 'object' || Array.isArray(req.body.data)) throw fail('Data workflow tidak valid.');
     const serialized = JSON.stringify(req.body.data);
     if (serialized.length > 250000) throw fail('Data workflow terlalu besar.', 413);
@@ -134,6 +142,7 @@ router.put('/events/:eventId/workflow', async (req, res, next) => {
         .eq('event_id', req.params.eventId)
         .maybeSingle();
       if (existingError) throw fail(existingError.message, 422);
+      if (existing?.max_reached >= 15) throw fail('Workflow sudah selesai dan hanya dapat ditinjau.',409);
       if (req.body.expectedUpdatedAt !== (existing?.updated_at || null)) throw fail('Data berubah sejak dibuka. Muat ulang sebelum menyimpan.',409);
       validateWorkflowData(req.body.data,req.params.eventId,existing?.data || {});
       for(const [key,value] of Object.entries(req.body.data)){
@@ -169,21 +178,14 @@ router.put('/events/:eventId/workflow', async (req, res, next) => {
       }
     }
     if (!saved) throw fail('Workflow baru saja diperbarui anggota lain. Muat ulang dan simpan kembali.', 409);
-    if (saved.max_reached >= 15) {
-      const [eventResult, assignmentResult] = await Promise.all([
-        db.from('events').update({ status: 'COMPLETED' }).eq('id', req.params.eventId).neq('status', 'CANCELLED'),
-        db.from('event_assignments').update({ status: 'ENDED' }).eq('event_id', req.params.eventId).eq('status', 'ACTIVE'),
-      ]);
-      if (eventResult.error) throw fail(`Workflow tersimpan, tetapi status event gagal diperbarui: ${eventResult.error.message}`, 422);
-      if (assignmentResult.error) throw fail(`Workflow tersimpan, tetapi status penugasan gagal diperbarui: ${assignmentResult.error.message}`, 422);
-    }
+    // Status completion and audit are committed by the database trigger.
     res.json(saved);
   } catch (error) { next(error); }
 });
 
 router.post('/events/:eventId/photos', upload.single('photo'), async (req, res, next) => {
   try {
-    await ownAssignment(req.user.id, req.params.eventId);
+    await ownAssignment(req.user.id, req.params.eventId, true);
     if (!req.file || !['image/jpeg','image/png','image/webp'].includes(req.file.mimetype)) throw fail('Foto JPG, PNG, atau WebP wajib dipilih.', 422);
     const body = await compressAttendancePhoto(req.file.buffer);
     const key = `event-workflows/${req.params.eventId}/${req.user.id}_${Date.now()}.jpg`;
@@ -194,7 +196,7 @@ router.post('/events/:eventId/photos', upload.single('photo'), async (req, res, 
 
 router.post('/events/:eventId/checkpoints/:checkpoint', upload.single('photo'), async (req, res, next) => {
   try {
-    await ownAssignment(req.user.id, req.params.eventId);
+    await ownAssignment(req.user.id, req.params.eventId, true);
     const checkpoint = String(req.params.checkpoint || '').toUpperCase();
     if (!['SETUP_READY', 'EVENT_FINISHED'].includes(checkpoint)) throw fail('Jenis foto checkpoint tidak valid.', 422);
     if (!req.file || !['image/jpeg','image/png','image/webp'].includes(req.file.mimetype)) throw fail('Foto kamera JPG, PNG, atau WebP wajib tersedia.', 422);
