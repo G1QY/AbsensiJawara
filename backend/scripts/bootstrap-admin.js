@@ -22,7 +22,7 @@ function ask(question) {
 }
 
 async function main() {
-  console.log('=== Bootstrap Akun Admin Pertama — FotoSnaps ===\n');
+  console.log('=== Bootstrap Akun Admin JAWARA ===\n');
 
   const email = (await ask('Email admin (mis. admin@fotosnaps.id): ')).trim();
   const fullName = (await ask('Nama lengkap: ')).trim() || 'Admin Utama';
