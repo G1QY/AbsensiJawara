@@ -1,62 +1,171 @@
-# FotoSnaps & Bujangan Food — Sistem Informasi Operasional Terpadu
+# Sistem Absensi JAWARA - Bujangan Wajib Sejahtera
 
-> Revisi terbaru: mulai dari [Dashboard, Event, Email Crew, dan Payroll](docs/ADMIN_EVENT_PAYROLL_OTP.md). Panduan ini melanjutkan [Absensi, Guest, Review, dan Excel](docs/ABSENSI_REVIEW_EXCEL.md) serta [Admin, Crew, dan Cabang](docs/ADMIN_CREW_CABANG.md). Penjelasan arsitektur awal di bawah adalah arsip; status implementasi dan urutan migrasi mengikuti panduan terbaru.
+Repository ini berisi monorepo untuk aplikasi operasional JAWARA yang mencakup front-end, back-end, database/Supabase, dokumentasi, serta konfigurasi deployment.
 
-Monorepo ini dipisah menjadi tiga bagian utama sesuai kebutuhan sistem full-stack, mengikuti **Master PRD & ERD v2.0** (`docs/PRD_ERD_MASTER_BujanganFood_FotoSnaps_v2_0.pdf`):
+## Ringkasan proyek
 
+- `frontend/` — aplikasi React + Vite + TypeScript + Tailwind untuk UI admin, crew, guest, dan portal absensi.
+- `backend/` — API Express.js untuk autentikasi, absensi, event, payroll, crew, store, serta integrasi Supabase/S3.
+- `database/` — migration SQL untuk struktur database dan data awal.
+- `supabase/` — konfigurasi Supabase, seed, dan migrasi terkait lingkungan lokal/produksi.
+- `docs/` — panduan fitur, desain, migration, dan catatan update proyek.
+- `deployment/` — konfigurasi deployment dan reverse proxy (`Caddyfile`).
+- `scripts/` — utility operasional seperti backup database dan pengecekan secret.
+
+## Teknologi utama
+
+- Frontend: React 19, Vite 8, TypeScript, Tailwind CSS 4
+- Backend: Node.js, Express.js, Supabase JS SDK, AWS S3 SDK
+- Database: PostgreSQL / Supabase
+- Testing: Node test runner untuk backend, serta frontend build validation
+
+## Struktur folder
+
+```text
+AbsensiJawara/
+├── backend/
+│   ├── src/
+│   ├── tests/
+│   ├── scripts/
+│   ├── package.json
+│   └── README.md
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── tests/
+│   ├── package.json
+│   └── vite.config.ts
+├── database/
+│   ├── migrations/
+│   └── README.md
+├── supabase/
+│   ├── migrations/
+│   ├── seed.sql
+│   └── config.toml
+├── docs/
+├── deployment/
+├── scripts/
+├── render.yaml
+├── README.md
+└── .gitignore
 ```
-fotosnaps-system/
-├── frontend/     # React + Vite + Tailwind — UI/UX (mockup interaktif, siap disambungkan ke API)
-├── backend/      # Express.js REST API — auth, RBAC, business logic, integrasi S3
-├── database/     # PostgreSQL/Supabase — migrations, RLS policies, seed data
-└── docs/         # Dokumen acuan tim: PRD/ERD Master & Design System (Obsidian Aperture)
+
+## Persiapan lingkungan
+
+### 1) Clone repositori
+
+```bash
+git clone <url-repository>
+cd AbsensiJawara
 ```
 
-## Kenapa dipisah begini?
+### 2) Install dependensi
 
-Sebelumnya seluruh kode ada dalam satu folder frontend saja (project mockup UI dengan dummy data). Sekarang dipisah supaya:
+Frontend:
 
-1. **Frontend** bisa terus dikembangkan tim UI/UX secara independen (styling, komponen, responsivitas) tanpa menyentuh logika server.
-2. **Backend** punya struktur modular per-domain (auth, attendance, inventory, equipment, dst.) yang memetakan langsung ke **API Baseline** di PRD Section 13 — memudahkan tim backend membagi tugas per modul.
-3. **Database** punya migration & RLS policy terpisah dari kode aplikasi, sesuai keputusan arsitektur PRD (*shared database multi-tenant dengan Row Level Security*) — bisa di-review & dijalankan independen lewat Supabase SQL Editor atau CLI.
-4. Tim reviewer/dosen pembimbing bisa langsung melihat pemisahan **presentation layer / application layer / data layer** sesuai standar rekayasa perangkat lunak.
-
-## Alur data singkat
-
-```
-┌────────────┐      HTTPS + JWT       ┌────────────┐      Supabase client      ┌──────────────┐
-│  frontend  │ ─────────────────────▶ │  backend   │ ─────────────────────────▶│   database   │
-│ (React/    │  header:                │ (Express)  │   (RLS by tenant_id)     │ (PostgreSQL/  │
-│  Vite)     │  Authorization: Bearer  │            │                           │  Supabase)    │
-│            │  X-Tenant-Id: <uuid>    │            │ ─── signed URL ─────────▶│  Private S3   │
-└────────────┘                         └────────────┘                           └──────────────┘
+```bash
+cd frontend
+npm install
 ```
 
-- Frontend mengirim JWT (`Authorization`) + tenant aktif (`X-Tenant-Id`) di setiap request.
-- Backend memvalidasi keduanya, lalu meneruskan query ke Supabase dengan RLS otomatis membatasi data sesuai tenant.
-- Foto absensi, waste, checklist, dan PDF inspection report tidak pernah diakses langsung — selalu lewat **signed URL** dari private S3 bucket.
+Backend:
 
-## Status implementasi saat ini
+```bash
+cd backend
+npm install
+```
 
-| Bagian | Status |
-|---|---|
-| `frontend/` | ✅ UI/UX lengkap untuk 3 role (Admin, Crew Event, Crew Store) dengan dummy data — **belum** disambungkan ke `backend/` (masih pakai data statis di `src/data/dummy.ts`) |
-| `backend/` | ✅ Struktur modul & routing lengkap sesuai API Baseline, logika bisnis inti (geofence, stock opname approval, Auto-PDF) sudah ditulis — **belum** teruji jalan (butuh `npm install` + kredensial Supabase/S3 asli) |
-| `database/` | ✅ Skema lengkap 4 migration + RLS policy + seed — **belum** dijalankan ke instance Supabase sungguhan |
+## Menjalankan aplikasi
 
-## Langkah selanjutnya untuk menyambungkan ketiganya
+### Frontend development
 
-1. Buat project di [Supabase](https://supabase.com), jalankan migration di `database/migrations/` secara berurutan lewat SQL Editor.
-2. Jalankan `database/policies/rls_policies.sql`, lalu `database/seeds/001_roles_and_tenants.sql` untuk data awal.
-3. Isi `backend/.env` dengan kredensial Supabase & S3 (lihat `backend/.env.example`), lalu `npm install && npm run dev`.
-4. Di `frontend/`, ganti pemanggilan `src/data/dummy.ts` dengan `fetch`/axios ke endpoint backend (`http://localhost:4000`) — mulai dari modul Absensi yang jadi tanggung jawab tim kalian.
-5. Tambahkan `.env` di frontend untuk `VITE_API_BASE_URL` dan sertakan header `Authorization` + `X-Tenant-Id` di setiap request (lihat `backend/src/middlewares/tenantContext.js` untuk kontrak yang diharapkan).
+```bash
+cd frontend
+npm run dev
+```
 
-## Dokumen acuan
+Frontend biasanya berjalan di:
 
-- `docs/PRD_ERD_MASTER_BujanganFood_FotoSnaps_v2_0.pdf` — spesifikasi produk & data lengkap (RBAC, ERD, business rules, API baseline, roadmap).
-- `docs/DESIGN.md` — design system "Obsidian Aperture" (warna, tipografi, komponen) yang dipakai di halaman Login.
-# Revisi Admin dan Cabang
+- `http://localhost:5173`
 
-Untuk revisi terbaru, ikuti [panduan pemasangan Admin, Crew, Cabang & Store](docs/ADMIN_CREW_CABANG.md).
-Jalankan migrasi `20260831110840_admin_branches_crew.sql` sekali setelah migrasi 001–009, lalu restart backend dan frontend.
+### Frontend production build
+
+```bash
+cd frontend
+npm run build
+```
+
+### Backend development
+
+```bash
+cd backend
+npm run dev
+```
+
+### Backend production
+
+```bash
+cd backend
+npm start
+```
+
+## Menjalankan test
+
+Backend test:
+
+```bash
+cd backend
+npm test
+```
+
+Test keamanan tambahan:
+
+```bash
+cd backend
+npm run test:security
+```
+
+## Database dan Supabase
+
+Proyek ini memanfaatkan SQL migrations yang berada di beberapa folder:
+
+- `database/migrations/`
+- `supabase/migrations/`
+
+Gunakan migration yang relevan sesuai kebutuhan environment Anda. Pastikan konfigurasi Supabase dan variabel lingkungan backend sudah diisi sebelum menjalankan fitur yang bergantung pada data real.
+
+## Variabel lingkungan
+
+Untuk backend yang berjalan dengan data real, pastikan file `.env` sudah disiapkan sesuai kebutuhan project. Beberapa bagian aplikasi memerlukan konfigurasi Supabase, S3, dan token/secret yang berkaitan dengan autentikasi dan upload file.
+
+## Dokumentasi penting
+
+Dokumen utama yang paling relevan saat ini:
+
+- `docs/ABSENSI_REVIEW_EXCEL.md` — fitur absensi, guest, review, dan export Excel
+- `docs/ADMIN_CREW_CABANG.md` — panduan admin, crew, cabang, dan store
+- `docs/ADMIN_EVENT_PAYROLL_OTP.md` — update dashboard, event, email crew, dan payroll
+- `docs/UPDATE_20260907.md` — catatan update terbaru
+- `docs/DESIGN.md` — panduan design system
+
+## Deployment
+
+Konfigurasi deployment tersedia di:
+
+- `render.yaml`
+- `deployment/Caddyfile`
+
+## Catatan repository
+
+- README ini diperbarui untuk mencerminkan struktur repositori saat ini.
+- Beberapa fitur masih sangat bergantung pada konfigurasi environment real (Supabase/S3) agar dapat berjalan penuh.
+- Jika Anda ingin mengembangkan fitur baru, pastikan untuk mengikuti pola modularisasi backend dan dokumentasi yang ada di `docs/`.
+
+## Quick start summary
+
+```bash
+cd frontend && npm install && npm run dev
+cd backend && npm install && npm run dev
+```
+
+Setelah itu, sesuaikan konfigurasi Supabase dan environment lain agar fitur yang memerlukan data real dapat dijalankan dengan benar.
