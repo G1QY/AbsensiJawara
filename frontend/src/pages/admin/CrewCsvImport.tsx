@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import {useRef, useState} from 'react';
 import Modal from '../../components/ui/Modal';
 import {api, ApiError} from '../../lib/apiClient';
@@ -25,28 +26,27 @@ export default function CrewCsvImport({onClose,onSaved,existingEmails}:{onClose:
   await onSaved();
  }catch(e){setError(message(e));}finally{running.current=false;setBusy(false);}}
  const pending=rows.filter(r=>!r.done);
- return <Modal open onClose={()=>{if(!busy)onClose()}} title="Impor akun crew dari CSV" size="xl">
+ return <Modal open onClose={()=>{if(!busy)onClose()}} title={translateUI("Impor akun crew dari CSV")} size="xl">
   <div className="space-y-4">
-   <p className="text-sm text-slate-600">Pilih CSV dari bos, periksa perusahaan dan jabatan, lalu tentukan jenis penugasan. Cabang dan lokasi dapat diatur setelah akun dibuat. Password tidak ditampilkan.</p>
-   <label className="block text-sm">File CSV<input type="file" accept=".csv,text/csv" disabled={busy} className="mt-2 block w-full" onChange={e=>void read(e.target.files?.[0])}/></label>
-   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
-   {notice&&<p role="status" className="text-sm text-emerald-700">{notice}</p>}
+   <p className="text-sm text-slate-600">{translateUI("Pilih CSV dari bos, periksa perusahaan dan jabatan, lalu tentukan jenis penugasan. Cabang dan lokasi dapat diatur setelah akun dibuat. Password tidak ditampilkan.")}</p>
+   <label className="block text-sm">{translateUI("File CSV")}<input type="file" accept=".csv,text/csv" disabled={busy} className="mt-2 block w-full" onChange={e=>void read(e.target.files?.[0])}/></label>
+   {error&&<p role="alert" className="text-sm text-red-700">{translateUI(error)}</p>}
+   {notice&&<p role="status" className="text-sm text-emerald-700">{translateUI(notice)}</p>}
    {!!rows.length&&<>
-    <label className="block text-sm">Terapkan jenis penugasan ke semua akun yang belum diimpor
-     <select disabled={busy} className={control} value="" onChange={e=>{const crewType=e.target.value;if(crewType)setRows(old=>old.map(r=>r.done?r:{...r,crewType}));}}>
-      <option value="">Pilih jika semua memiliki jenis yang sama</option><option value="CREW_STORE">Crew Store / Kantor</option><option value="CREW_EVENT">Crew Event</option>
+    <label className="block text-sm">{translateUI("Terapkan jenis penugasan ke semua akun yang belum diimpor") + " "}<select disabled={busy} className={control} value="" onChange={e=>{const crewType=e.target.value;if(crewType)setRows(old=>old.map(r=>r.done?r:{...r,crewType}));}}>
+      <option value="">{translateUI("Pilih jika semua memiliki jenis yang sama")}</option><option value="CREW_STORE">{translateUI("Crew Store / Kantor")}</option><option value="CREW_EVENT">{translateUI("Crew Event")}</option>
      </select>
     </label>
-    <div className="max-h-[45dvh] overflow-auto border rounded-xl"><table className="w-full text-sm"><thead><tr>{['Nama / Email','Perusahaan','Jabatan','Jenis Penugasan','Hasil'].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>
+    <div className="max-h-[45dvh] overflow-auto border rounded-xl"><table className="w-full text-sm"><thead><tr>{['Nama / Email','Perusahaan','Jabatan','Jenis Penugasan','Hasil'].map(h=><th key={h} className="p-2 text-left">{translateUI(h)}</th>)}</tr></thead><tbody>
      {rows.map((r,i)=><tr key={r.email} className="border-t"><td className="p-2">{r.fullName}<span className="block text-xs text-slate-500">{r.email}</span></td>
       <td className="p-2"><input aria-label={`Perusahaan ${r.fullName}`} disabled={busy||r.done} maxLength={150} className={control} value={r.companyName} onChange={e=>edit(i,{companyName:e.target.value})}/></td>
-      <td className="p-2"><input aria-label={`Jabatan ${r.fullName}`} disabled={busy||r.done} maxLength={100} className={control} value={r.jobTitle} placeholder="Belum diisi" onChange={e=>edit(i,{jobTitle:e.target.value})}/></td>
-      <td className="p-2"><select aria-label={`Jenis penugasan ${r.fullName}`} disabled={busy||r.done} className={control} value={r.crewType} onChange={e=>edit(i,{crewType:e.target.value})}><option value="">Pilih jenis</option><option value="CREW_STORE">Crew Store / Kantor</option><option value="CREW_EVENT">Crew Event</option></select></td>
+      <td className="p-2"><input aria-label={`Jabatan ${r.fullName}`} disabled={busy||r.done} maxLength={100} className={control} value={r.jobTitle} placeholder={translateUI("Belum diisi")} onChange={e=>edit(i,{jobTitle:e.target.value})}/></td>
+      <td className="p-2"><select aria-label={`Jenis penugasan ${r.fullName}`} disabled={busy||r.done} className={control} value={r.crewType} onChange={e=>edit(i,{crewType:e.target.value})}><option value="">{translateUI("Pilih jenis")}</option><option value="CREW_STORE">{translateUI("Crew Store / Kantor")}</option><option value="CREW_EVENT">{translateUI("Crew Event")}</option></select></td>
       <td className="p-2 min-w-36">{r.result||'Belum diimpor'}</td></tr>)}
     </tbody></table></div>
-    <p className="text-xs text-slate-500">{rows.length} akun. Gaji awal Rp0. Jabatan yang kosong dapat dilengkapi melalui Edit Crew.</p>
+    <p className="text-xs text-slate-500">{rows.length}{" " + translateUI("akun. Gaji awal Rp0. Jabatan yang kosong dapat dilengkapi melalui Edit Crew.")}</p>
    </>}
-   <div className="flex flex-wrap justify-end gap-2"><button disabled={busy} className={button} onClick={onClose}>Tutup</button><button className={primary} disabled={busy||!pending.length||pending.some(r=>!r.crewType)} onClick={()=>void save()}>{busy?'Memproses akun…':`Impor ${pending.length} akun`}</button></div>
+   <div className="flex flex-wrap justify-end gap-2"><button disabled={busy} className={button} onClick={onClose}>{translateUI("Tutup")}</button><button className={primary} disabled={busy||!pending.length||pending.some(r=>!r.crewType)} onClick={()=>void save()}>{busy?translateUI("Memproses akun…"):`Impor ${pending.length} akun`}</button></div>
   </div>
  </Modal>;
 }

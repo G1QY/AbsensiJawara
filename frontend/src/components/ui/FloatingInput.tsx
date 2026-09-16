@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import React, { useState, forwardRef } from 'react';
 
 export interface FloatingInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -146,7 +147,7 @@ export const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(({
                 (error ? 'text-[#ea580c]' : 'text-[#64748b]')
           }`}
         >
-          {label}
+          {translateUI(label)}
           {required && (
             <span className={`ml-1 ${error ? 'text-[#ea580c]' : 'text-[#ea580c]'}`}>*</span>
           )}
@@ -159,7 +160,7 @@ export const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(({
             tabIndex={-1}
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#64748b] hover:text-[#2e0052] transition-colors rounded focus:outline-none z-10"
-            title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+            title={showPassword ? translateUI("Sembunyikan password") : translateUI("Lihat password")}
           >
             {showPassword ? (
               <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
@@ -178,7 +179,7 @@ export const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(({
       {/* Field Error Message */}
       {error && (
         <p className="text-[12px] text-[#ea580c] mt-1.5 ml-1 flex items-center gap-1 font-normal animate-fadeIn">
-          {error}
+          {translateUI(error)}
         </p>
       )}
     </div>

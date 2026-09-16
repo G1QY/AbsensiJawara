@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useState } from 'react';
 import fotoSnapsLogo from '../../assets/landscape.jpg';
 
@@ -123,7 +124,7 @@ function NavItemRow({
       <div>
         <button
           onClick={() => { if (!collapsed) setOpen(o => !o); }}
-          title={collapsed ? item.label : undefined}
+          title={collapsed ? translateUI(item.label) : undefined}
           className={`w-full flex items-center gap-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all
             ${collapsed ? 'justify-center px-0' : 'px-3'}
             ${isGroupActive ? 'text-blue-300 bg-blue-600/20' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
@@ -131,7 +132,7 @@ function NavItemRow({
           <span className="flex-shrink-0">{item.icon}</span>
           {!collapsed && (
             <>
-              <span className="flex-1 truncate text-left">{item.label}</span>
+              <span className="flex-1 truncate text-left">{translateUI(item.label)}</span>
               <svg
                 className={`w-4 h-4 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -156,7 +157,7 @@ function NavItemRow({
                   }`}
               >
                 <span className="flex-shrink-0 opacity-75">{child.icon}</span>
-                <span className="truncate">{child.label}</span>
+                <span className="truncate">{translateUI(child.label)}</span>
               </button>
             ))}
           </div>
@@ -169,12 +170,12 @@ function NavItemRow({
     <button
       onClick={() => onNavigate(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      title={collapsed ? item.label : undefined}
+      title={collapsed ? translateUI(item.label) : undefined}
       className={`relative w-full flex items-center mb-0.5 font-medium transition-all ${collapsed ? 'justify-center px-0' : 'px-3'} ${compact ? 'gap-2 py-1.5 rounded-full text-xs' : 'gap-3 py-2.5 rounded-xl text-sm'}
         ${isActive ? 'bg-blue-600 text-white' : ''}`}
     >
       <span className="flex-shrink-0">{item.icon}</span>
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="truncate">{translateUI(item.label)}</span>}
     </button>
   );
 }
@@ -214,7 +215,7 @@ export default function Sidebar({ role, currentPage, onNavigate, collapsed, onTo
         {!isCollapsed && (
           <div className={`flex-shrink-0 ${role === 'guest_crew' ? 'px-3 py-2' : 'px-4 py-3'}`}>
             <span className={`inline-flex items-center font-semibold ${role === 'guest_crew' ? 'px-2 py-0.5 rounded-full text-[12px]' : 'px-3 py-1 rounded-lg text-xs'} ${roleBadge[role]}`}>
-              {roleLabel[role]}
+              {translateUI(roleLabel[role])}
             </span>
           </div>
         )}

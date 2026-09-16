@@ -1,4 +1,4 @@
-# Pengaturan lokasi hemat biaya (v6)
+# Pengaturan lokasi hemat biaya (v6, diperbarui V9)
 
 ## Pasang
 
@@ -10,8 +10,8 @@ Jangan timpa .env aktif dengan contoh; tambahkan hanya variabel yang dibutuhkan.
 ## Environment frontend (Render static site)
 
 VITE_GOOGLE_MAPS_API_KEY: key Google yang sudah dipakai untuk admin.
-Aktifkan Maps JavaScript API dan Geocoding API, batasi key ke API tersebut dan domain frontend.
-Peta Google hanya dimuat sesudah tombol "Buka peta / cari alamat" ditekan.
+Aktifkan Maps JavaScript API, Geocoding API, dan Places API (New) untuk fallback pencarian nama usaha. Batasi key ke API tersebut dan domain frontend.
+Peta Google hanya dimuat sesudah tombol "Buka peta" atau "Cari" ditekan.
 Cari alamat hanya mengirim permintaan setelah tombol Cari atau Enter. Tidak ada autocomplete per karakter.
 Geser/klik pin dan "Gunakan lokasi perangkat" mengubah koordinat tanpa geocoding.
 "Cari alamat titik ini" adalah permintaan reverse geocoding eksplisit, hanya di admin.
@@ -39,7 +39,7 @@ Peta perangkat tidak mempunyai callback untuk menulis koordinat absensi.
 
 ## Data absensi dan laporan
 
-Guest tidak lagi meminta alamat jalan otomatis. Kolom address baru kosong; data lama tetap dipertahankan.
+Guest tidak meminta alamat jalan otomatis. Sejak V9, foto mencetak alamat penugasan yang tersimpan di store/kantor/event, bersama koordinat GPS perangkat. Alamat tersebut ditandai sebagai alamat penugasan, dan data lama tetap dipertahankan.
 Nama kantor/store/event tetap merupakan lokasi penugasan, bukan klaim alamat aktual GPS.
 Guest mengambil GPS lagi saat kirim. Penolakan izin/GPS gagal menghentikan kirim tanpa membuat lokasi pengganti.
 Pengiriman ulang yang belum dikonfirmasi server tetap memakai submissionKey yang sama untuk isian/foto yang sama, meski pengukuran GPS baru sedikit bergeser.
@@ -72,7 +72,7 @@ Biaya database, backend, foto dan bandwidth aplikasi terpisah dari API peta.
 12 pengujian frontend lulus: GPS segar, izin ditolak, koordinat nol/kosong, pemetaan GPS masuk/pulang, perusahaan/jabatan, XLSX, PDF, dan pemilih lokasi admin.
 9 pengujian backend kalender lulus, termasuk 100 permintaan serentak menjadi satu panggilan provider dalam satu proses.
 Build frontend dan TypeScript lulus. Pemeriksaan memakai data/provider tiruan, bukan akun Google/MapTiler live.
-Belum menguji interaksi browser/perangkat secara langsung, belum push/deploy, dan tidak mengubah database produksi.
+Catatan di atas mencatat pengujian v6. Pengujian browser terbaru dan batasannya dijelaskan dalam UPDATE_V9.md.
 
 ## Referensi konfigurasi
 

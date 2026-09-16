@@ -10,13 +10,14 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     const page=await browser.newPage({viewport:{width:1365,height:950},permissions:['geolocation'],geolocation:{latitude:-6.9,longitude:107.6,accuracy:20}});const errors=[],submissions=[];
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(()=>{
+      window.watermarkText=[];const originalText=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,x,y){window.watermarkText.push({text,x,y,width:this.canvas.width,height:this.canvas.height,font:this.font});return originalText.call(this,text,x,y);};
       navigator.mediaDevices.getUserMedia=async()=>{const canvas=document.createElement('canvas');canvas.width=640;canvas.height=480;const ctx=canvas.getContext('2d');const draw=()=>{ctx.fillStyle='#205090';ctx.fillRect(0,0,640,480);};draw();const interval=setInterval(draw,100);window.addEventListener('beforeunload',()=>clearInterval(interval));return canvas.captureStream(10);};
     });
     const locationId='44444444-4444-4444-8444-444444444444';
     await page.route('**/*',async r=>{
       const url=new URL(r.request().url());if(url.origin===origin||url.protocol==='data:')return r.continue();
       let status=200,data={};
-      if(url.pathname==='/api/guest-attendance/options')data={stores:[],events:[{id:locationId,event_name:'Event Uji Server',event_date:'2026-08-31'}]};
+      if(url.pathname==='/api/guest-attendance/options')data={stores:[],events:[{id:locationId,event_name:'Event Uji Server',event_date:'2026-08-31',event_locations:[{address:'Jl. Braga, Babakan Ciamis, Sumur Bandung, Kota Bandung, Jawa Barat 40111, Indonesia'}]}]};
       else if(url.pathname==='/api/guest-attendance'&&r.request().method()==='POST'){
         const body=r.request().postData();submissions.push(body);assert.match(body,/Event Uji Server|44444444-4444-4444-8444-444444444444/);assert.match(body,/Catatan uji server/);assert.match(body,/name="photo"/);assert.match(body,/name="locationSource"\r\n\r\ngps/);
         if(submissions.length===1){status=503;data={message:'Uji server belum tersedia'};}else {status=201;data={id:'55555555-5555-4555-8555-555555555555',occurred_at:'2026-08-31T06:04:00Z'};}
@@ -28,6 +29,8 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     await page.getByLabel('Lokasi Event / Toko',{exact:true}).selectOption(locationId);
     await page.getByText('-6.900000, 107.600000',{exact:true}).first().waitFor();
     await page.getByRole('button',{name:'Buka Kamera Selfie'}).click();await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);await page.getByRole('button',{name:'Ambil Gambar Sekarang'}).click();await page.getByAltText('Bukti Kehadiran',{exact:true}).waitFor();
+    const watermark=await page.evaluate(()=>window.watermarkText);assert.match(watermark.map(row=>row.text).join(''),/Alamat penugasan: Jl. Braga/);assert.match(watermark.map(row=>row.text).join(''),/GPS: -6.900000, 107.600000/);assert.ok(watermark.every(row=>row.y>=0&&row.y+parseFloat(row.font.match(/(\d+)px/)[1])<=row.height));
+    const photo=(await page.getByAltText('Bukti Kehadiran',{exact:true}).getAttribute('src')).split(',')[1];fs.mkdirSync(process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa',{recursive:true});fs.writeFileSync((process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa')+'/guest-watermark.jpg',Buffer.from(photo,'base64'));
     await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').fill('Catatan uji server');await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByText('Uji server belum tersedia',{exact:true}).waitFor();assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'Catatan uji server');assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),1);
     await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByRole('heading',{name:'Absensi berhasil dikirim'}).waitFor();assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),0);assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'');
     const dialog=page.getByRole('dialog',{name:'Absensi berhasil dikirim'});

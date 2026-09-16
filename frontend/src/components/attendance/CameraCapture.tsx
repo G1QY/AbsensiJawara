@@ -1,3 +1,4 @@
+import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useRef, useState, useEffect, useCallback } from 'react';
 
 interface CameraCaptureProps {
@@ -94,7 +95,7 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
     const capturedAt = new Date();
     const fontSize = Math.max(16, Math.round(canvas.width / 34));
     const padding = Math.max(14, Math.round(canvas.width / 45));
-    const firstLine = capturedAt.toLocaleString('id-ID', {
+    const firstLine = capturedAt.toLocaleString(getLocale(), {
       timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
     }) + ' WIB';
@@ -120,7 +121,7 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
       <div className="rounded-2xl overflow-hidden bg-slate-900 aspect-[4/3] relative">
         {error ? (
           <div className="w-full h-full flex items-center justify-center p-6 text-center">
-            <p className="text-red-300 text-sm">{error}</p>
+            <p className="text-red-300 text-sm">{translateUI(error)}</p>
           </div>
         ) : (
           <>
@@ -133,15 +134,15 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
             />
             {!ready && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-                <p className="text-white/60 text-sm">Membuka kamera...</p>
+                <p className="text-white/60 text-sm">{translateUI("Membuka kamera...")}</p>
               </div>
             )}
             {faceGuide ? <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-44 h-44 border-2 border-white/60 rounded-full" />
             </div> : null}
             <div className="absolute top-3 left-3 bg-black/60 rounded-xl px-3 py-1.5 font-mono text-white text-xs">
-              <span className={accent.text}>WAKTU: </span>
-              {now.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })} WIB
+              <span className={accent.text}>{translateUI("WAKTU:") + " "}</span>
+              {now.toLocaleString(getLocale(), { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })} WIB
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent text-center">
               <p className="text-white/90 text-xs">{locationName || 'Lokasi kerja'}</p>
@@ -151,15 +152,15 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
       </div>
       <canvas ref={canvasRef} className="hidden" />
 
-      <div className="flex flex-col items-center gap-3"><button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm" onClick={()=>setActiveFacing(value=>value==='user'?'environment':'user')}>{activeFacing==='user'?'Ganti ke kamera belakang':'Ganti ke kamera depan'}</button>
+      <div className="flex flex-col items-center gap-3"><button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm" onClick={()=>setActiveFacing(value=>value==='user'?'environment':'user')}>{activeFacing==='user'?translateUI("Ganti ke kamera belakang"):translateUI("Ganti ke kamera depan")}</button>
         <button
-          type="button" aria-label="Ambil foto"
+          type="button" aria-label={translateUI("Ambil foto")}
           onClick={handleCapture}
           disabled={!ready || !!error}
           className={`w-16 h-16 rounded-full bg-white border-4 ${accent.border} flex items-center justify-center hover:scale-105 shadow-lg disabled:opacity-40 disabled:hover:scale-100 transition-transform`}
         >
           <div aria-hidden="true" className={`w-10 h-10 rounded-full ${accent.bg}`} />
-        </button><p className="text-sm text-slate-600">Tekan tombol bulat untuk mengambil foto.</p>
+        </button><p className="text-sm text-slate-600">{translateUI("Tekan tombol bulat untuk mengambil foto.")}</p>
       </div>
     </div>
   );
