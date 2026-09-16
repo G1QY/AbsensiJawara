@@ -316,14 +316,14 @@ function StepActions({ onSave, onNext, saveLabel, nextLabel }: {
         onClick={onNext}
         className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 text-sm flex items-center justify-center gap-2"
       >
-        {nextLabel || 'Simpan & Lanjut'}
+        {nextLabel || translateUI("Simpan & Lanjutkan")}
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
       </button>
     </div>
   );
 }
 
-function PhotoPicker({ value, onChange, label = 'Ambil foto bukti', fieldLabel = 'Foto Bukti' }: { value?: string; onChange: (key: string) => void; label?: string; fieldLabel?: string }) {
+function PhotoPicker({ value, onChange, label = translateUI('Ambil foto bukti'), fieldLabel = translateUI('Foto Bukti') }: { value?: string; onChange: (key: string) => void; label?: string; fieldLabel?: string }) {
   const eventId = useContext(WorkflowEventContext);
   return <CameraPhotoUpload eventId={eventId} value={value} onChange={onChange} fieldLabel={fieldLabel} buttonLabel={label} />;
 }
@@ -390,7 +390,7 @@ function StepInventoryBefore({ onSave, onNext, data, onDataChange }: {
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
-          <h3 className="font-semibold text-slate-900">Inventory Before</h3>
+          <h3 className="font-semibold text-slate-900">{translateUI("Inventory Before")}</h3>
           <p className="text-xs text-slate-400">{translateUI("Input semua barang yang dibawa ke event")}</p>
         </div>
       </div>
@@ -507,13 +507,13 @@ function StepCheckpoint({ type, onSave, onNext, data, onDataChange, locationName
   return <div className="space-y-4">
     <div className="flex items-center gap-3">
       <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isSetup ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}><WorkflowIcon /></div>
-      <div><h3 className="font-semibold text-slate-900">{isSetup ? 'Setup Ready' : translateUI("Event Selesai")}</h3><p className="text-xs text-slate-500">{isSetup ? translateUI("Ambil foto setelah tiba dan seluruh setup siap digunakan.") : translateUI("Ambil foto kondisi lokasi setelah kegiatan berakhir.")}</p></div>
+      <div><h3 className="font-semibold text-slate-900">{isSetup ? translateUI("Setup Ready") : translateUI("Event Selesai")}</h3><p className="text-xs text-slate-500">{isSetup ? translateUI("Ambil foto setelah tiba dan seluruh setup siap digunakan.") : translateUI("Ambil foto kondisi lokasi setelah kegiatan berakhir.")}</p></div>
     </div>
     <CameraPhotoUpload
       eventId={eventId}
       value={data[photoKey]}
-      fieldLabel={isSetup ? 'Foto Setup Ready' : 'Foto Event Selesai'}
-      buttonLabel={isSetup ? 'Buka kamera dan foto setup' : 'Buka kamera dan foto kondisi akhir'}
+      fieldLabel={isSetup ? translateUI('Foto Setup Ready') : translateUI('Foto Event Selesai')}
+      buttonLabel={isSetup ? translateUI('Buka kamera dan foto setup') : translateUI('Buka kamera dan foto kondisi akhir')}
       locationName={locationName}
       upload={upload}
       onChange={key => onDataChange({ ...data, [photoKey]: key })}
@@ -536,7 +536,7 @@ function StepTesPrint({ phase, onSave, onNext, data, onDataChange }: {
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center"><WorkflowIcon /></div>
         <div>
-          <h3 className="font-semibold text-slate-900">{translateUI("Cek Print") + " "}{isBefore ? translateUI("Sebelum") : translateUI("Sesudah")} Event</h3>
+          <h3 className="font-semibold text-slate-900">{translateUI("Cek Print") + " "}{isBefore ? translateUI("Sebelum") : translateUI("Sesudah")} {translateUI("Event")}</h3>
           <p className="text-xs text-slate-400">{translateUI("Ambil foto langsung dari kamera. Jumlah kertas tidak digunakan.")}</p>
         </div>
       </div>
@@ -567,9 +567,9 @@ function StepOngoing({ onSave, onNext, data, assignment, completed }: {
   const endedAt = checkpointEnd ? new Date(checkpointEnd).getTime() : attendance?.check_out ? new Date(attendance.check_out).getTime() : now;
   const elapsed = Number.isFinite(startedAt) ? Math.max(0, endedAt - startedAt) : 0;
   const duration = [Math.floor(elapsed / 3600000), Math.floor((elapsed % 3600000) / 60000), Math.floor((elapsed % 60000) / 1000)].map(value => String(value).padStart(2, '0')).join(':');
-  const heading = isCancelled ? 'Event Dibatalkan' : assignment.event.status === 'COMPLETED' ? 'Event Selesai' : isFinished ? 'Tugas Anda Selesai' : assignment.event.status === 'SCHEDULED' ? 'Event Terjadwal' : 'Event Sedang Berlangsung';
+  const heading = isCancelled ? translateUI('Event Dibatalkan') : assignment.event.status === 'COMPLETED' ? translateUI('Event Selesai') : isFinished ? translateUI('Tugas Anda Selesai') : assignment.event.status === 'SCHEDULED' ? translateUI('Event Terjadwal') : translateUI('Event Sedang Berlangsung');
   const period = firstSchedule && lastSchedule ? (firstSchedule.schedule_date === lastSchedule.schedule_date ? eventDateText(firstSchedule.schedule_date) : `${eventDateText(firstSchedule.schedule_date)} – ${eventDateText(lastSchedule.schedule_date)}`) : eventDateText(assignment.event.event_date);
-  const location = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || 'Lokasi belum diisi';
+  const location = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || translateUI('Lokasi belum diisi');
   return (
     <div className="space-y-5">
       <div className="text-center py-6">
@@ -582,12 +582,12 @@ function StepOngoing({ onSave, onNext, data, assignment, completed }: {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
-          { label: 'Tanggal', val: period },
-          { label: 'Waktu', val: firstSchedule && lastSchedule ? `${timeText(firstSchedule.start_time)} – ${timeText(lastSchedule.end_time)}` : 'Jadwal belum diisi' },
-          { label: 'Lokasi', val: location },
-          { label: 'PIC', val: assignment.event.pic?.user?.full_name || 'PIC belum ditentukan' },
-          { label: 'Tim', val: `${assignment.team.length} crew` },
-          { label: 'Status', val: heading.replace('Event ', '') },
+          { label: translateUI('Tanggal'), val: period },
+          { label: translateUI('Waktu'), val: firstSchedule && lastSchedule ? `${timeText(firstSchedule.start_time)} – ${timeText(lastSchedule.end_time)}` : translateUI('Jadwal belum diisi') },
+          { label: translateUI('Lokasi'), val: location },
+          { label: translateUI('PIC'), val: assignment.event.pic?.user?.full_name || translateUI('PIC belum ditentukan') },
+          { label: translateUI('Tim'), val: `${assignment.team.length} ${translateUI('crew')}` },
+          { label: translateUI('Status'), val: heading },
         ].map(s => (
           <div key={s.label} className="bg-slate-50 rounded-xl p-4">
             <p className="text-xs text-slate-400">{s.label}</p>
@@ -601,7 +601,7 @@ function StepOngoing({ onSave, onNext, data, assignment, completed }: {
         <p className="text-xs text-amber-600">{attendance?.check_in ? (isFinished ? translateUI("Durasi Event Tercatat") : translateUI("Durasi Sejak Clock In")) : translateUI("Menunggu Clock In")}</p>
       </div>
 
-      <StepActions onSave={onSave} onNext={onNext} saveLabel="Simpan Progress" nextLabel="Lanjutkan ke Foto Event Selesai" />
+      <StepActions onSave={onSave} onNext={onNext} saveLabel={translateUI("Simpan Progress")} nextLabel={translateUI("Lanjutkan ke Foto Event Selesai")} />
     </div>
   );
 }
@@ -796,7 +796,7 @@ function StepComparison({ onSave, onNext, data }: {
         </div>
       )}
 
-      <StepActions onSave={onSave} onNext={onNext} saveLabel="Simpan" nextLabel="Lanjutkan ke Clock Out" />
+      <StepActions onSave={onSave} onNext={onNext} saveLabel={translateUI("Simpan")} nextLabel={translateUI("Lanjutkan ke Clock Out")} />
     </div>
   );
 }
@@ -812,16 +812,16 @@ interface EventWorkflowProps {
 function stepValidationError(step: number, data: Record<string, any>, assignmentId: string) {
   const before = Array.isArray(data.inventory_before_items) ? data.inventory_before_items : [];
   const after = Array.isArray(data.inventory_after_items) ? data.inventory_after_items : [];
-  if (step === 2 && (!before.length || before.some(item => !String(item.nama || '').trim() || !item.foto))) return 'Isi data dan ambil foto kamera untuk setiap barang sebelum event.';
-  if (step === 3 && !data.transportasi_pergi_photo) return 'Ambil foto bukti transportasi pergi.';
-  if (step === 4 && !data[`setup_ready_photo_${assignmentId}`]) return 'Ambil foto setup ready di lokasi event.';
-  if (step === 5 && !(data.tes_print_before_photo || data.tes_print_photo)) return 'Ambil foto cek print sebelum event.';
-  if (step === 7 && !data[`event_finished_photo_${assignmentId}`]) return 'Ambil foto kondisi saat event selesai.';
-  if (step === 8 && !data.tes_print_after_photo) return 'Ambil foto cek print sesudah event.';
-  if (step === 9 && (!Number(data.kuota_gb) || !data.kuota_nominal_photo)) return 'Isi jumlah kuota dan ambil foto bukti kuota.';
-  if (step === 10 && !data.transportasi_pulang_photo) return 'Ambil foto bukti transportasi pulang.';
-  if (step === 11 && !data.omset_nominal_photo) return 'Ambil foto bukti omset event.';
-  if (step === 12 && (!after.length || after.some(item => !item.foto_after))) return 'Ambil foto kamera untuk setiap barang setelah event.';
+  if (step === 2 && (!before.length || before.some(item => !String(item.nama || '').trim() || !item.foto))) return translateUI('Isi data dan ambil foto kamera untuk setiap barang sebelum event.');
+  if (step === 3 && !data.transportasi_pergi_photo) return translateUI('Ambil foto bukti transportasi pergi.');
+  if (step === 4 && !data[`setup_ready_photo_${assignmentId}`]) return translateUI('Ambil foto setup ready di lokasi event.');
+  if (step === 5 && !(data.tes_print_before_photo || data.tes_print_photo)) return translateUI('Ambil foto cek print sebelum event.');
+  if (step === 7 && !data[`event_finished_photo_${assignmentId}`]) return translateUI('Ambil foto kondisi saat event selesai.');
+  if (step === 8 && !data.tes_print_after_photo) return translateUI('Ambil foto cek print sesudah event.');
+  if (step === 9 && (!Number(data.kuota_gb) || !data.kuota_nominal_photo)) return translateUI('Isi jumlah kuota dan ambil foto bukti kuota.');
+  if (step === 10 && !data.transportasi_pulang_photo) return translateUI('Ambil foto bukti transportasi pulang.');
+  if (step === 11 && !data.omset_nominal_photo) return translateUI('Ambil foto bukti omset event.');
+  if (step === 12 && (!after.length || after.some(item => !item.foto_after))) return translateUI('Ambil foto kamera untuk setiap barang setelah event.');
   return '';
 }
 
@@ -832,7 +832,7 @@ export default function EventWorkflow({ onBack, assignment, initialStep = 1 }: E
   const schedules = [...(assignment.event_schedules || [])].sort((a, b) => a.schedule_date.localeCompare(b.schedule_date) || a.start_time.localeCompare(b.start_time));
   const firstEventDate = schedules[0]?.schedule_date || assignment.event.event_date;
   const lastEventDate = schedules[schedules.length - 1]?.schedule_date || assignment.event.event_date;
-  const eventLocationName = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || 'Lokasi event';
+  const eventLocationName = assignment.event.event_locations?.[0]?.address || branchLabel(assignment.event.branch) || translateUI('Lokasi Event');
   const [workflowData, setWorkflowData] = useState<Record<string, any>>(() => ({ ...assignment.workflow.data }));
   const [saveError, setSaveError] = useState('');
   const [reviewTab,setReviewTab] = useState<'Inventory'|'Operasional'>('Inventory');

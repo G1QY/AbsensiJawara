@@ -105,7 +105,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
 
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAY_NAMES.map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase py-1">{translateUI(d)}</div>
         ))}
       </div>
 

@@ -129,7 +129,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   const getLocationText = useCallback(() => {
     if (jenis === 'Kantor') {
-      return locations.offices.find(s => s.id === selectedLocation)?.name || 'Kantor (tanpa pilihan lokasi)';
+      return locations.offices.find(s => s.id === selectedLocation)?.name || translateUI('Kantor (tanpa pilihan lokasi)');
     }
     return jenis === 'Crew Store' ? locations.stores.find(s => s.id === selectedLocation)?.name || '' : locations.events.find(e => e.id === selectedLocation)?.event_name || '';
   }, [selectedLocation, jenis, locations]);
@@ -171,7 +171,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     setLocSource('none'); setLocError(''); setLocLoading(true);
     if (!window.isSecureContext || !navigator.geolocation) {
       setLocLoading(false);
-      setLocError('Lokasi perangkat tidak tersedia. Buka melalui HTTPS dan izinkan akses lokasi.');
+      setLocError(translateUI('Lokasi perangkat tidak tersedia. Buka melalui HTTPS dan izinkan akses lokasi.'));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -181,24 +181,24 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         if (![latitude, longitude, measuredAccuracy].every(Number.isFinite) ||
           Math.abs(latitude) > 90 || Math.abs(longitude) > 180 || measuredAccuracy <= 0) {
           setLocLoading(false);
-          setLocError('Perangkat mengirim lokasi tidak valid. Tekan Perbarui GPS.');
+          setLocError(translateUI('Perangkat mengirim lokasi tidak valid. Tekan Perbarui GPS.'));
           return;
         }
         setLat(latitude); setLng(longitude); setAccuracy(Math.ceil(measuredAccuracy));
         // Existing API enum; the browser does not reveal its positioning sensor.
         setLocSource('gps'); setLocLoading(false);
         if (measuredAccuracy > 100) {
-          setLocError('Lokasi masih kurang akurat. Aktifkan lokasi presisi, pindah ke area terbuka, lalu tekan Perbarui GPS.');
+          setLocError(translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi, pindah ke area terbuka, lalu tekan Perbarui GPS.'));
         }
       },
       (error) => {
         if (requestId !== locationRequest.current) return;
         setLocLoading(false);
         setLocError(error.code === 1
-          ? 'Izin lokasi ditolak. Izinkan lokasi presisi pada browser dan perangkat, lalu tekan Perbarui GPS.'
+          ? translateUI('Izin lokasi ditolak. Izinkan lokasi presisi pada browser dan perangkat, lalu tekan Perbarui GPS.')
           : error.code === 2
-            ? 'Lokasi perangkat belum tersedia. Aktifkan layanan lokasi dan coba di area terbuka.'
-            : 'Pencarian lokasi melewati batas waktu. Aktifkan lokasi presisi lalu tekan Perbarui GPS.');
+            ? translateUI('Lokasi perangkat belum tersedia. Aktifkan layanan lokasi dan coba di area terbuka.')
+            : translateUI('Pencarian lokasi melewati batas waktu. Aktifkan lokasi presisi lalu tekan Perbarui GPS.'));
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
@@ -434,7 +434,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       let fresh;
       try { fresh = await readDeviceLocation(); } finally { setLocLoading(false); }
       setLat(fresh.latitude); setLng(fresh.longitude); setAccuracy(fresh.accuracy);
-      setLocError(fresh.accuracy > 100 ? 'Lokasi masih kurang akurat. Aktifkan lokasi presisi.' : '');
+      setLocError(fresh.accuracy > 100 ? translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi.') : '');
       newRecord.latitude = fresh.latitude; newRecord.longitude = fresh.longitude; newRecord.accuracy = fresh.accuracy;
       const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto]);
       if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
@@ -447,7 +447,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString(getLocale(), { timeZone: 'Asia/Jakarta' }) });
       submissionKey.current = crypto.randomUUID();
       setFoto(''); setCatatan('');
-      add('Absensi diterima server', 'Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.');
+      add(translateUI('Absensi diterima server'), translateUI('Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.'));
     } catch (error) { setFormError(error instanceof Error ? error.message : 'Pengiriman gagal. Coba lagi.'); }
     finally { setSubmitting(false); }
   };
@@ -488,9 +488,9 @@ _Foto selfie telah tersimpan di sistem._`;
         {/* Navigation Tabs */}
         <nav aria-label={translateUI("Navigasi portal Guest Crew")} className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 mb-5 gap-1">
           {[
-            { id: 'guest-portal', label: 'Form Absensi Darurat' },
-            { id: 'guest-info', label: 'Info Event Hari Ini' },
-            { id: 'guest-help', label: 'Pusat Bantuan' },
+            { id: 'guest-portal', label: translateUI('Form Absensi Darurat') },
+            { id: 'guest-info', label: translateUI('Info Event Hari Ini') },
+            { id: 'guest-help', label: translateUI('Pusat Bantuan') },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -580,7 +580,7 @@ _Foto selfie telah tersimpan di sistem._`;
                             : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
                         >
-                          {t}
+                          {translateUI(t)}
                         </button>
                       ))}
                     </div>
@@ -601,7 +601,7 @@ _Foto selfie telah tersimpan di sistem._`;
                             : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
                         >
-                          {t}
+                          {translateUI(t)}
                         </button>
                       ))}
                     </div>
@@ -666,7 +666,7 @@ _Foto selfie telah tersimpan di sistem._`;
                         <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        <span>{locLoading ? 'Mendeteksi...' : translateUI("Perbarui GPS")}</span>
+                        <span>{locLoading ? translateUI('Mendeteksi...') : translateUI("Perbarui GPS")}</span>
                       </button>
                     </div>
 
