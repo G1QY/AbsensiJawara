@@ -526,7 +526,19 @@ aside :is(.text-slate-400,.text-slate-500) { color: var(--app-muted); }
 }
 
 /* Persistent language control and consistent touch targets. */
-.language-select { color:var(--app-text); background:var(--app-surface); border:1px solid var(--app-border); border-radius:10px; padding:8px 4px; min-width:54px; height:40px; font-size:12px; flex-shrink:0; }
+.language-select {
+  color: var(--app-text);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  padding: 8px 4px;
+  min-width: 54px;
+  height: 40px;
+  font-size: 12px;
+  flex-shrink: 0;
+  text-align: center;
+  text-align-last: center;
+}
 .language-select:focus-visible { outline:3px solid var(--app-action); outline-offset:2px; }
 @media(max-width:767px) {
  .app-topbar { flex-wrap:wrap; padding:6px 10px; gap:4px; }

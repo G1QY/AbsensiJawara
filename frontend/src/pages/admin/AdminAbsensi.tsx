@@ -102,7 +102,7 @@ export default function AdminAbsensi() {
       </section>;
     })}</div>;
   }
-  function identity(a:AttendanceRow){return <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-xl"><Avatar name={a.name}/><div><h3 className="font-semibold text-slate-900">{a.name}</h3><p className="text-sm text-slate-600">{a.companyName || 'Perusahaan belum diisi'} • {a.jobTitle || 'Jabatan belum diisi'}</p><p className="text-sm text-slate-600">{a.kind} • {a.location}</p><p className="text-xs text-slate-500">{a.phone} {a.source!=='registered'?'• Guest':''}</p></div></div>;}
+  function identity(a:AttendanceRow){return <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-xl"><Avatar name={a.name}/><div><h3 className="font-semibold text-slate-900">{a.name}</h3><p className="text-sm text-slate-600">{a.companyName || translateUI("Perusahaan belum diisi")} • {a.jobTitle || translateUI("Jabatan belum diisi")}</p><p className="text-sm text-slate-600">{a.kind} • {a.location}</p><p className="text-xs text-slate-500">{a.phone} {a.source!=='registered'?'• Guest':''}</p></div></div>;}
   function calculation(a:AttendanceRow){
     const rules=getPayrollRules(),lateHours=a.lateMinutes===null?null:Math.ceil(Math.max(0,a.lateMinutes)/60),overtimeHours=a.overtimeMinutes===null?null:Math.floor(Math.max(0,a.overtimeMinutes)/60);
     const deduction=lateHours===null?null:lateHours*rules.lateRate,approved=a.overtimeStatus==='APPROVED',bonus=overtimeHours===null?null:approved?overtimeHours*rules.overtimeRate:0;
