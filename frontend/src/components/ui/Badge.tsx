@@ -42,7 +42,6 @@ export function StatusBadge({ status }: { status: string }) {
     'Non-Aktif': 'neutral',
     'Inactive': 'neutral',
     'Ongoing': 'info',
-    'Completed': 'success',
     'Scheduled': 'primary',
     'Draft': 'neutral',
     'Sesuai': 'success',
