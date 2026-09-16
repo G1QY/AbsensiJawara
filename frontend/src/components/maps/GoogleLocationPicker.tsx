@@ -58,6 +58,7 @@ export default function GoogleLocationPicker(props: Props) {
   const choosePoint = (position: { lat: number; lng: number }, nextAddress?: string) => {
     revision.current++; working.current = false; setLoading(false);
     candidate.current = position; setResults([]); setError('');
+    if (nextAddress !== undefined) setQuery(nextAddress);
     current.current.onChange({
       address: nextAddress ?? '',
       latitude: position.lat.toFixed(7), longitude: position.lng.toFixed(7),
