@@ -36,7 +36,7 @@ interface TodayResponse {
 
 const clock = (value: string | null) => value
   ? new Date(value).toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
-  : 'Belum tercatat';
+  : translateUI('Belum tercatat');
 
 export default function AttendanceAction({ mode, eventId, onContinue, onRecorded }: {
   mode: Mode;
@@ -96,7 +96,7 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
         form.append('eventScheduleId', context.eventScheduleId || '');
         result = await api.postForm<AttendanceState>('/attendance/check-in', form);
       } else {
-        if (!today.attendance?.id) throw new Error('Clock In belum tercatat.');
+        if (!today.attendance?.id) throw new Error(translateUI('Clock In belum tercatat.'));
         result = await api.postForm<AttendanceState>(`/attendance/${today.attendance.id}/check-out`, form);
       }
 
@@ -115,11 +115,11 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
     }
   }, [getPosition, load, mode, note, onRecorded, today]);
 
-  if (loading) return <State text="Memuat status absensi..." />;
+  if (loading) return <State text={translateUI('Memuat status absensi...')} />;
 
   const context = today?.context;
   if (!today?.hasSchedule || !context || context.type !== 'EVENT' || context.eventId !== eventId) {
-    return <State text={error || 'Tidak ada jadwal aktif untuk event ini pada hari ini.'} error={!!error} />;
+    return <State text={error || translateUI('Tidak ada jadwal aktif untuk event ini pada hari ini.')} error={!!error} />;
   }
 
   const recorded = mode === 'IN' ? today.attendance?.check_in : today.attendance?.check_out;
@@ -135,10 +135,10 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
   }
 
   if (mode === 'OUT' && !today.attendance?.check_in) {
-    return <State text="Clock In belum tercatat. Lakukan Clock In melalui menu Absensi atau langkah Clock In pada Event Saya." error />;
+    return <State text={translateUI('Clock In belum tercatat. Lakukan Clock In melalui menu Absensi atau langkah Clock In pada Event Saya.')} error />;
   }
 
-  if (submitting) return <State text="Mengambil lokasi dan menyimpan absensi..." />;
+  if (submitting) return <State text={translateUI('Mengambil lokasi dan menyimpan absensi...')} />;
 
   return <div className="space-y-4">
     <div className="rounded-2xl border border-slate-200 bg-white p-4">

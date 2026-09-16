@@ -1,4 +1,4 @@
-import {useLanguage} from './lib/i18n';
+import {t as translateUI, useLanguage} from './lib/i18n';
 import LanguageSelect from './components/ui/LanguageSelect';
 import { useCallback, useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
@@ -78,7 +78,7 @@ export default function App() {
     setCurrentPage(defaultPage(frontendRole));
     setSidebarCollapsed(false);
     setMobileNavOpen(false);
-    addToast('Berhasil masuk ke JAWARA');
+    addToast(translateUI('Berhasil masuk ke JAWARA'));
   }, [frontendRole, addToast]);
 
   if (!auth || !frontendRole) {

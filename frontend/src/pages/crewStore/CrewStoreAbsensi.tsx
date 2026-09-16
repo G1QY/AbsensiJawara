@@ -39,7 +39,7 @@ interface TodayResponse {
 }
 
 const jam = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '—');
-const approvalText = (value?:string) => ({PENDING:'Menunggu admin',APPROVED:'Disetujui',REJECTED:'Ditolak',NOT_REQUIRED:'Tidak perlu ditinjau',NONE:'Tidak ada'}[value||'']||value||'Belum tersedia');
+const approvalText = (value?:string) => translateUI(({PENDING:'Menunggu admin',APPROVED:'Disetujui',REJECTED:'Ditolak',NOT_REQUIRED:'Tidak perlu ditinjau',NONE:'Tidak ada'}[value||'']||value||'Belum tersedia'));
 
 export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChanged }: { showCalendar?: boolean; onAttendanceChanged?: () => void }) {
   const contextRevision=useRef('');
