@@ -385,7 +385,7 @@ export default function KelolaCrew() {
                           {c.user.full_name}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {c.user.phone_number || "HP belum diisi"}
+                          {c.user.phone_number || translateUI("HP belum diisi")}
                         </p>
                         <p className="text-xs text-slate-500 break-all">{c.user.email}</p>
                       </div>
@@ -631,10 +631,10 @@ export default function KelolaCrew() {
               {[
                 ["Jenis", crewKind(detail)],
                 ["Status", detail.status === "ACTIVE" ? translateUI("Aktif") : translateUI("Non-Aktif")],
-                ["Nomor HP", detail.user.phone_number || "Belum diisi"],
-                ["Perusahaan", detail.company_name || "Belum ditetapkan"],
-                ["Jabatan", detail.job_title || "Belum ditetapkan"],
-                ["Cabang", branchLabel(detail.branch) || "Belum ditetapkan"],
+                ["Nomor HP", detail.user.phone_number || translateUI("HP belum diisi")],
+                ["Perusahaan", detail.company_name || translateUI("Belum ditetapkan")],
+                ["Jabatan", detail.job_title || translateUI("Belum ditetapkan")],
+                ["Cabang", branchLabel(detail.branch) || translateUI("Belum ditetapkan")],
                 ["Gaji Pokok", money(detail.base_salary)],
                 ["Jumlah Event", eventCount(detail)],
               ].map(([label, value]) => (
@@ -663,7 +663,7 @@ export default function KelolaCrew() {
                 {(detail.event_assignments || []).map((a) => (
                   <li key={a.id}>
                     {a.event?.event_name || "Event"} • {a.event?.event_date} •{" "}
-                    {a.position || "Posisi belum diisi"} • {a.status}
+                    {a.position || translateUI("Posisi belum diisi")} • {a.status}
                   </li>
                 ))}
               </ul>
