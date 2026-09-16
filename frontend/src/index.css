@@ -524,3 +524,18 @@ aside :is(.text-slate-400,.text-slate-500) { color: var(--app-muted); }
  .employee-inventory-table td:nth-child(6)::before { content:'Kondisi'; }
  .employee-inventory-table td::before { color:var(--app-muted); font-family:inherit; font-weight:400; }
 }
+
+/* Persistent language control and consistent touch targets. */
+.language-select { color:var(--app-text); background:var(--app-surface); border:1px solid var(--app-border); border-radius:10px; padding:8px 4px; min-width:54px; height:40px; font-size:12px; flex-shrink:0; }
+.language-select:focus-visible { outline:3px solid var(--app-action); outline-offset:2px; }
+@media(max-width:767px) {
+ .app-topbar { flex-wrap:wrap; padding:6px 10px; gap:4px; }
+ .app-topbar > .flex-1 { flex-basis:calc(100% - 58px); }
+ .app-topbar > .language-select { margin-left:auto; min-height:44px; }
+ .topbar-title { white-space:normal; overflow-wrap:anywhere; font-size:14px; }
+ .topbar-panel { max-width:calc(100vw - 20px); right:10px; }
+ button,input,select,textarea { scroll-margin-top:16px; }
+ .language-select, .ui-icon, .profile-trigger { min-height:44px; }
+}
+
+@media(max-width:639px) { .dashboard-stats > div:nth-last-child(-n+2) { grid-column:span 2; } .dashboard-stats > div { padding:16px; } }

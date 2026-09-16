@@ -1,3 +1,5 @@
+import {useLanguage} from './lib/i18n';
+import LanguageSelect from './components/ui/LanguageSelect';
 import { useCallback, useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import { useAuth } from './lib/AuthContext';
@@ -60,6 +62,7 @@ function defaultPage(role: Role): string {
 }
 
 export default function App() {
+  useLanguage();
   const { auth, frontendRole, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('admin-crew');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -81,7 +84,7 @@ export default function App() {
   if (!auth || !frontendRole) {
     return (
       <>
-        <div className="login-theme-toggle"><ThemeToggle /></div>
+        <div className="login-theme-toggle flex items-center gap-2"><LanguageSelect compact /><ThemeToggle /></div>
         <LoginPage />
         <ToastContainer toasts={toasts} onRemove={id => setToasts(items => items.filter(item => item.id !== id))} />
       </>

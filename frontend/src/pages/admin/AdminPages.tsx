@@ -1,3 +1,4 @@
+import {t as translateUI,getLocale} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import { useEffect, useState, type ReactNode } from "react"
 import { api } from "../../lib/apiClient"
@@ -46,7 +47,7 @@ function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
           <tr>
             {headers.map((h) => (
               <th key={h} className="text-left p-4 whitespace-nowrap">
-                {h}
+                {translateUI(h)}
               </th>
             ))}
           </tr>
@@ -64,9 +65,7 @@ function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
         </tbody>
       </table>
       {!rows.length && (
-        <p className="text-center p-8 text-sm text-slate-500">
-          Belum ada data yang sesuai.
-        </p>
+        <p className="text-center p-8 text-sm text-slate-500">{" " + translateUI("Belum ada data yang sesuai.") + " "}</p>
       )}
     </div>
   )
@@ -125,7 +124,7 @@ export default function AdminPages({
   }, [page])
   const time = (s: string | null) =>
     s
-      ? new Date(s).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+      ? new Date(s).toLocaleString(getLocale(), { timeZone: "Asia/Jakarta" })
       : "Belum ada"
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -134,20 +133,16 @@ export default function AdminPages({
           role="alert"
           className="bg-red-50 text-red-700 p-4 rounded-xl text-sm"
         >
-          {error}
+          {translateUI(error)}
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
-          Data dibaca dari server JAWARA.
-        </p>
+        <p className="text-sm text-slate-500">{" " + translateUI("Data dibaca dari server JAWARA.") + " "}</p>
         <button
           disabled={loading}
           className={button}
           onClick={() => void load()}
-        >
-          Muat ulang
-        </button>
+        >{" " + translateUI("Muat ulang") + " "}</button>
       </div>
       {page === "admin-laporan" && (
         <form
@@ -157,35 +152,30 @@ export default function AdminPages({
           }}
           className="flex flex-wrap items-end gap-3"
         >
-          <label className="text-sm text-slate-700">
-            Dari
-            <input
+          <label className="text-sm text-slate-700">{" " + translateUI("Dari") + " "}<input
               type="date"
               className={control}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
-            Sampai
-            <input
+          <label className="text-sm text-slate-700">{" " + translateUI("Sampai") + " "}<input
               type="date"
               className={control}
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
           </label>
-          <button disabled={loading} className={primary}>Terapkan</button>
+          <button disabled={loading} className={primary}>{translateUI("Terapkan")}</button>
         </form>
       )}
       {loading ? (
-        <p className="p-8 text-slate-500">Memuat data...</p>
+        <p className="p-8 text-slate-500">{translateUI("Memuat data...")}</p>
       ) : error ? null : (
         <>
           {page === "admin-dashboard" && summary && (
             <>
-              <p className="text-sm text-slate-600">
-                Ringkasan {summary.date} (WIB)
+              <p className="text-sm text-slate-600">{" " + translateUI("Ringkasan") + " "}{summary.date} (WIB)
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {[
@@ -195,7 +185,7 @@ export default function AdminPages({
                   ["Event berlangsung", summary.eventOngoing],
                 ].map(([label, n]) => (
                   <div key={label} className={panel}>
-                    <p className="text-sm text-slate-600">{label}</p>
+                    <p className="text-sm text-slate-600">{translateUI(label)}</p>
                     <p className="text-3xl font-bold text-slate-900 mt-3">
                       {n}
                     </p>
@@ -203,35 +193,27 @@ export default function AdminPages({
                 ))}
               </div>
               <div className={panel}>
-                <h2 className="font-semibold text-slate-900">Akses cepat</h2>
+                <h2 className="font-semibold text-slate-900">{translateUI("Akses cepat")}</h2>
                 <div className="flex flex-wrap gap-3 mt-4">
                   <button
                     className={primary}
                     onClick={() => onNavigate("admin-crew")}
-                  >
-                    Kelola Crew
-                  </button>
+                  >{" " + translateUI("Kelola Crew") + " "}</button>
                   <button
                     className={button}
                     onClick={() => onNavigate("admin-event")}
-                  >
-                    Kelola Event
-                  </button>
+                  >{" " + translateUI("Kelola Event") + " "}</button>
                   <button
                     className={button}
                     onClick={() => onNavigate("admin-absensi")}
-                  >
-                    Periksa Absensi
-                  </button>
+                  >{" " + translateUI("Periksa Absensi") + " "}</button>
                 </div>
               </div>
             </>
           )}
           {page === "admin-event" && (
             <div className={panel}>
-              <h2 className="font-semibold text-slate-900 mb-3">
-                Kelola Event
-              </h2>
+              <h2 className="font-semibold text-slate-900 mb-3">{" " + translateUI("Kelola Event") + " "}</h2>
               <DirectoryManager
                 eventsOnly
                 data={directory}
@@ -239,21 +221,12 @@ export default function AdminPages({
                   setDirectory(await api.get("/admin-directory"))
                 }
               />
-              <p className="mt-5 text-sm text-amber-700">
-                Pembuatan event belum otomatis membuat koordinat lokasi dan
-                jadwal absensi. Keduanya tetap perlu dikonfigurasi sebelum crew
-                dapat absen.
-              </p>
+              <p className="mt-5 text-sm text-amber-700">{" " + translateUI("Pembuatan event belum otomatis membuat koordinat lokasi dan jadwal absensi. Keduanya tetap perlu dikonfigurasi sebelum crew dapat absen.") + " "}</p>
             </div>
           )}
           {page === "admin-payroll" && (
             <>
-              <div className="bg-amber-50 text-amber-800 rounded-xl p-4 text-sm">
-                Halaman payroll kembali tersedia. Saat ini menampilkan referensi
-                gaji pokok asli dari Kelola Crew, bukan gaji bersih atau bukti
-                pembayaran. Perhitungan tunjangan, potongan, dan proses
-                pembayaran belum diaktifkan.
-              </div>
+              <div className="bg-amber-50 text-amber-800 rounded-xl p-4 text-sm">{" " + translateUI("Halaman payroll kembali tersedia. Saat ini menampilkan referensi gaji pokok asli dari Kelola Crew, bukan gaji bersih atau bukti pembayaran. Perhitungan tunjangan, potongan, dan proses pembayaran belum diaktifkan.") + " "}</div>
               <Table
                 headers={["Crew", "Email", "Cabang", "Status", "Gaji Pokok"]}
                 rows={crew.map((c) => [
@@ -268,10 +241,7 @@ export default function AdminPages({
           )}
           {page === "admin-laporan" && (
             <>
-              <p className="text-xs text-slate-500">
-                Menampilkan {attendance.length} catatan. Maksimal 1.000 catatan
-                terbaru per rentang; persempit tanggal bila mencapai batas.
-              </p>
+              <p className="text-xs text-slate-500">{" " + translateUI("Menampilkan") + " "}{attendance.length}{" " + translateUI("catatan. Maksimal 1.000 catatan terbaru per rentang; persempit tanggal bila mencapai batas.") + " "}</p>
               <Table
                 headers={[
                   "Tanggal",
@@ -296,10 +266,7 @@ export default function AdminPages({
           )}
           {page === "admin-audit" && (
             <>
-              <p className="text-xs text-slate-500">
-                Maksimal 200 aktivitas terbaru. Password tidak dicatat dalam
-                audit.
-              </p>
+              <p className="text-xs text-slate-500">{" " + translateUI("Maksimal 200 aktivitas terbaru. Password tidak dicatat dalam audit.") + " "}</p>
               <Table
                 headers={[
                   "Waktu (WIB)",

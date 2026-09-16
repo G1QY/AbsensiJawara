@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/apiClient';
 import CameraCapture from './CameraCapture';
@@ -63,11 +64,11 @@ export default function CameraPhotoUpload({ eventId, value, onChange, onUploaded
     {previewUrl ? <img src={previewUrl} alt={`Preview ${fieldLabel.toLowerCase()}`} className="h-48 w-full rounded-xl border border-slate-200 bg-slate-100 object-contain" /> : null}
     {camera ? <div className="rounded-2xl border border-slate-200 p-3">
       <CameraCapture facingMode="environment" faceGuide={false} locationName={locationName || fieldLabel} onCapture={(blob, url) => void saveCapture(blob, url)} />
-      <button type="button" onClick={() => setCamera(false)} disabled={uploading} className="mt-2 w-full py-2 text-sm text-slate-500">Batal</button>
+      <button type="button" onClick={() => setCamera(false)} disabled={uploading} className="mt-2 w-full py-2 text-sm text-slate-500">{translateUI("Batal")}</button>
     </div> : <button type="button" onClick={() => setCamera(true)} disabled={uploading} className="w-full rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-700 disabled:opacity-50">
-      {uploading ? 'Mengunggah foto...' : value ? 'Ambil ulang dengan kamera' : buttonLabel}
+      {uploading ? 'Mengunggah foto...' : value ? translateUI("Ambil ulang dengan kamera") : buttonLabel}
     </button>}
-    <p className="text-xs text-slate-500">Foto hanya dapat diambil langsung dari kamera. Galeri tidak tersedia.</p>
-    {error ? <p className="text-xs text-red-600" role="alert">{error}</p> : null}
+    <p className="text-xs text-slate-500">{translateUI("Foto hanya dapat diambil langsung dari kamera. Galeri tidak tersedia.")}</p>
+    {error ? <p className="text-xs text-red-600" role="alert">{translateUI(error)}</p> : null}
   </div>;
 }

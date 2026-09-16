@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -52,13 +53,13 @@ export default function DeviceLocationMap({ latitude, longitude, accuracy }: {
 
   return (
     <section className="space-y-2">
-      <h3 className="text-sm font-semibold text-slate-800">Peta Lokasi Kehadiran</h3>
-      <p className="text-xs text-slate-600">Titik mengikuti lokasi perangkat. Lingkaran menunjukkan perkiraan akurasi.</p>
-      {!opened && key && <button type="button" className="rounded-xl border border-blue-200 px-3 py-2 text-sm text-blue-700" onClick={() => setOpened(true)}>Tampilkan peta</button>}
-      {!key && <p className="text-xs text-slate-600">Pratinjau peta belum tersedia. Koordinat GPS tetap tercatat.</p>}
+      <h3 className="text-sm font-semibold text-slate-800">{translateUI("Peta Lokasi Kehadiran")}</h3>
+      <p className="text-xs text-slate-600">{translateUI("Titik mengikuti lokasi perangkat. Lingkaran menunjukkan perkiraan akurasi.")}</p>
+      {!opened && key && <button type="button" className="rounded-xl border border-blue-200 px-3 py-2 text-sm text-blue-700" onClick={() => setOpened(true)}>{translateUI("Tampilkan peta")}</button>}
+      {!key && <p className="text-xs text-slate-600">{translateUI("Pratinjau peta belum tersedia. Koordinat GPS tetap tercatat.")}</p>}
       {opened && key && <div ref={container} role="img" aria-label={`Lokasi perangkat: ${latitude}, ${longitude}`} style={{ height: 260, width: '100%', borderRadius: 12, zIndex: 0 }} />}
-      {error && <p role="status" className="text-xs text-amber-700">{error}</p>}
-      <a className="inline-block text-xs text-blue-700 underline" href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`} target="_blank" rel="noopener noreferrer">Buka titik GPS di Google Maps</a>
+      {error && <p role="status" className="text-xs text-amber-700">{translateUI(error)}</p>}
+      <a className="inline-block text-xs text-blue-700 underline" href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`} target="_blank" rel="noopener noreferrer">{translateUI("Buka titik GPS di Google Maps")}</a>
     </section>
   );
 }

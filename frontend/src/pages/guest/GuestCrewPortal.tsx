@@ -1,3 +1,4 @@
+import {t as translateUI,getLocale} from '../../lib/i18n';
 import { readDeviceLocation } from '../../lib/deviceLocation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
@@ -60,7 +61,7 @@ export function markGuestSynced(record: GuestAttendanceRecord, serverId: string)
   } catch { /* Server remains authoritative; the original local record is not deleted. */ }
 }
 
-interface GuestOptions { offices: { id: string; name: string }[]; stores: { id: string; name: string }[]; events: { id: string; event_name: string; event_date: string }[] }
+interface GuestOptions { offices: { id: string; name: string; address?:string }[]; stores: { id: string; name: string; address?:string }[]; events: { id: string; event_name: string; event_date: string; event_locations?:{address:string}[] }[] }
 const GUEST_API = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/guest-attendance';
 
 // Generate random verification hash code
@@ -106,6 +107,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
   // Camera & Photo State
   const [foto, setFoto] = useState<string>('');
+  const [photoAddress,setPhotoAddress] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -137,14 +139,15 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     return () => { active = false; };
   }, []);
   useEffect(() => { setSelectedLocation(''); }, [jenis]);
+  useEffect(()=>{setFoto('');setPhotoAddress('');},[jenis,selectedLocation]);
 
   // Realtime clock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      const timeShort = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-      const timeFull = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':') + ' WIB';
-      const dateFull = now.toLocaleDateString('id-ID', {
+      const timeShort = now.toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+      const timeFull = now.toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':') + ' WIB';
+      const dateFull = now.toLocaleDateString(getLocale(), {
         timeZone: 'Asia/Jakarta',
         weekday: 'long',
         day: 'numeric',
@@ -290,7 +293,10 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     const photoCode = generatePhotoCode();
     const { timeShort, dateFull } = currentTimeFormatted;
     const locationName = getLocationText();
-    const resolvedAddress = `Penugasan: ${locationName || 'Tanpa pilihan lokasi'}`;
+    const assignedAddress = jenis === 'Kantor' ? locations.offices.find(item=>item.id===selectedLocation)?.address : jenis === 'Crew Store' ? locations.stores.find(item=>item.id===selectedLocation)?.address : locations.events.find(item=>item.id===selectedLocation)?.event_locations?.[0]?.address;
+    const gpsText = lat !== null && lng !== null ? `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} (±${accuracy ?? '?'} m)` : 'GPS belum tersedia';
+    const resolvedAddress = `Penugasan: ${locationName || 'Tanpa pilihan lokasi'}\nAlamat penugasan: ${assignedAddress || 'Belum diisi admin'}\n${gpsText}`;
+    setPhotoAddress(assignedAddress || '');
 
     // -------------------------------------------------------------
     // Branding is not a guarantee of identity or GPS accuracy.
@@ -314,123 +320,60 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     ctx.fillText('Bukti pengajuan absensi', width - rightPadding, topPadding + Math.round(width * 0.03));
     ctx.restore();
 
-    // -------------------------------------------------------------
-    // 2. BOTTOM LEFT WATERMARK (Timemark Style)
-    // -------------------------------------------------------------
+    // Measure the complete address before positioning the badge, so neither
+    // address nor GPS text is clipped or covered on portrait/landscape photos.
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
-
-    const leftMargin = Math.round(width * 0.045);
-    const bottomBase = height - Math.round(height * 0.08);
-
-    // Pill Badge: "Absensi" (Yellow/Amber) + "07:45" (White)
-    const badgeHeight = Math.max(34, Math.round(height * 0.055));
-    const labelText = tipeAbsen === 'Clock In' ? 'Absensi' : 'Pulang';
-    const timeText = timeShort || '12:00';
-
-    ctx.font = `bold ${Math.round(badgeHeight * 0.52)}px system-ui, -apple-system, sans-serif`;
-    const labelWidth = ctx.measureText(labelText).width + 24;
-    const timeWidth = ctx.measureText(timeText).width + 28;
-    const badgeWidth = labelWidth + timeWidth;
-    const badgeY = bottomBase - Math.round(height * 0.22);
-
-    // Draw Rounded Capsule Container
-    const radius = 8;
-    ctx.beginPath();
-    ctx.roundRect(leftMargin, badgeY, badgeWidth, badgeHeight, radius);
-    ctx.clip();
-
-    // Left Half: Yellow / Amber Background
-    ctx.fillStyle = tipeAbsen === 'Clock In' ? '#F59E0B' : '#EF4444';
-    ctx.fillRect(leftMargin, badgeY, labelWidth, badgeHeight);
-
-    // Right Half: White Background
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(leftMargin + labelWidth, badgeY, timeWidth, badgeHeight);
-
-    // Draw Label Text (Dark bold)
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = '#0F172A';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `bold ${Math.round(badgeHeight * 0.52)}px system-ui, -apple-system, sans-serif`;
-    ctx.fillText(labelText, leftMargin + labelWidth / 2, badgeY + badgeHeight / 2);
-
-    // Draw Time Text (Dark bold font)
-    ctx.fillStyle = '#0F172A';
-    ctx.font = `800 ${Math.round(badgeHeight * 0.58)}px system-ui, -apple-system, sans-serif`;
-    ctx.fillText(timeText, leftMargin + labelWidth + timeWidth / 2, badgeY + badgeHeight / 2);
-
-    ctx.restore(); // Restore shadow
-
-    // -------------------------------------------------------------
-    // 3. DATE & MULTI-LINE ADDRESS WITH YELLOW VERTICAL ACCENT
-    // -------------------------------------------------------------
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 1;
-    ctx.shadowOffsetY = 1;
-
-    const contentStartY = badgeY + badgeHeight + 16;
-    const textLeft = leftMargin + 14;
-    const maxTextWidth = Math.round(width * 0.72);
-    const dateFontSize = Math.round(width * 0.03);
-    const addrFontSize = Math.round(width * 0.024);
-    const lineHeight = Math.round(addrFontSize * 1.35);
-
-    // Wrap address into lines
-    ctx.font = `500 ${addrFontSize}px system-ui, -apple-system, sans-serif`;
-    const words = resolvedAddress.split(' ');
-    const addressLines: string[] = [];
-    let currentLine = '';
-
-    for (let n = 0; n < words.length; n++) {
-      const testLine = currentLine ? `${currentLine} ${words[n]}` : words[n];
-      const testWidth = ctx.measureText(testLine).width;
-      if (testWidth > maxTextWidth && currentLine) {
-        addressLines.push(currentLine);
-        currentLine = words[n];
-      } else {
-        currentLine = testLine;
+    const margin = Math.round(width * 0.045);
+    const textLeft = margin + 12;
+    const maxTextWidth = width - textLeft - margin;
+    const dateFontSize = Math.round(width * 0.026);
+    const footerFontSize = Math.round(width * 0.016);
+    const badgeHeight = Math.max(24, Math.round(width * 0.04));
+    let addrFontSize = Math.round(width * 0.022);
+    let addressLines: string[] = [];
+    const wrapAddress = () => {
+      ctx.font = `500 ${addrFontSize}px system-ui, sans-serif`;
+      addressLines = [];
+      for (const paragraph of resolvedAddress.split('\n')) {
+        let line = '';
+        for (const word of paragraph.split(/\s+/)) {
+          if (line && ctx.measureText(line + ' ' + word).width > maxTextWidth) { addressLines.push(line); line = ''; }
+          if (ctx.measureText(word).width <= maxTextWidth) { line += (line ? ' ' : '') + word; continue; }
+          for (const character of word) {
+            if (line && ctx.measureText(line + character).width > maxTextWidth) {addressLines.push(line);line = '';}
+            line += character;
+          }
+        }
+        if (line) addressLines.push(line);
       }
     }
-    if (currentLine) addressLines.push(currentLine);
-
-    // Calculate total height for vertical yellow bar
-    const totalTextHeight = dateFontSize + 6 + addressLines.length * lineHeight;
-
-    // Draw Yellow Vertical Accent Bar
-    ctx.fillStyle = '#F59E0B';
-    ctx.fillRect(leftMargin, contentStartY, 4, totalTextHeight);
-
-    // Draw Date Header
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.font = `bold ${dateFontSize}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(dateFull, textLeft, contentStartY);
-
-    // Draw Address Lines
-    ctx.font = `500 ${addrFontSize}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = '#F8FAFC';
-    let lineY = contentStartY + dateFontSize + 6;
-    for (let i = 0; i < addressLines.length; i++) {
-      ctx.fillText(addressLines[i], textLeft, lineY);
-      lineY += lineHeight;
-    }
-
-    // -------------------------------------------------------------
-    // 4. BOTTOM FOOTER VERIFICATION CODE
-    // -------------------------------------------------------------
-    const footerY = lineY + 12;
-    ctx.font = `500 ${Math.round(width * 0.018)}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.fillText(`Kode Foto: ${photoCode}`, leftMargin, footerY);
-
+    wrapAddress();
+    while (addrFontSize > Math.round(width * 0.012) && addressLines.length * addrFontSize * 1.3 > height * 0.55) { addrFontSize--; wrapAddress(); }
+    const lineHeight = Math.ceil(addrFontSize * 1.3);
+    const blockHeight = badgeHeight + 12 + dateFontSize + 6 + addressLines.length * lineHeight + 12 + footerFontSize;
+    const top = Math.max(margin, height - margin - blockHeight);
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, top - 10, width, height - top + 10);
+    const labelText = tipeAbsen === 'Clock In' ? 'Absensi' : 'Pulang';
+    ctx.font = `bold ${Math.round(badgeHeight * 0.52)}px system-ui, sans-serif`;
+    const labelWidth = ctx.measureText(labelText).width + 18;
+    const timeWidth = ctx.measureText(timeShort).width + 18;
+    ctx.fillStyle = tipeAbsen === 'Clock In' ? '#F59E0B' : '#EF4444';
+    ctx.fillRect(margin, top, labelWidth, badgeHeight);
+    ctx.fillStyle = '#FFFFFF';ctx.fillRect(margin + labelWidth, top, timeWidth, badgeHeight);
+    ctx.fillStyle = '#0F172A';ctx.textAlign = 'center';ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, margin + labelWidth / 2, top + badgeHeight / 2);
+    ctx.fillText(timeShort, margin + labelWidth + timeWidth / 2, top + badgeHeight / 2);
+    let lineY = top + badgeHeight + 12;
+    ctx.fillStyle = '#F59E0B';ctx.fillRect(margin, lineY, 3, dateFontSize + 6 + addressLines.length * lineHeight);
+    ctx.textAlign = 'left';ctx.textBaseline = 'top';
+    ctx.fillStyle = '#FFFFFF';ctx.font = `bold ${dateFontSize}px system-ui, sans-serif`;
+    ctx.fillText(dateFull, textLeft, lineY);lineY += dateFontSize + 6;
+    ctx.font = `500 ${addrFontSize}px system-ui, sans-serif`;
+    for (const line of addressLines) {ctx.fillText(line, textLeft, lineY);lineY += lineHeight;}
+    ctx.font = `500 ${footerFontSize}px system-ui, sans-serif`;ctx.fillStyle = '#E2E8F0';
+    ctx.fillText(`Kode Foto: ${photoCode}`, textLeft, lineY + 12);
     ctx.restore();
 
     // Export watermarked photo to dataUrl
@@ -476,7 +419,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       latitude: lat,
       longitude: lng,
       accuracy,
-      address: '', // No reverse geocoding; assignment is stored separately.
+      address: photoAddress ? `Alamat penugasan: ${photoAddress}` : '',
       photoCode,
       foto,
       catatan: catatan.trim(),
@@ -501,7 +444,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       const res = await fetch(GUEST_API, { method: 'POST', headers: { 'X-FotoSnaps-Request': '1' }, body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.id) throw new Error(data?.message || 'Absensi belum tersimpan di server. Coba lagi.');
-      setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) });
+      setSubmittedRecord({ ...newRecord, id: data.id, occurredAt: data.occurred_at, timestamp: new Date(data.occurred_at).toLocaleString(getLocale(), { timeZone: 'Asia/Jakarta' }) });
       submissionKey.current = crypto.randomUUID();
       setFoto(''); setCatatan('');
       add('Absensi diterima server', 'Pengajuan menunggu tinjauan admin. Foto dan catatan tersimpan di server.');
@@ -543,7 +486,7 @@ _Foto selfie telah tersimpan di sistem._`;
       {/* Main Container */}
       <div className="max-w-[680px] mx-auto px-4 py-5">
         {/* Navigation Tabs */}
-        <nav aria-label="Navigasi portal Guest Crew" className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 mb-5 gap-1">
+        <nav aria-label={translateUI("Navigasi portal Guest Crew")} className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 mb-5 gap-1">
           {[
             { id: 'guest-portal', label: 'Form Absensi Darurat' },
             { id: 'guest-info', label: 'Info Event Hari Ini' },
@@ -575,12 +518,8 @@ _Foto selfie telah tersimpan di sistem._`;
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                <h2 className="text-base font-bold text-slate-900">
-                  Form Input Absensi Darurat Lapangan
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Isi data kehadiran Anda secara lengkap untuk verifikasi payroll dan kehadiran.
-                </p>
+                <h2 className="text-base font-bold text-slate-900">{" " + translateUI("Form Input Absensi Darurat Lapangan") + " "}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{" " + translateUI("Isi data kehadiran Anda secara lengkap untuk verifikasi payroll dan kehadiran.") + " "}</p>
               </div>
 
               <form onSubmit={handleSubmit} className="p-5 space-y-5">
@@ -594,33 +533,27 @@ _Foto selfie telah tersimpan di sistem._`;
                 {/* Identitas */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Perusahaan
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Perusahaan") + " "}</label>
                     <input maxLength={150} value={companyName} onChange={e=>setCompanyName(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Jabatan
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Jabatan") + " "}</label>
                     <input maxLength={100} value={jobTitle} onChange={e=>setJobTitle(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Nama Lengkap <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Nama Lengkap") + " "}<span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={nama}
                       onChange={(e) => setNama(e.target.value)}
-                      placeholder="Nama lengkap crew"
+                      placeholder={translateUI("Nama lengkap crew")}
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Nomor WhatsApp / HP <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Nomor WhatsApp / HP") + " "}<span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
@@ -635,9 +568,7 @@ _Foto selfie telah tersimpan di sistem._`;
                 {/* Penugasan & Aksi */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Jenis Penugasan
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Jenis Penugasan") + " "}</label>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Crew Event', 'Crew Store', 'Kantor'] as const).map((t) => (
                         <button
@@ -656,9 +587,7 @@ _Foto selfie telah tersimpan di sistem._`;
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Tipe Absensi
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Tipe Absensi") + " "}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {(['Clock In', 'Clock Out'] as const).map((t) => (
                         <button
@@ -679,19 +608,17 @@ _Foto selfie telah tersimpan di sistem._`;
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Posisi / Tugas
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Posisi / Tugas") + " "}</label>
                     <select
                       value={posisi}
                       onChange={(e) => setPosisi(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                     >
-                      <option>Tenda</option>
-                      <option>FotoSnaps</option>
-                      <option>Bujangan</option>
-                      <option>Fotobox</option>
-                      <option>Staff Kantor</option>
+                      <option value={"Tenda"}>{translateUI("Tenda")}</option>
+                      <option value={"FotoSnaps"}>FotoSnaps</option>
+                      <option value={"Bujangan"}>Bujangan</option>
+                      <option value={"Fotobox"}>Fotobox</option>
+                      <option value={"Staff Kantor"}>{translateUI("Staff Kantor")}</option>
                     </select>
                   </div>
                 </div>
@@ -699,16 +626,16 @@ _Foto selfie telah tersimpan di sistem._`;
                   {/* Lokasi / Event */}
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      {jenis === 'Kantor' ? 'Lokasi Kantor (opsional)' : 'Lokasi Event / Toko (opsional)'}
+                      {jenis === 'Kantor' ? translateUI("Lokasi Kantor (opsional)") : translateUI("Lokasi Event / Toko (opsional)")}
                     </label>
                     <select
-                      aria-label="Lokasi Event / Toko"
+                      aria-label={translateUI("Lokasi Event / Toko")}
                       value={selectedLocation}
                       onChange={(e) => setSelectedLocation(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white font-medium"
                     >
                       <option value="">
-                        {jenis === 'Kantor' ? 'Tanpa pilihan lokasi kantor' : 'Tanpa pilihan event / toko'}
+                        {jenis === 'Kantor' ? translateUI("Tanpa pilihan lokasi kantor") : translateUI("Tanpa pilihan event / toko")}
                       </option>
                       {(jenis === 'Crew Store'
                         ? locations.stores.map(s => ({ id: s.id, name: s.name }))
@@ -727,9 +654,7 @@ _Foto selfie telah tersimpan di sistem._`;
                           className={`w-2.5 h-2.5 rounded-full ${lat !== null && lng !== null ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-blue-500 animate-pulse'
                             }`}
                         />
-                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                          Deteksi Lokasi GPS & Peta
-                        </span>
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">{" " + translateUI("Deteksi Lokasi GPS & Peta") + " "}</span>
                       </div>
 
                       <button
@@ -741,7 +666,7 @@ _Foto selfie telah tersimpan di sistem._`;
                         <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        <span>{locLoading ? 'Mendeteksi...' : 'Perbarui GPS'}</span>
+                        <span>{locLoading ? 'Mendeteksi...' : translateUI("Perbarui GPS")}</span>
                       </button>
                     </div>
 
@@ -751,12 +676,11 @@ _Foto selfie telah tersimpan di sistem._`;
                           <span className="font-mono text-xs font-semibold text-slate-800">
                             {lat.toFixed(6)}, {lng.toFixed(6)}
                           </span>
-                          <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            Lokasi perangkat · estimasi akurasi ±{accuracy ?? 0} m
+                          <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{" " + translateUI("Lokasi perangkat · estimasi akurasi ±")}{accuracy ?? 0} m
                           </span>
                         </div>
                         {locError && <p role="status" className="text-xs text-amber-700">{locError}</p>}
-                        <p className="text-xs text-slate-600 pt-0.5">Lokasi penugasan: {getLocationText() || 'Tidak dipilih'}. Bukti posisi perangkat menggunakan koordinat GPS di atas.</p>
+                        <p className="text-xs text-slate-600 pt-0.5">{translateUI("Lokasi penugasan:") + " "}{getLocationText() || 'Tidak dipilih'}{translateUI(". Bukti posisi perangkat menggunakan koordinat GPS di atas.")}</p>
                       </div>
                     ) : (
                       <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
@@ -772,8 +696,7 @@ _Foto selfie telah tersimpan di sistem._`;
                   {/* Foto Selfie (Kamera Live) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Foto Bukti Kehadiran <span className="text-red-500">*</span>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Foto Bukti Kehadiran") + " "}<span className="text-red-500">*</span>
                       </label>
                     </div>
 
@@ -791,16 +714,12 @@ _Foto selfie telah tersimpan di sistem._`;
                               type="button"
                               onClick={toggleCameraFacing}
                               className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-slate-200 transition-colors"
-                            >
-                              Ganti Kamera
-                            </button>
+                            >{" " + translateUI("Ganti Kamera") + " "}</button>
                             <button
                               type="button"
                               onClick={stopCamera}
                               className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-xs text-red-300 font-semibold transition-colors"
-                            >
-                              Tutup
-                            </button>
+                            >{" " + translateUI("Tutup") + " "}</button>
                           </div>
                         </div>
 
@@ -817,14 +736,14 @@ _Foto selfie telah tersimpan di sistem._`;
                           {/* Top Right Mini Brand */}
                           <div className="absolute top-3 right-3 text-right">
                             <p className="text-xs font-bold text-amber-400 leading-none">JAWARA</p>
-                            <p className="text-[10px] text-white/80 mt-0.5">Bukti pengajuan absensi</p>
+                            <p className="text-[10px] text-white/80 mt-0.5">{translateUI("Bukti pengajuan absensi")}</p>
                           </div>
 
                           {/* Live Watermark Preview on Bottom Left */}
                           <div className="absolute bottom-3 left-3 text-left max-w-[85%] space-y-1">
                             <div className="inline-flex rounded overflow-hidden text-xs font-bold shadow-md">
                               <span className="bg-amber-500 text-slate-950 px-2 py-0.5">
-                                {tipeAbsen === 'Clock In' ? 'Absensi' : 'Pulang'}
+                                {tipeAbsen === 'Clock In' ? translateUI("Absensi") : translateUI("Pulang")}
                               </span>
                               <span className="bg-white text-slate-950 px-2 py-0.5">
                                 {currentTimeFormatted.timeShort || '12:00'}
@@ -844,9 +763,7 @@ _Foto selfie telah tersimpan di sistem._`;
                             type="button"
                             onClick={capturePhoto}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all"
-                          >
-                            Ambil Gambar Sekarang
-                          </button>
+                          >{" " + translateUI("Ambil Gambar Sekarang") + " "}</button>
                         </div>
                       </div>
                     ) : (
@@ -857,7 +774,7 @@ _Foto selfie telah tersimpan di sistem._`;
                             <div className="max-w-md mx-auto rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-black">
                               <img
                                 src={foto}
-                                alt="Bukti Kehadiran"
+                                alt={translateUI("Bukti Kehadiran")}
                                 className="w-full h-auto object-contain max-h-[380px]"
                               />
                             </div>
@@ -867,16 +784,12 @@ _Foto selfie telah tersimpan di sistem._`;
                                 type="button"
                                 onClick={() => startCamera()}
                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
-                              >
-                                Ambil Ulang Foto
-                              </button>
+                              >{" " + translateUI("Ambil Ulang Foto") + " "}</button>
                               <button
                                 type="button"
                                 onClick={() => setFoto('')}
                                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-                              >
-                                Hapus Foto
-                              </button>
+                              >{" " + translateUI("Hapus Foto") + " "}</button>
                             </div>
                           </div>
                         ) : (
@@ -888,12 +801,8 @@ _Foto selfie telah tersimpan di sistem._`;
                               </svg>
                             </div>
                             <div>
-                              <h4 className="text-sm font-bold text-slate-800">
-                                Ambil Foto Selfie di Lokasi
-                              </h4>
-                              <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">
-                                Sistem menyematkan stempel waktu, tanggal, dan alamat lengkap secara otomatis pada foto.
-                              </p>
+                              <h4 className="text-sm font-bold text-slate-800">{" " + translateUI("Ambil Foto Selfie di Lokasi") + " "}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5 max-w-sm mx-auto">{" " + translateUI("Sistem menyematkan stempel waktu, tanggal, dan alamat lengkap secara otomatis pada foto.") + " "}</p>
                             </div>
 
                             <div className="pt-2">
@@ -901,9 +810,7 @@ _Foto selfie telah tersimpan di sistem._`;
                                 type="button"
                                 onClick={() => startCamera()}
                                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all"
-                              >
-                                Buka Kamera Selfie
-                              </button>
+                              >{" " + translateUI("Buka Kamera Selfie") + " "}</button>
                             </div>
                           </div>
                         )}
@@ -919,14 +826,12 @@ _Foto selfie telah tersimpan di sistem._`;
 
                   {/* Catatan / Keterangan Darurat */}
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Recap Event & Catatan Keterangan (Opsional)
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">{" " + translateUI("Recap Event & Catatan Keterangan (Opsional)") + " "}</label>
                     <textarea
                       rows={2}
                       value={catatan}
                       onChange={(e) => setCatatan(e.target.value)}
-                      placeholder="Ketik keterangan jika ada kendala di lapangan..."
+                      placeholder={translateUI("Ketik keterangan jika ada kendala di lapangan...")}
                       className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -938,7 +843,7 @@ _Foto selfie telah tersimpan di sistem._`;
                       disabled={submitting || !!optionsError}
                       className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
                     >
-                      {submitting ? 'Mengirim ke server...' : 'Kirim Absensi Lapangan'}
+                      {submitting ? 'Mengirim ke server...' : translateUI("Kirim Absensi Lapangan")}
                     </button>
                   </div>
               </form>
@@ -948,26 +853,22 @@ _Foto selfie telah tersimpan di sistem._`;
 
         {/* Event dari sistem, tanpa jadwal atau PIC dummy */}
         {activeTab === 'jadwal' && <div className="space-y-4">
-          <div className="bg-white rounded-xl p-5 border border-slate-200"><h3 className="font-bold text-slate-900">Event Terdaftar</h3><p className="text-sm text-slate-600">Jadwal kerja pribadi tidak ditampilkan pada mode guest. Konfirmasikan jam tugas kepada admin.</p></div>
+          <div className="bg-white rounded-xl p-5 border border-slate-200"><h3 className="font-bold text-slate-900">{translateUI("Event Terdaftar")}</h3><p className="text-sm text-slate-600">{translateUI("Jadwal kerja pribadi tidak ditampilkan pada mode guest. Konfirmasikan jam tugas kepada admin.")}</p></div>
           {optionsError && <p role="alert" className="text-red-700">{optionsError}</p>}
-          {locations.events.map(ev => <div key={ev.id} className="bg-white rounded-xl p-5 border border-slate-200"><h4 className="font-semibold text-slate-900">{ev.event_name}</h4><p className="text-sm text-slate-600">Tanggal event: {ev.event_date}</p></div>)}
-          {!locations.events.length && !optionsError && <p className="text-sm text-slate-600">Belum ada event aktif dari sistem.</p>}
+          {locations.events.map(ev => <div key={ev.id} className="bg-white rounded-xl p-5 border border-slate-200"><h4 className="font-semibold text-slate-900">{ev.event_name}</h4><p className="text-sm text-slate-600">{translateUI("Tanggal event:") + " "}{ev.event_date}</p></div>)}
+          {!locations.events.length && !optionsError && <p className="text-sm text-slate-600">{translateUI("Belum ada event aktif dari sistem.")}</p>}
         </div>}
 
         {/* TAB 4: PUSAT BANTUAN */}
         {activeTab === 'bantuan' && (
           <div className="space-y-4">
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-slate-900">
-                Pusat Bantuan & Layanan Kendala Akun
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin JAWARA melalui kontak di bawah ini.
-              </p>
+              <h3 className="text-base font-bold text-slate-900">{" " + translateUI("Pusat Bantuan & Layanan Kendala Akun") + " "}</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">{" " + translateUI("Jika mengalami kendala kata sandi atau akun terkunci, hubungi Admin JAWARA melalui kontak di bawah ini.") + " "}</p>
 
               <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-blue-900">Helpdesk Admin JAWARA</p>
+                  <p className="text-xs font-bold text-blue-900">{translateUI("Helpdesk Admin JAWARA")}</p>
                   <p className="text-xs text-blue-700">WhatsApp: 081214989974</p>
                 </div>
                 <a
@@ -977,21 +878,17 @@ _Foto selfie telah tersimpan di sistem._`;
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
-                >
-                  Hubungi Admin
-                </a>
+                >{" " + translateUI("Hubungi Admin") + " "}</a>
               </div>
 
               <div className="pt-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Petunjuk Lapangan:
-                </h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{" " + translateUI("Petunjuk Lapangan:") + " "}</h4>
                 <ul className="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
-                  <li>Lakukan Clock In saat tiba di lokasi penugasan.</li>
-                  <li>Ambil foto bukti kehadiran langsung melalui kamera.</li>
-                  <li>Waktu dan alamat lokasi otomatis disematkan pada foto.</li>
-                  <li>Setelah submit, teruskan bukti kehadiran ke WhatsApp Admin jika diperlukan.</li>
-                  <li>Lakukan Clock Out setelah menyelesaikan shift/tugas.</li>
+                  <li>{translateUI("Lakukan Clock In saat tiba di lokasi penugasan.")}</li>
+                  <li>{translateUI("Ambil foto bukti kehadiran langsung melalui kamera.")}</li>
+                  <li>{translateUI("Waktu dan alamat lokasi otomatis disematkan pada foto.")}</li>
+                  <li>{translateUI("Setelah submit, teruskan bukti kehadiran ke WhatsApp Admin jika diperlukan.")}</li>
+                  <li>{translateUI("Lakukan Clock Out setelah menyelesaikan shift/tugas.")}</li>
                 </ul>
               </div>
             </div>

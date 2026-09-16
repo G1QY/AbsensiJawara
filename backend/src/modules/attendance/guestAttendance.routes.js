@@ -20,8 +20,8 @@ router.use((req,res,next)=>{
 router.get('/options',async(req,res,next)=>{
   try {
     const [{data:stores,error:a},{data:events,error:b}]=await Promise.all([
-      db.from('stores').select('id,name,location_kind,branch:branches(name,city_name)').eq('status','ACTIVE').is('deleted_at',null).order('name'),
-      db.from('events').select('id,event_name,event_date').in('status',['SCHEDULED','ONGOING']).order('event_date')
+      db.from('stores').select('id,name,address,latitude,longitude,radius_meters,location_kind,branch:branches(name,city_name)').eq('status','ACTIVE').is('deleted_at',null).order('name'),
+      db.from('events').select('id,event_name,event_date,event_locations(address,latitude,longitude,radius_meters)').in('status',['SCHEDULED','ONGOING']).order('event_date')
     ]);
     if(a||b)throw fail('Pilihan lokasi belum dapat dimuat.',503);
     const locations=stores.map(s=>({...s,name:[s.name,...[s.branch?.city_name,s.branch?.name].filter((v,i,a)=>v&&a.indexOf(v)===i)].filter(Boolean).join(' · ')}));

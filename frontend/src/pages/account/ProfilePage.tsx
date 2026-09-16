@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { useNotifications } from '../../lib/NotificationsContext';
@@ -57,30 +58,30 @@ export default function ProfilePage() {
     });
   }
   return <div className="account-page">
-    <div className="account-heading"><span className="ui-eyebrow">AKUN ANDA</span><h2>Profil Saya</h2><p>Kelola identitas dan foto yang ditampilkan di JAWARA.</p></div>
-    {!guest && <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 p-4"><p>Perusahaan: {auth?.user.company_name || 'Belum ditetapkan'}</p><p>Jabatan: {auth?.user.job_title || 'Belum ditetapkan'}</p><p className="text-xs text-slate-500 sm:col-span-2">Perubahan perusahaan dan jabatan dilakukan oleh admin.</p></div>}
-    {guest && <p className="ui-info">Mode Guest Crew. Nama, email kontak, dan foto hanya berlaku selama sesi ini. Data ini tidak membuat akun login baru.</p>}
-    {loading && <p role="status">Memuat profil akun…</p>}
-    {error && <p className="ui-error" role="alert">{error}</p>}
-    {message && <p className="ui-success" role="status">{message}</p>}
+    <div className="account-heading"><span className="ui-eyebrow">{translateUI("AKUN ANDA")}</span><h2>{translateUI("Profil Saya")}</h2><p>{translateUI("Kelola identitas dan foto yang ditampilkan di JAWARA.")}</p></div>
+    {!guest && <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 p-4"><p>{translateUI("Perusahaan:") + " "}{auth?.user.company_name || translateUI("Belum ditetapkan")}</p><p>{translateUI("Jabatan:") + " "}{auth?.user.job_title || translateUI("Belum ditetapkan")}</p><p className="text-xs text-slate-500 sm:col-span-2">{translateUI("Perubahan perusahaan dan jabatan dilakukan oleh admin.")}</p></div>}
+    {guest && <p className="ui-info">{translateUI("Mode Guest Crew. Nama, email kontak, dan foto hanya berlaku selama sesi ini. Data ini tidak membuat akun login baru.")}</p>}
+    {loading && <p role="status">{translateUI("Memuat profil akun…")}</p>}
+    {error && <p className="ui-error" role="alert">{translateUI(error)}</p>}
+    {message && <p className="ui-success" role="status">{translateUI(message)}</p>}
     <div className="profile-grid">
-      <section className="ui-card profile-photo"><Avatar name={auth?.user.full_name || 'Guest'} src={preview || auth?.user.avatarUrl} large /><h3>Foto profil</h3><p>JPG, PNG, atau WebP. Maksimal 3 MB.</p>
-        <label className="ui-button-secondary cursor-pointer">Pilih foto<input aria-label="Pilih foto profil" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={!!busy || loading} onChange={e => { const next = e.target.files?.[0]; e.target.value = ''; if (!next) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type) || next.size > 3 * 1024 * 1024) { setError('Pilih JPG, PNG, atau WebP, maksimal 3 MB.'); return; } setError(''); setFile(next); }} /></label>
-        {file && <><button className="ui-button" disabled={!!busy} onClick={savePhoto}>{busy === 'photo' ? 'Menyimpan…' : 'Simpan foto'}</button><button className="ui-link" disabled={!!busy} onClick={() => setFile(null)}>Batal memilih foto</button></>}
-        {auth?.user.avatarUrl && <button className="ui-danger-text" disabled={!!busy || loading} onClick={() => perform('remove', async () => { if (!guest) await api.delete('/users/me/avatar'); updateProfile({ avatarUrl: '' }); setFile(null); return 'Foto profil dihapus.'; })}>Hapus foto profil</button>}
+      <section className="ui-card profile-photo"><Avatar name={auth?.user.full_name || 'Guest'} src={preview || auth?.user.avatarUrl} large /><h3>{translateUI("Foto profil")}</h3><p>{translateUI("JPG, PNG, atau WebP. Maksimal 3 MB.")}</p>
+        <label className="ui-button-secondary cursor-pointer">{translateUI("Pilih foto")}<input aria-label={translateUI("Pilih foto profil")} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={!!busy || loading} onChange={e => { const next = e.target.files?.[0]; e.target.value = ''; if (!next) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type) || next.size > 3 * 1024 * 1024) { setError('Pilih JPG, PNG, atau WebP, maksimal 3 MB.'); return; } setError(''); setFile(next); }} /></label>
+        {file && <><button className="ui-button" disabled={!!busy} onClick={savePhoto}>{busy === 'photo' ? translateUI("Menyimpan…") : translateUI("Simpan foto")}</button><button className="ui-link" disabled={!!busy} onClick={() => setFile(null)}>{translateUI("Batal memilih foto")}</button></>}
+        {auth?.user.avatarUrl && <button className="ui-danger-text" disabled={!!busy || loading} onClick={() => perform('remove', async () => { if (!guest) await api.delete('/users/me/avatar'); updateProfile({ avatarUrl: '' }); setFile(null); return 'Foto profil dihapus.'; })}>{translateUI("Hapus foto profil")}</button>}
       </section>
       <div className="space-y-5">
-        <form className="ui-card space-y-4" onSubmit={saveProfile}><h3>Informasi pribadi</h3>
-          <fieldset disabled={!!busy || loading} className="space-y-4"><label className="ui-label">Nama lengkap<input className="ui-input" required minLength={2} maxLength={150} value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></label>
-            <label className="ui-label">Nomor WhatsApp / HP<input className="ui-input" type="tel" maxLength={30} value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" /></label>
-            {guest && <label className="ui-label">Email kontak, opsional<input className="ui-input" type="email" maxLength={150} value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>}
-            <button className="ui-button" type="submit">{busy === 'profile' ? 'Menyimpan…' : 'Simpan profil'}</button></fieldset>
+        <form className="ui-card space-y-4" onSubmit={saveProfile}><h3>{translateUI("Informasi pribadi")}</h3>
+          <fieldset disabled={!!busy || loading} className="space-y-4"><label className="ui-label">{translateUI("Nama lengkap")}<input className="ui-input" required minLength={2} maxLength={150} value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></label>
+            <label className="ui-label">{translateUI("Nomor WhatsApp / HP")}<input className="ui-input" type="tel" maxLength={30} value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" /></label>
+            {guest && <label className="ui-label">{translateUI("Email kontak, opsional")}<input className="ui-input" type="email" maxLength={150} value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>}
+            <button className="ui-button" type="submit">{busy === 'profile' ? translateUI("Menyimpan…") : translateUI("Simpan profil")}</button></fieldset>
         </form>
-        {!guest && <form className="ui-card space-y-4" onSubmit={changeEmail}><h3>Email akun</h3><p>Email aktif: <strong className="break-all">{auth?.user.email}</strong></p>
-          {auth?.user.pendingEmail && <p className="ui-info">Menunggu konfirmasi: {auth.user.pendingEmail}. Selesaikan konfirmasi email, lalu masuk ulang.</p>}
-          <fieldset disabled={!!busy || loading} className="space-y-4"><label className="ui-label">Email baru<input className="ui-input" required type="email" maxLength={150} value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>
-            <label className="ui-label">Password saat ini<input className="ui-input" required type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" /></label>
-            <p>Konfirmasi mengikuti pengaturan keamanan email Supabase. Email aktif tidak diganti hanya dengan menyimpan nama.</p><button className="ui-button-secondary" type="submit" disabled={email.trim().toLowerCase() === auth?.user.email.toLowerCase()}>{busy === 'email' ? 'Mengirim…' : 'Kirim konfirmasi email'}</button></fieldset>
+        {!guest && <form className="ui-card space-y-4" onSubmit={changeEmail}><h3>{translateUI("Email akun")}</h3><p>{translateUI("Email aktif:") + " "}<strong className="break-all">{auth?.user.email}</strong></p>
+          {auth?.user.pendingEmail && <p className="ui-info">{translateUI("Menunggu konfirmasi:") + " "}{auth.user.pendingEmail}{translateUI(". Selesaikan konfirmasi email, lalu masuk ulang.")}</p>}
+          <fieldset disabled={!!busy || loading} className="space-y-4"><label className="ui-label">{translateUI("Email baru")}<input className="ui-input" required type="email" maxLength={150} value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>
+            <label className="ui-label">{translateUI("Password saat ini")}<input className="ui-input" required type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" /></label>
+            <p>{translateUI("Konfirmasi mengikuti pengaturan keamanan email Supabase. Email aktif tidak diganti hanya dengan menyimpan nama.")}</p><button className="ui-button-secondary" type="submit" disabled={email.trim().toLowerCase() === auth?.user.email.toLowerCase()}>{busy === 'email' ? translateUI("Mengirim…") : translateUI("Kirim konfirmasi email")}</button></fieldset>
         </form>}
       </div>
     </div>

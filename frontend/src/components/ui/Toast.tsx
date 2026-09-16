@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useEffect } from 'react';
 
 interface ToastProps {
@@ -45,7 +46,7 @@ export default function Toast({ message, type, onClose }: ToastProps) {
   return (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg toast-enter ${bgMap[type]}`}>
       <div className="flex-shrink-0">{icons[type]}</div>
-      <p className="text-sm font-medium text-slate-800">{message}</p>
+      <p className="text-sm font-medium text-slate-800">{translateUI(message)}</p>
       <button onClick={onClose} className="ml-2 text-slate-400 hover:text-slate-600">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
 import CrewCsvImport from "./CrewCsvImport"
@@ -251,10 +252,10 @@ export default function KelolaCrew() {
           role="status"
           className="flex justify-between gap-3 bg-emerald-50 text-emerald-700 rounded-xl p-3 text-sm"
         >
-          {notice}
+          {translateUI(notice)}
           <button
             onClick={() => setNotice("")}
-            aria-label="Tutup pemberitahuan"
+            aria-label={translateUI("Tutup pemberitahuan")}
           >
             ×
           </button>
@@ -265,16 +266,14 @@ export default function KelolaCrew() {
           role="alert"
           className="bg-red-50 text-red-700 rounded-xl p-4 text-sm"
         >
-          {error}
-          <button onClick={() => void load()} className={button + " ml-3"}>
-            Coba lagi
-          </button>
+          {translateUI(error)}
+          <button onClick={() => void load()} className={button + " ml-3"}>{" " + translateUI("Coba lagi") + " "}</button>
         </div>
       )}
       <div className="flex flex-wrap gap-3 items-center">
         <input
-          aria-label="Cari crew"
-          placeholder="Cari nama, perusahaan, jabatan, atau lokasi..."
+          aria-label={translateUI("Cari crew")}
+          placeholder={translateUI("Cari nama, perusahaan, jabatan, atau lokasi...")}
           className={control + " flex-1 min-w-52"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -283,45 +282,39 @@ export default function KelolaCrew() {
           disabled={loading || busy || !!error}
           className={button}
           onClick={() => setShowDirectory(true)}
-        >
-          Cabang, Store &amp; Kantor
-        </button>
+        >{" " + translateUI("Cabang, Store & Kantor") + " "}</button>
         <button
           disabled={loading || busy || !!error}
           className={button}
           onClick={() => setShowBulkSchedule(true)}
-        >
-          Jadwal Massal
-        </button>
-        <button disabled={loading || busy || !!error} className={button} onClick={()=>setShowImport(true)}>Impor CSV</button>
+        >{" " + translateUI("Jadwal Massal") + " "}</button>
+        <button disabled={loading || busy || !!error} className={button} onClick={()=>setShowImport(true)}>{translateUI("Impor CSV")}</button>
         <button
           disabled={loading || busy || !!error}
           className={primary}
           onClick={() => openForm()}
-        >
-          + Tambah Crew
-        </button>
+        >{" " + translateUI("+ Tambah Crew") + " "}</button>
       </div>
-      {!loading && !error && <ExportButtons filename="Daftar-Crew" title="Daftar Crew" subtitle="Mengikuti pencarian dan filter Kelola Crew" headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
+      {!loading && !error && <ExportButtons filename="Daftar-Crew" title={translateUI("Daftar Crew")} subtitle={translateUI("Mengikuti pencarian dan filter Kelola Crew")} headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
       {showImport && <CrewCsvImport onClose={()=>setShowImport(false)} onSaved={reload} existingEmails={crew.map(c=>c.user.email)} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <select
-          aria-label="Filter jenis"
+          aria-label={translateUI("Filter jenis")}
           className={control}
           value={kind}
           onChange={(e) => setKind(e.target.value)}
         >
-          <option value="">Semua jenis crew</option>
-          <option value="CREW_STORE">Crew Store</option>
-          <option value="CREW_EVENT">Crew Event</option>
+          <option value="">{translateUI("Semua jenis crew")}</option>
+          <option value="CREW_STORE">{translateUI("Crew Store")}</option>
+          <option value="CREW_EVENT">{translateUI("Crew Event")}</option>
         </select>
         <select
-          aria-label="Filter cabang"
+          aria-label={translateUI("Filter cabang")}
           className={control}
           value={branch}
           onChange={(e) => setBranch(e.target.value)}
         >
-          <option value="">Semua cabang</option>
+          <option value="">{translateUI("Semua cabang")}</option>
           {directory.branches.map((b) => (
             <option key={b.id} value={b.id}>
               {branchLabel(b)}
@@ -329,14 +322,14 @@ export default function KelolaCrew() {
           ))}
         </select>
         <select
-          aria-label="Filter status"
+          aria-label={translateUI("Filter status")}
           className={control}
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          <option value="">Semua status</option>
-          <option value="ACTIVE">Aktif</option>
-          <option value="INACTIVE">Non-Aktif</option>
+          <option value="">{translateUI("Semua status")}</option>
+          <option value="ACTIVE">{translateUI("Aktif")}</option>
+          <option value="INACTIVE">{translateUI("Non-Aktif")}</option>
         </select>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -356,7 +349,7 @@ export default function KelolaCrew() {
             key={label}
             className="rounded-lg px-3 py-2 bg-blue-50 text-blue-700 text-xs font-semibold"
           >
-            {label}: {loading ? "..." : n}
+            {translateUI(label)}: {loading ? "..." : n}
           </span>
         ))}
       </div>
@@ -376,7 +369,7 @@ export default function KelolaCrew() {
                       (h === "Aksi" ? " sticky right-0 bg-slate-50 z-10" : "")
                     }
                   >
-                    {h}
+                    {translateUI(h)}
                   </th>
                 ))}
               </tr>
@@ -398,10 +391,10 @@ export default function KelolaCrew() {
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-slate-700">{c.company_name || "Belum ditetapkan"}</td>
-                  <td className="p-4 text-slate-700">{c.job_title || "Belum ditetapkan"}</td>
-                  <td className="p-4 text-slate-700">{branchLabel(c.branch) || "Belum ditetapkan"}</td>
-                  <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || "Belum ditugaskan"}</td>
+                  <td className="p-4 text-slate-700">{c.company_name || translateUI("Belum ditetapkan")}</td>
+                  <td className="p-4 text-slate-700">{c.job_title || translateUI("Belum ditetapkan")}</td>
+                  <td className="p-4 text-slate-700">{branchLabel(c.branch) || translateUI("Belum ditetapkan")}</td>
+                  <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || translateUI("Belum ditugaskan")}</td>
                   <td className="p-4 whitespace-nowrap text-blue-700">
                     {crewKind(c)}
                   </td>
@@ -415,9 +408,7 @@ export default function KelolaCrew() {
                       disabled={busy}
                       onClick={() => void openDetail(c)}
                       className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                    >
-                      Detail
-                    </button>
+                    >{" " + translateUI("Detail") + " "}</button>
                   </td>
                 </tr>
               ))}
@@ -429,12 +420,11 @@ export default function KelolaCrew() {
             {loading
               ? "Memuat crew dari server..."
               : error
-                ? "Data belum dapat dimuat."
-                : "Tidak ada crew ditemukan."}
+                ? translateUI("Data belum dapat dimuat.")
+                : translateUI("Tidak ada crew ditemukan.")}
           </p>
         )}
-        <p className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100">
-          Menampilkan {filtered.length} dari {crew.length} crew.
+        <p className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100">{" " + translateUI("Menampilkan") + " "}{filtered.length}{" " + translateUI("dari") + " "}{crew.length} crew.
         </p>
       </div>
       <Modal
@@ -445,7 +435,7 @@ export default function KelolaCrew() {
             setForm({ ...empty })
           }
         }}
-        title={editing ? "Edit Crew" : "Tambah Crew Baru"}
+        title={editing ? translateUI("Edit Crew") : translateUI("Tambah Crew Baru")}
         size="lg"
       >
         <form onSubmit={submit} className="space-y-4">
@@ -461,9 +451,7 @@ export default function KelolaCrew() {
             disabled={busy}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            <label className="text-sm text-slate-700">
-              Nama Lengkap
-              <input
+            <label className="text-sm text-slate-700">{" " + translateUI("Nama Lengkap") + " "}<input
                 required
                 minLength={2}
                 maxLength={150}
@@ -483,11 +471,11 @@ export default function KelolaCrew() {
                 value={form.email}
                 onChange={(e) => change("email", e.target.value)}
               />
-              {editing&&<button type="button" disabled={busy||form.email===editing.user.email} className={button+' mt-2'} onClick={()=>void saveEmail()}>Perbarui email login</button>}
+              {editing&&<button type="button" disabled={busy||form.email===editing.user.email} className={button+' mt-2'} onClick={()=>void saveEmail()}>{translateUI("Perbarui email login")}</button>}
             </div>
             {!editing && (
               <div className="text-sm text-slate-700">
-                <label htmlFor="crew-initial-password">Password Awal</label>
+                <label htmlFor="crew-initial-password">{translateUI("Password Awal")}</label>
                 <div className="flex gap-2">
                   <input
                     id="crew-initial-password"
@@ -503,19 +491,17 @@ export default function KelolaCrew() {
                   <button
                     type="button"
                     aria-label={
-                      visible ? "Sembunyikan password" : "Tampilkan password"
+                      visible ? translateUI("Sembunyikan password") : translateUI("Tampilkan password")
                     }
                     className={button}
                     onClick={() => setVisible(!visible)}
                   >
-                    {visible ? "Sembunyikan" : "Lihat"}
+                    {visible ? translateUI("Sembunyikan") : translateUI("Lihat")}
                   </button>
                 </div>
               </div>
             )}
-            <label className="text-sm text-slate-700">
-              Nomor HP
-              <input
+            <label className="text-sm text-slate-700">{" " + translateUI("Nomor HP") + " "}<input
                 type="tel"
                 maxLength={30}
                 className={control}
@@ -523,31 +509,25 @@ export default function KelolaCrew() {
                 onChange={(e) => change("phoneNumber", e.target.value)}
               />
             </label>
-            <label className="text-sm text-slate-700">Perusahaan
-              <input list="crew-companies" maxLength={150} className={control} value={form.companyName} onChange={e=>change("companyName",e.target.value)} placeholder="Pilih atau ketik perusahaan" />
+            <label className="text-sm text-slate-700">{translateUI("Perusahaan") + " "}<input list="crew-companies" maxLength={150} className={control} value={form.companyName} onChange={e=>change("companyName",e.target.value)} placeholder={translateUI("Pilih atau ketik perusahaan")} />
               <datalist id="crew-companies">{[...new Set(["Fotosnaps", "Jawara Group", "Kripik Bujangan", ...crew.map(c=>c.company_name).filter(Boolean)])].map(name=><option key={name} value={name} />)}</datalist>
             </label>
-            <label className="text-sm text-slate-700">Jabatan
-              <input maxLength={100} className={control} value={form.jobTitle} onChange={e=>change("jobTitle",e.target.value)} placeholder="Contoh: Supervisor, Kasir, Fotografer" />
-              <span className="text-xs text-slate-500">Jabatan tidak mengubah hak akses akun.</span>
+            <label className="text-sm text-slate-700">{translateUI("Jabatan") + " "}<input maxLength={100} className={control} value={form.jobTitle} onChange={e=>change("jobTitle",e.target.value)} placeholder={translateUI("Contoh: Supervisor, Kasir, Fotografer")} />
+              <span className="text-xs text-slate-500">{translateUI("Jabatan tidak mengubah hak akses akun.")}</span>
             </label>
-            <label className="text-sm text-slate-700">
-              Jenis Penugasan
-              <select
-                aria-label="Jenis Crew"
+            <label className="text-sm text-slate-700">{" " + translateUI("Jenis Penugasan") + " "}<select
+                aria-label={translateUI("Jenis Crew")}
                 className={control}
                 value={form.crewType}
                 onChange={(e) =>
                   changeCodeInputs({ crewType: e.target.value, assignTo: "" })
                 }
               >
-                <option value="CREW_EVENT">Crew Event</option>
-                <option value="CREW_STORE">Crew Store</option>
+                <option value="CREW_EVENT">{translateUI("Crew Event")}</option>
+                <option value="CREW_STORE">{translateUI("Crew Store")}</option>
               </select>
             </label>
-            <label className="text-sm text-slate-700">
-              Gaji Pokok (Rp)
-              <input
+            <label className="text-sm text-slate-700">{" " + translateUI("Gaji Pokok (Rp)") + " "}<input
                 type="text"
                 inputMode="numeric"
                 maxLength={10}
@@ -566,29 +546,25 @@ export default function KelolaCrew() {
                 }}
               />
             </label>
-            <label className="text-sm text-slate-700">
-              Status Akun
-              <select
-                aria-label="Status Akun"
+            <label className="text-sm text-slate-700">{" " + translateUI("Status Akun") + " "}<select
+                aria-label={translateUI("Status Akun")}
                 className={control}
                 value={form.status}
                 onChange={(e) => change("status", e.target.value)}
               >
-                <option value="ACTIVE">Aktif</option>
-                <option value="INACTIVE">Non-Aktif</option>
+                <option value="ACTIVE">{translateUI("Aktif")}</option>
+                <option value="INACTIVE">{translateUI("Non-Aktif")}</option>
               </select>
             </label>
-            <label className="text-sm text-slate-700">
-              Kantor Cabang
-              <select
-                aria-label="Kantor Cabang"
+            <label className="text-sm text-slate-700">{" " + translateUI("Kantor Cabang") + " "}<select
+                aria-label={translateUI("Kantor Cabang")}
                 className={control}
                 value={form.branchId}
                 onChange={(e) =>
                   changeCodeInputs({ branchId: e.target.value, assignTo: "" })
                 }
               >
-                <option value="">Belum ditetapkan</option>
+                <option value="">{translateUI("Belum ditetapkan")}</option>
                 {directory.branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {branchLabel(b)}
@@ -596,20 +572,14 @@ export default function KelolaCrew() {
                 ))}
               </select>
             </label>
-            {form.crewType === "CREW_STORE" ? <label className="text-sm text-slate-700">Store / Kantor Penugasan
-              <select aria-label="Store / Kantor Penugasan" disabled={!form.branchId} className={control} value={form.assignTo} onChange={e=>change("assignTo",e.target.value)}>
-                <option value="">Belum ditugaskan</option>
+            {form.crewType === "CREW_STORE" ? <label className="text-sm text-slate-700">{translateUI("Store / Kantor Penugasan") + " "}<select aria-label={translateUI("Store / Kantor Penugasan")} disabled={!form.branchId} className={control} value={form.assignTo} onChange={e=>change("assignTo",e.target.value)}>
+                <option value="">{translateUI("Belum ditugaskan")}</option>
                 {locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-            </label> : <p className="text-sm text-slate-500">Penugasan event diatur melalui Kelola Event setelah akun dibuat.</p>}
+            </label> : <p className="text-sm text-slate-500">{translateUI("Penugasan event diatur melalui Kelola Event setelah akun dibuat.")}</p>}
           </fieldset>
           {editing && (
-            <p className="text-xs text-slate-500">
-              Setelah mengubah email, klik Perbarui email login. Mengganti
-              jenis crew mengakhiri penugasan aktif lama. Store baru
-              menggantikan store aktif. Penugasan Crew Event dan posisi hanya
-              diatur melalui Kelola Event. Jadwal absensi tidak dibuat otomatis.
-            </p>
+            <p className="text-xs text-slate-500">{" " + translateUI("Setelah mengubah email, klik Perbarui email login. Mengganti jenis crew mengakhiri penugasan aktif lama. Store baru menggantikan store aktif. Penugasan Crew Event dan posisi hanya diatur melalui Kelola Event. Jadwal absensi tidak dibuat otomatis.") + " "}</p>
           )}
           {emailNotice&&<p role="status" className="text-sm text-emerald-700">{emailNotice}</p>}
           <div className="flex justify-end gap-2">
@@ -621,11 +591,9 @@ export default function KelolaCrew() {
                 setShowForm(false)
                 setForm({ ...empty })
               }}
-            >
-              Batal
-            </button>
+            >{" " + translateUI("Batal") + " "}</button>
             <button disabled={busy} type="submit" className={primary}>
-              {busy ? "Menyimpan..." : "Simpan Crew"}
+              {busy ? translateUI("Menyimpan...") : translateUI("Simpan Crew")}
             </button>
           </div>
         </form>
@@ -656,13 +624,13 @@ export default function KelolaCrew() {
                 <p className="text-sm text-slate-500 break-all">
                   {detail.user.email}
                 </p>
-                <p className="text-xs text-slate-500">{detail.company_name || "Perusahaan belum ditetapkan"}</p>
+                <p className="text-xs text-slate-500">{detail.company_name || translateUI("Perusahaan belum ditetapkan")}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
                 ["Jenis", crewKind(detail)],
-                ["Status", detail.status === "ACTIVE" ? "Aktif" : "Non-Aktif"],
+                ["Status", detail.status === "ACTIVE" ? translateUI("Aktif") : translateUI("Non-Aktif")],
                 ["Nomor HP", detail.user.phone_number || "Belum diisi"],
                 ["Perusahaan", detail.company_name || "Belum ditetapkan"],
                 ["Jabatan", detail.job_title || "Belum ditetapkan"],
@@ -671,7 +639,7 @@ export default function KelolaCrew() {
                 ["Jumlah Event", eventCount(detail)],
               ].map(([label, value]) => (
                 <div className="bg-slate-50 p-3 rounded-xl" key={label}>
-                  <p className="text-xs text-slate-500 mb-1">{label}</p>
+                  <p className="text-xs text-slate-500 mb-1">{translateUI(label)}</p>
                   <p className="font-semibold text-sm text-slate-900 break-words">
                     {value}
                   </p>
@@ -679,15 +647,13 @@ export default function KelolaCrew() {
               ))}
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-slate-900">
-                Store / Event Aktif
-              </h4>
+              <h4 className="text-sm font-semibold text-slate-900">{" " + translateUI("Store / Event Aktif") + " "}</h4>
               <p className="text-sm text-slate-600 mt-1">
-                {sources(detail).join(", ") || "Belum ditugaskan"}
+                {sources(detail).join(", ") || translateUI("Belum ditugaskan")}
               </p>
             </div>
             <details className="text-sm text-slate-600">
-              <summary className="cursor-pointer">Riwayat penugasan</summary>
+              <summary className="cursor-pointer">{translateUI("Riwayat penugasan")}</summary>
               <ul className="mt-2 space-y-2">
                 {(detail.store_assignments || []).map((a) => (
                   <li key={a.id}>
@@ -704,7 +670,7 @@ export default function KelolaCrew() {
               {!(
                 detail.store_assignments?.length ||
                 detail.event_assignments?.length
-              ) && <p>Belum ada riwayat.</p>}
+              ) && <p>{translateUI("Belum ada riwayat.")}</p>}
             </details>
             {!action ? (
               <div className="flex flex-wrap gap-2 justify-end">
@@ -713,9 +679,7 @@ export default function KelolaCrew() {
                     disabled={busy}
                     className={primary}
                     onClick={() => { setScheduleCrew(detail); setDetail(null) }}
-                  >
-                    Atur Jadwal Store
-                  </button>
+                  >{" " + translateUI("Atur Jadwal Store") + " "}</button>
                 )}
                 <button
                   disabled={busy}
@@ -731,9 +695,7 @@ export default function KelolaCrew() {
                     setVisible(false)
                     setFormError("")
                   }}
-                >
-                  Atur Password
-                </button>
+                >{" " + translateUI("Atur Password") + " "}</button>
                 <button
                   className={button.replace("text-slate-700", "text-amber-700")}
                   onClick={() => {
@@ -741,7 +703,7 @@ export default function KelolaCrew() {
                     setFormError("")
                   }}
                 >
-                  {detail.status === "ACTIVE" ? "Nonaktifkan" : "Aktifkan"}
+                  {detail.status === "ACTIVE" ? translateUI("Nonaktifkan") : translateUI("Aktifkan")}
                 </button>
                 <button
                   className={button.replace("text-slate-700", "text-red-700")}
@@ -749,27 +711,23 @@ export default function KelolaCrew() {
                     setAction("delete")
                     setFormError("")
                   }}
-                >
-                  Hapus
-                </button>
+                >{" " + translateUI("Hapus") + " "}</button>
               </div>
             ) : (
               <form onSubmit={confirmAction} className={panel + " space-y-3"}>
                 <p className="text-sm text-slate-700">
                   {action === "delete"
-                    ? "Hapus dari daftar dan tutup akses login crew ini? Data akan diarsipkan, bukan dihapus permanen. Riwayat absensi tetap tersedia."
+                    ? translateUI("Hapus dari daftar dan tutup akses login crew ini? Data akan diarsipkan, bukan dihapus permanen. Riwayat absensi tetap tersedia.")
                     : action === "status"
                       ? `Konfirmasi ${
                           detail.status === "ACTIVE"
                             ? "menonaktifkan akses login"
                             : "mengaktifkan kembali akun"
                         } ${detail.user.full_name}?`
-                      : "Password lama tidak dapat ditampilkan. Isi password baru untuk akun ini."}
+                      : translateUI("Password lama tidak dapat ditampilkan. Isi password baru untuk akun ini.")}
                 </p>
                 {action === "password" && (
-                  <label className="block text-sm text-slate-700">
-                    Password Baru
-                    <input
+                  <label className="block text-sm text-slate-700">{" " + translateUI("Password Baru") + " "}<input
                       required
                       minLength={8}
                       maxLength={128}
@@ -795,11 +753,9 @@ export default function KelolaCrew() {
                       setAction(null)
                       setPassword("")
                     }}
-                  >
-                    Batal
-                  </button>
+                  >{" " + translateUI("Batal") + " "}</button>
                   <button disabled={busy} className={primary} type="submit">
-                    {busy ? "Menyimpan..." : "Konfirmasi"}
+                    {busy ? translateUI("Menyimpan...") : translateUI("Konfirmasi")}
                   </button>
                 </div>
               </form>
@@ -818,7 +774,7 @@ export default function KelolaCrew() {
       <Modal
         open={showDirectory}
         onClose={() => setShowDirectory(false)}
-        title="Kelola Cabang, Store & Kantor"
+        title={translateUI("Kelola Cabang, Store & Kantor")}
         size="lg"
       >
         <DirectoryManager data={directory} onSaved={loadDirectory} />
@@ -826,7 +782,7 @@ export default function KelolaCrew() {
       <Modal
         open={showBulkSchedule}
         onClose={() => setShowBulkSchedule(false)}
-        title="Jadwal Massal Crew Store"
+        title={translateUI("Jadwal Massal Crew Store")}
         size="lg"
       >
         <BulkStoreScheduleManager stores={directory.stores} />

@@ -1,3 +1,4 @@
+import {t as translateUI} from '../../lib/i18n';
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useModalHistory } from '../../lib/useModalHistory';
@@ -46,11 +47,11 @@ export default function AttendanceSuccessDialog({ open, name, clockType, locatio
         <div className="attendance-success-icon" aria-hidden="true">
           <svg viewBox="0 0 52 52" fill="none"><circle cx="26" cy="26" r="23" /><path d="m15 26 7 7 15-15" /></svg>
         </div>
-        <h2 id={titleId}>Absensi berhasil dikirim</h2>
-        <p id={descriptionId}>Absensi <strong>{name}</strong> ({clockType}) telah diterima server dan menunggu tinjauan admin.</p>
-        <div className="attendance-success-summary"><span>Lokasi penugasan</span><strong>{location || 'Tidak dipilih'}</strong><span>{timestamp}</span></div>
-        <a className="attendance-success-whatsapp" href={whatsappUrl} target="_blank" rel="noopener noreferrer">Kirim Bukti ke WhatsApp Admin</a>
-        <button ref={done} type="button" className="attendance-success-close" onClick={onClose}>Tutup</button>
+        <h2 id={titleId}>{translateUI("Absensi berhasil dikirim")}</h2>
+        <p id={descriptionId}>{translateUI("Absensi") + " "}<strong>{name}</strong> ({clockType}{translateUI(") telah diterima server dan menunggu tinjauan admin.")}</p>
+        <div className="attendance-success-summary"><span>{translateUI("Lokasi penugasan")}</span><strong>{location || 'Tidak dipilih'}</strong><span>{timestamp}</span></div>
+        <a className="attendance-success-whatsapp" href={whatsappUrl} target="_blank" rel="noopener noreferrer">{translateUI("Kirim Bukti ke WhatsApp Admin")}</a>
+        <button ref={done} type="button" className="attendance-success-close" onClick={onClose}>{translateUI("Tutup")}</button>
       </div>
     </div>, document.body
   );

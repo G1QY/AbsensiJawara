@@ -1,3 +1,4 @@
+import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -34,7 +35,7 @@ interface TodayResponse {
 }
 
 const clock = (value: string | null) => value
-  ? new Date(value).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+  ? new Date(value).toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
   : 'Belum tercatat';
 
 export default function AttendanceAction({ mode, eventId, onContinue, onRecorded }: {
@@ -125,11 +126,11 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
   if (recorded) {
     return <div className="space-y-4">
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-        <p className="text-sm font-semibold text-emerald-900">{mode === 'IN' ? 'Clock In sudah tercatat' : 'Clock Out sudah tercatat'}</p>
+        <p className="text-sm font-semibold text-emerald-900">{mode === 'IN' ? translateUI("Clock In sudah tercatat") : translateUI("Clock Out sudah tercatat")}</p>
         <p className="mt-2 font-mono text-2xl font-bold text-emerald-800">{clock(recorded)}</p>
-        <p className="mt-1 text-xs text-emerald-700">Data ini sama dengan data pada menu Absensi.</p>
+        <p className="mt-1 text-xs text-emerald-700">{translateUI("Data ini sama dengan data pada menu Absensi.")}</p>
       </div>
-      <button type="button" onClick={() => void onContinue()} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">Lanjutkan</button>
+      <button type="button" onClick={() => void onContinue()} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">{translateUI("Lanjutkan")}</button>
     </div>;
   }
 
@@ -143,21 +144,21 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-semibold text-slate-900">{context.locationName}</p>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Jam masuk</span><strong className="font-mono">{context.scheduledStart.slice(0, 5)} WIB</strong></div>
-        <div className="rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Jam pulang</span><strong className="font-mono">{context.scheduledEnd.slice(0, 5)} WIB</strong></div>
+        <div className="rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">{translateUI("Jam masuk")}</span><strong className="font-mono">{context.scheduledStart.slice(0, 5)} WIB</strong></div>
+        <div className="rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">{translateUI("Jam pulang")}</span><strong className="font-mono">{context.scheduledEnd.slice(0, 5)} WIB</strong></div>
       </div>
     </div>
 
-    {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}
+    {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{translateUI(error)}</p> : null}
 
     {camera ? <>
-      <label className="block text-sm text-slate-700">Catatan {mode === 'IN' ? 'Clock In' : 'Clock Out'}
-        <textarea maxLength={2000} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder="Catatan kehadiran, opsional" />
+      <label className="block text-sm text-slate-700">{translateUI("Catatan") + " "}{mode === 'IN' ? 'Clock In' : 'Clock Out'}
+        <textarea maxLength={2000} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder={translateUI("Catatan kehadiran, opsional")} />
       </label>
       <CameraCapture accentColor={mode === 'IN' ? 'emerald' : 'amber'} locationName={context.locationName} onCapture={photo => void submit(photo)} />
-      <button type="button" onClick={() => setCamera(false)} className="w-full text-sm text-slate-500">Batal</button>
+      <button type="button" onClick={() => setCamera(false)} className="w-full text-sm text-slate-500">{translateUI("Batal")}</button>
     </> : <button type="button" onClick={() => setCamera(true)} className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white ${mode === 'IN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
-      {mode === 'IN' ? 'Clock In Sekarang' : 'Clock Out Sekarang'}
+      {mode === 'IN' ? translateUI("Clock In Sekarang") : translateUI("Clock Out Sekarang")}
     </button>}
   </div>;
 }

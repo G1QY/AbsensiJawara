@@ -1,3 +1,4 @@
+import {t as translateUI,tx} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
 import { useState, type FormEvent } from "react"
@@ -31,6 +32,7 @@ export default function DirectoryManager({
   const [kind, setKind] = useState<Kind>(eventsOnly ? "events" : "stores")
   const [showArchived,setShowArchived]=useState(false)
   const [officeTab, setOfficeTab] = useState(false)
+  const [pickerVersion,setPickerVersion]=useState(0)
   const [id, setId] = useState("")
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
@@ -39,6 +41,7 @@ export default function DirectoryManager({
   const change = (key: keyof typeof blank, value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
   function reset(next: Kind = kind) {
+    setPickerVersion(v=>v+1)
     setKind(next)
     setId("")
     setForm({ ...blank, status: next === "events" ? "SCHEDULED" : "ACTIVE" })
@@ -101,7 +104,7 @@ export default function DirectoryManager({
   const rows = kind === "stores" ? (showArchived ? data.archivedStores || [] : data.stores).filter(row => (row.location_kind === "OFFICE") === officeTab) : data[kind]
   return (
     <div className="space-y-4">
-      <ExportButtons filename="Direktori-Lokasi" title={kind==='branches'?'Daftar Cabang':kind==='events'?'Daftar Event':officeTab?'Daftar Kantor':'Daftar Store'} subtitle="Data lokasi saat ini" headers={['Nama','Perusahaan','Kota','Cabang','Alamat','Status']} rows={rows.map(row=>['event_name' in row?row.event_name:row.name,row.company_name||'Belum diisi',('branch_id' in row?data.branches.find(b=>b.id===row.branch_id)?.city_name:row.city_name)||'Belum diisi','branch_id' in row?data.branches.find(b=>b.id===row.branch_id)?.name||'Belum ditetapkan':row.name,'address' in row?row.address:'','status' in row?row.status:''].map(value => String(value ?? '')))} />
+      <ExportButtons filename="Direktori-Lokasi" title={kind==='branches'?translateUI("Daftar Cabang"):kind==='events'?translateUI("Daftar Event"):officeTab?translateUI("Daftar Kantor"):translateUI("Daftar Store")} subtitle={translateUI("Data lokasi saat ini")} headers={['Nama','Perusahaan','Kota','Cabang','Alamat','Status']} rows={rows.map(row=>['event_name' in row?row.event_name:row.name,row.company_name||'Belum diisi',('branch_id' in row?data.branches.find(b=>b.id===row.branch_id)?.city_name:row.city_name)||'Belum diisi','branch_id' in row?data.branches.find(b=>b.id===row.branch_id)?.name||'Belum ditetapkan':row.name,'address' in row?row.address:'','status' in row?row.status:''].map(value => String(value ?? '')))} />
       {!eventsOnly && (
         <div className="flex flex-wrap gap-2">
           {(["branches", "stores"] as Kind[]).map((k) => (
@@ -111,23 +114,23 @@ export default function DirectoryManager({
               className={kind === k && !officeTab ? primary : button}
               onClick={() => { setShowArchived(false); setOfficeTab(false); reset(k); }}
             >
-              {k === "branches" ? "Cabang" : "Store"}
+              {k === "branches" ? translateUI("Cabang") : "Store"}
             </button>
           ))}
           <button type="button" disabled={busy} className={officeTab ? primary : button}
-            onClick={() => { setShowArchived(false); setOfficeTab(true); reset("stores"); }}>Kantor</button>
+            onClick={() => { setShowArchived(false); setOfficeTab(true); reset("stores"); }}>{translateUI("Kantor")}</button>
         </div>
       )}
-      {showArchived && error && <p role="alert" className="text-red-700">{error}</p>}
-      {showArchived && success && <p role="status" className="text-emerald-700">{success}</p>}
+      {showArchived && error && <p role="alert" className="text-red-700">{translateUI(error)}</p>}
+      {showArchived && success && <p role="status" className="text-emerald-700">{translateUI(success)}</p>}
       <p className="text-sm text-slate-600">
         {kind === "branches"
-          ? "Isi kota dan nama tempat cabang. Contoh: Kota Jakarta, Cabang Blok M. Store Roll Film dan Peeps dapat memakai cabang yang sama."
+          ? translateUI("Isi kota dan nama tempat cabang. Contoh: Kota Jakarta, Cabang Blok M. Store Roll Film dan Peeps dapat memakai cabang yang sama.")
           : kind === "stores"
-            ? (officeTab ? "Kelola alamat kantor per cabang. Lokasi aktif akan tersedia pada absensi guest jenis Kantor." : "Pilih lokasi store melalui pencarian alamat atau peta.")
-            : "Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew."}
+            ? (officeTab ? translateUI("Kelola alamat kantor per cabang. Lokasi aktif akan tersedia pada absensi guest jenis Kantor.") : translateUI("Pilih lokasi store melalui pencarian alamat atau peta."))
+            : translateUI("Daftar ini memakai event dari server. Penugasan Crew Event dan posisi dilakukan melalui Detail Event → Crew.")}
       </p>
-      {kind==='stores' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);reset()}}/>Tampilkan lokasi arsip</label>}
+      {kind==='stores' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);reset()}}/>{translateUI("Tampilkan lokasi arsip")}</label>}
       <div className="max-h-48 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
         {rows.map((row) => (
           <div
@@ -138,7 +141,7 @@ export default function DirectoryManager({
               <p className="font-semibold text-slate-900">
                 {"event_name" in row ? row.event_name : row.name}
               </p>
-              <p className="text-xs text-slate-500">{row.company_name || "Perusahaan belum ditetapkan"}</p>
+              <p className="text-xs text-slate-500">{row.company_name || translateUI("Perusahaan belum ditetapkan")}</p>
               <p className="text-xs text-slate-500">
                 {"branch_id" in row
                   ? branchLabel(data.branches.find((b) => b.id === row.branch_id)) ||
@@ -172,24 +175,22 @@ export default function DirectoryManager({
                 Edit
               </button>
               {kind !== "events" && !showArchived && <button type="button" disabled={busy} className={button + " text-red-700"}
-                onClick={() => remove(row.id, "event_name" in row ? row.event_name : row.name)}>Hapus</button>}
-              {kind==='stores' && showArchived && <button type="button" className={button} disabled={busy} onClick={async()=>{setBusy(true);setError('');try{const result=await api.post<{message:string}>(`/admin-directory/stores/${row.id}/restore`);setSuccess(result.message);await onSaved()}catch(e){setError(message(e))}finally{setBusy(false)}}}>Pulihkan</button>}
+                onClick={() => remove(row.id, "event_name" in row ? row.event_name : row.name)}>{translateUI("Hapus")}</button>}
+              {kind==='stores' && showArchived && <button type="button" className={button} disabled={busy} onClick={async()=>{setBusy(true);setError('');try{const result=await api.post<{message:string}>(`/admin-directory/stores/${row.id}/restore`);setSuccess(result.message);await onSaved()}catch(e){setError(message(e))}finally{setBusy(false)}}}>{translateUI("Pulihkan")}</button>}
             </div>
           </div>
         ))}
         {!rows.length && (
-          <p className="p-4 text-sm text-slate-500">
-            Belum ada data. Tambahkan melalui form di bawah.
-          </p>
+          <p className="p-4 text-sm text-slate-500">{" " + translateUI("Belum ada data. Tambahkan melalui form di bawah.") + " "}</p>
         )}
       </div>
       {!showArchived && <form onSubmit={save} className="space-y-4">
         <h3 className="font-semibold text-slate-900">
-          {id ? "Edit" : "Tambah"}{" "}
+          {id ? "Edit" : translateUI("Tambah")}{" "}
           {kind === "branches"
-            ? "Cabang"
+            ? translateUI("Cabang")
             : kind === "stores"
-              ? (officeTab ? "Kantor" : "Store")
+              ? (officeTab ? translateUI("Kantor") : "Store")
               : "Event"}
         </h3>
         {error && (
@@ -197,29 +198,22 @@ export default function DirectoryManager({
             role="alert"
             className="text-sm text-red-700 bg-red-50 p-3 rounded-xl"
           >
-            {error}
+            {translateUI(error)}
           </p>
         )}
         {success && (
           <p role="status" className="text-sm text-emerald-700">
-            {success}
+            {translateUI(success)}
           </p>
         )}
         <fieldset
           disabled={busy}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
-          {kind==='branches' && <label className="text-sm text-slate-700">Kota<input required maxLength={150} list="directory-cities" className={control} value={form.city_name} onChange={e=>change('city_name',e.target.value)} placeholder="Contoh: Jakarta"/><datalist id="directory-cities">{[...new Set(data.branches.map(b=>b.city_name).filter(Boolean))].map(city=><option key={city} value={city}/>)}</datalist></label>}
-          <label className="text-sm text-slate-700">Perusahaan
-            <input maxLength={150} className={control} value={form.company_name} onChange={e=>change("company_name",e.target.value)} placeholder="Nama perusahaan pemilik lokasi" />
+          {kind==='branches' && <label className="text-sm text-slate-700">{translateUI("Kota")}<input required maxLength={150} list="directory-cities" className={control} value={form.city_name} onChange={e=>change('city_name',e.target.value)} placeholder={translateUI("Contoh: Jakarta")}/><datalist id="directory-cities">{[...new Set(data.branches.map(b=>b.city_name).filter(Boolean))].map(city=><option key={city} value={city}/>)}</datalist></label>}
+          <label className="text-sm text-slate-700">{translateUI("Perusahaan") + " "}<input maxLength={150} className={control} value={form.company_name} onChange={e=>change("company_name",e.target.value)} placeholder={translateUI("Nama perusahaan pemilik lokasi")} />
           </label>
-          <label className="text-sm text-slate-700">
-            Nama{" "}
-            {kind === "branches"
-              ? "Cabang"
-              : kind === "stores"
-                ? (officeTab ? "Kantor" : "Store")
-                : "Event"}
+          <label className="text-sm text-slate-700">{tx('Nama {type}',{type:kind === 'branches' ? translateUI('Cabang') : kind === 'stores' ? (officeTab ? translateUI('Kantor') : 'Store') : 'Event'})}
             <input
               required
               maxLength={150}
@@ -229,16 +223,14 @@ export default function DirectoryManager({
             />
           </label>
           {kind !== "branches" && (
-            <label className="text-sm text-slate-700">
-              Cabang / Tempat
-              <select
-                aria-label="Cabang / Tempat"
+            <label className="text-sm text-slate-700">{" " + translateUI("Cabang / Tempat") + " "}<select
+                aria-label={translateUI("Cabang / Tempat")}
                 required
                 className={control}
                 value={form.branch_id}
                 onChange={(e) => change("branch_id", e.target.value)}
               >
-                <option value="">Pilih cabang</option>
+                <option value="">{translateUI("Pilih cabang")}</option>
                 {data.branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {branchLabel(b)}
@@ -251,16 +243,15 @@ export default function DirectoryManager({
             <>
               <div className="sm:col-span-2">
                 <GoogleLocationPicker
-                  title={officeTab ? "Lokasi Kantor" : "Lokasi Store"}
+                  key={`${kind}:${officeTab}:${id}:${pickerVersion}`}
+                  title={officeTab ? translateUI("Lokasi Kantor") : translateUI("Lokasi Store")}
                   address={form.address}
                   latitude={form.latitude}
                   longitude={form.longitude}
-                  onChange={(location) => setForm((current) => ({ ...current, ...location }))}
+                  onChange={(location) => { setError(""); setForm((current) => ({ ...current, ...location })); }}
                 />
               </div>
-              <label className="text-sm text-slate-700">
-                Radius absensi (meter)
-                <input
+              <label className="text-sm text-slate-700">{" " + translateUI("Radius absensi (meter)") + " "}<input
                   required
                   inputMode="numeric"
                   className={control}
@@ -272,9 +263,7 @@ export default function DirectoryManager({
           )}
           {kind === "events" && (
             <>
-              <label className="text-sm text-slate-700">
-                Tanggal Event
-                <input
+              <label className="text-sm text-slate-700">{" " + translateUI("Tanggal Event") + " "}<input
                   required
                   type="date"
                   className={control}
@@ -282,9 +271,7 @@ export default function DirectoryManager({
                   onChange={(e) => change("event_date", e.target.value)}
                 />
               </label>
-              <label className="text-sm text-slate-700">
-                Nama Klien
-                <input
+              <label className="text-sm text-slate-700">{" " + translateUI("Nama Klien") + " "}<input
                   className={control}
                   value={form.client_name}
                   onChange={(e) => change("client_name", e.target.value)}
@@ -309,7 +296,7 @@ export default function DirectoryManager({
                   ? ["ACTIVE", "INACTIVE"]
                   : ["SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"]
                 ).map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </label>
@@ -318,12 +305,12 @@ export default function DirectoryManager({
         <div className="flex gap-2">
           <button disabled={busy} className={primary} type="submit">
             {busy
-              ? "Menyimpan..."
-              : "Simpan " +
+              ? translateUI("Menyimpan...")
+              : translateUI("Simpan") + " " +
               (kind === "branches"
-                ? "Cabang"
+                ? translateUI("Cabang")
                 : kind === "stores"
-                  ? (officeTab ? "Kantor" : "Store")
+                  ? (officeTab ? translateUI("Kantor") : "Store")
                   : "Event")}
           </button>
           {id && (
@@ -332,9 +319,7 @@ export default function DirectoryManager({
               type="button"
               className={button}
               onClick={() => reset()}
-            >
-              Batal edit
-            </button>
+            >{" " + translateUI("Batal edit") + " "}</button>
           )}
         </div>
       </form>}

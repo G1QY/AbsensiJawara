@@ -1,3 +1,4 @@
+import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
 
@@ -88,19 +89,19 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5">
       <div className="flex items-center justify-between mb-4">
-        <button aria-label="Bulan sebelumnya" onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+        <button aria-label={translateUI("Bulan sebelumnya")} onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <h3 className="font-semibold text-slate-900 text-sm">
-          {firstOfMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+          {firstOfMonth.toLocaleDateString(getLocale(), { month: 'long', year: 'numeric' })}
         </h3>
-        <button aria-label="Bulan berikutnya" onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+        <button aria-label={translateUI("Bulan berikutnya")} onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </button>
       </div>
 
       {warning && <p role="status" className="text-xs text-amber-700 mb-3">{warning}</p>}
-      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+      {error && <p className="text-xs text-red-600 mb-3">{translateUI(error)}</p>}
 
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAY_NAMES.map(d => (
@@ -109,7 +110,7 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
       </div>
 
       {loading ? (
-        <div className="py-10 text-center text-xs text-slate-400">Memuat kalender...</div>
+        <div className="py-10 text-center text-xs text-slate-400">{translateUI("Memuat kalender...")}</div>
       ) : (
         <div className="grid grid-cols-7 gap-1">
           {cells.map((cell, i) => {
@@ -139,17 +140,17 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
 
       {!loading && !error && holidayDataAvailable && (
         <section className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
-          <h4 className="font-semibold">Libur nasional &amp; cuti bersama</h4>
+          <h4 className="font-semibold">{translateUI("Libur nasional & cuti bersama")}</h4>
           {holidays.length ? <ul className="mt-2 space-y-2">{holidays.map(holiday => (
-            <li key={holiday.holiday_date}>{Number(holiday.holiday_date.slice(8))} {firstOfMonth.toLocaleDateString('id-ID', { month:'long' })}: {holiday.name}</li>
-          ))}</ul> : <p className="mt-1">Tidak ada libur nasional atau cuti bersama pada bulan ini.</p>}
-          <p className="mt-2">Jadwal kerja tetap mengikuti penugasan admin.</p>
+            <li key={holiday.holiday_date}>{Number(holiday.holiday_date.slice(8))} {firstOfMonth.toLocaleDateString(getLocale(), { month:'long' })}: {holiday.name}</li>
+          ))}</ul> : <p className="mt-1">{translateUI("Tidak ada libur nasional atau cuti bersama pada bulan ini.")}</p>}
+          <p className="mt-2">{translateUI("Jadwal kerja tetap mengikuti penugasan admin.")}</p>
         </section>
       )}
       {/* Legenda */}
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
         {Object.entries(STATUS_LABEL).map(([key, label]) => (
-          <span key={key} className={`text-xs font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{label}</span>
+          <span key={key} className={`text-xs font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{translateUI(label)}</span>
         ))}
       </div>
 
@@ -158,37 +159,37 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
         <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-900">
-              {new Date(`${selected.date}T00:00:00+07:00`).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long' })}
+              {new Date(`${selected.date}T00:00:00+07:00`).toLocaleDateString(getLocale(), { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
             <span className={`text-xs font-semibold px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[selected.status]}`}>
               {STATUS_LABEL[selected.status] || selected.status}
             </span>
           </div>
-          {selected.holidayName && selected.type !== 'HOLIDAY' && <p className="text-xs text-amber-700">{selected.holidayName}. Anda tetap memiliki jadwal kerja pada tanggal ini.</p>}
-          <p className="text-xs text-slate-500">{selected.type === 'NONE' ? 'Keterangan' : selected.type === 'HOLIDAY' ? 'Keterangan' : selected.type === 'STORE' ? 'Toko' : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
+          {selected.holidayName && selected.type !== 'HOLIDAY' && <p className="text-xs text-amber-700">{selected.holidayName}{translateUI(". Anda tetap memiliki jadwal kerja pada tanggal ini.")}</p>}
+          <p className="text-xs text-slate-500">{selected.type === 'NONE' ? translateUI("Keterangan") : selected.type === 'HOLIDAY' ? translateUI("Keterangan") : selected.type === 'STORE' ? translateUI("Toko") : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
           {selected.type !== 'HOLIDAY' && selected.type !== 'NONE' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
-              <p className="text-slate-400">Jadwal</p>
+              <p className="text-slate-400">{translateUI("Jadwal")}</p>
               <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}</p>
             </div>
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">Clock In / Out</p>
               <p className="font-mono font-semibold text-slate-700">
-                {selected.checkIn ? new Date(selected.checkIn).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
+                {selected.checkIn ? new Date(selected.checkIn).toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
                 {' / '}
-                {selected.checkOut ? new Date(selected.checkOut).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
+                {selected.checkOut ? new Date(selected.checkOut).toLocaleTimeString(getLocale(), { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '—'}
               </p>
             </div>
             {selected.lateMinutes > 0 && (
               <div className="bg-red-50 rounded-lg p-2.5">
-                <p className="text-red-500">Terlambat</p>
-                <p className="font-semibold text-red-700">{selected.lateMinutes} menit</p>
+                <p className="text-red-500">{translateUI("Terlambat")}</p>
+                <p className="font-semibold text-red-700">{selected.lateMinutes}{" " + translateUI("menit")}</p>
               </div>
             )}
             {selected.overtimeMinutes > 0 && (
               <div className="bg-amber-50 rounded-lg p-2.5">
-                <p className="text-amber-600">Lembur ({selected.overtimeStatus === 'PENDING' ? 'menunggu approval' : selected.overtimeStatus.toLowerCase()})</p>
-                <p className="font-semibold text-amber-700">{Math.floor(selected.overtimeMinutes / 60)} jam</p>
+                <p className="text-amber-600">{translateUI("Lembur (")}{selected.overtimeStatus === 'PENDING' ? translateUI("menunggu approval") : selected.overtimeStatus.toLowerCase()})</p>
+                <p className="font-semibold text-amber-700">{Math.floor(selected.overtimeMinutes / 60)}{" " + translateUI("jam")}</p>
               </div>
             )}
           </div> : null}

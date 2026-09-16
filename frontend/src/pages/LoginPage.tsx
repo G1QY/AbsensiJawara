@@ -1,3 +1,4 @@
+import {t as translateUI} from '../lib/i18n';
 import { useState, useRef, useEffect } from 'react';
 import './LoginPage.css';
 import companyLandscape from '../assets/company-landscape.jpg';
@@ -233,8 +234,8 @@ export default function LoginPage() {
     <>
       {/* Header text */}
       <div className="space-y-1.5 text-center">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Selamat Datang</h1>
-        <p className="text-[14px] text-[#1a1c1c]">Masuk ke akun JAWARA anda</p>
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">{translateUI("Selamat Datang")}</h1>
+        <p className="text-[14px] text-[#1a1c1c]">{translateUI("Masuk ke akun JAWARA anda")}</p>
       </div>
 
       {/* Login Form */}
@@ -280,9 +281,9 @@ export default function LoginPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="text-[12px] font-medium text-[#1a1c1c] hover:text-[#25D366] uppercase tracking-wider transition-colors inline-flex items-center gap-1.5 group"
-            title="Hubungi Admin via WhatsApp untuk bantuan akses akun"
+            title={translateUI("Hubungi Admin via WhatsApp untuk bantuan akses akun")}
           >
-            <span>Hubungi Admin</span>
+            <span>{translateUI("Hubungi Admin")}</span>
             <svg className="w-3.5 h-3.5 text-[#25D366] group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
             </svg>
@@ -291,9 +292,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => goToStep('forgot')}
             className="text-[12px] font-medium text-[#2e0052] 4b0082 uppercase tracking-wider transition-colors"
-          >
-            Lupa sandi?
-          </button>
+          >{" " + translateUI("Lupa sandi?") + " "}</button>
         </div>
 
         {error && renderError(error)}
@@ -311,7 +310,7 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span>Memproses...</span>
+                <span>{translateUI("Memproses...")}</span>
               </>
             ) : (
               <>
@@ -330,9 +329,7 @@ export default function LoginPage() {
         type="button"
         onClick={() => setShowGuestModal(true)}
         className="w-full px-4 py-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[12px] font-bold uppercase tracking-wider rounded-[4px] transition-colors"
-      >
-        Masuk sebagai Guest Crew
-      </button>
+      >{" " + translateUI("Masuk sebagai Guest Crew") + " "}</button>
 
     </>
   );
@@ -348,22 +345,18 @@ export default function LoginPage() {
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Kembali ke Login
-      </button>
+        </svg>{" " + translateUI("Kembali ke Login") + " "}</button>
 
       <div className="space-y-1.5">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Lupa Sandi?</h1>
-        <p className="text-[14px] text-[#1a1c1c]">
-          Masukkan email akun Anda. Kami akan mengirimkan kode OTP untuk mengatur ulang password.
-        </p>
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">{translateUI("Lupa Sandi?")}</h1>
+        <p className="text-[14px] text-[#1a1c1c]">{" " + translateUI("Masukkan email akun Anda. Kami akan mengirimkan kode OTP untuk mengatur ulang password.") + " "}</p>
       </div>
 
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleForgotSubmit(); }} noValidate>
         <FloatingInput
           id="forgot-email"
           type="email"
-          label="Email Akun"
+          label={translateUI("Email Akun")}
           required
           icon="email"
           value={forgotEmail}
@@ -389,30 +382,27 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span>Mengirim OTP...</span>
+                <span>{translateUI("Mengirim OTP...")}</span>
               </>
             ) : (
               <>
                 <svg className="w-[16px] h-[16px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <span>Kirim Kode OTP</span>
+                <span>{translateUI("Kirim Kode OTP")}</span>
               </>
             )}
           </button>
         </div>
 
         <div className="pt-2 text-center">
-          <p className="text-[12px] text-[#1a1c1c]">
-            Perlu bantuan akses akun?{' '}
+          <p className="text-[12px] text-[#1a1c1c]">{" " + translateUI("Perlu bantuan akses akun?")}{' '}
             <a
               href={waAdminUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#2e0052] font-semibold hover:underline inline-flex items-center gap-1"
-            >
-              Hubungi Admin WhatsApp
-            </a>
+            >{" " + translateUI("Hubungi Admin WhatsApp") + " "}</a>
           </p>
         </div>
       </form>
@@ -430,14 +420,11 @@ export default function LoginPage() {
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Kembali
-      </button>
+        </svg>{" " + translateUI("Kembali") + " "}</button>
 
       <div className="space-y-1.5">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Verifikasi OTP</h1>
-        <p className="text-[14px] text-[#1a1c1c]">
-          Masukkan kode 6 digit yang dikirim ke <span className="font-semibold text-[#1a1c1c]">{forgotEmail}</span>
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">{translateUI("Verifikasi OTP")}</h1>
+        <p className="text-[14px] text-[#1a1c1c]">{" " + translateUI("Masukkan kode 6 digit yang dikirim ke") + " "}<span className="font-semibold text-[#1a1c1c]">{forgotEmail}</span>
         </p>
       </div>
 
@@ -448,7 +435,7 @@ export default function LoginPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-[13px] text-[#4338ca]">
-            <span className="font-medium">Dev Mode —</span> Kode OTP Anda: <span className="font-mono font-bold tracking-widest">{devOtp}</span>
+            <span className="font-medium">Dev Mode —</span>{" " + translateUI("Kode OTP Anda:") + " "}<span className="font-mono font-bold tracking-widest">{devOtp}</span>
           </p>
         </div>
       )}
@@ -456,9 +443,7 @@ export default function LoginPage() {
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleVerifyOtp(); }} noValidate>
         {/* OTP Inputs */}
         <div className="space-y-1">
-          <label className="block text-[12px] font-medium text-[#1a1c1c] uppercase tracking-wider">
-            Kode OTP
-          </label>
+          <label className="block text-[12px] font-medium text-[#1a1c1c] uppercase tracking-wider">{" " + translateUI("Kode OTP") + " "}</label>
           <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
             {otpDigits.map((digit, i) => (
               <input
@@ -491,14 +476,14 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span>Memproses...</span>
+                <span>{translateUI("Memproses...")}</span>
               </>
             ) : (
               <>
                 <svg className="w-[16px] h-[16px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <span>Verifikasi OTP</span>
+                <span>{translateUI("Verifikasi OTP")}</span>
               </>
             )}
           </button>
@@ -512,9 +497,7 @@ export default function LoginPage() {
           onClick={() => { setOtpDigits(['', '', '', '', '', '']); handleForgotSubmit(); }}
           disabled={forgotLoading}
           className="text-[12px] font-medium text-[#2e0052] hover:text-[#4b0082] uppercase tracking-wider transition-colors disabled:opacity-50"
-        >
-          Kirim Ulang OTP
-        </button>
+        >{" " + translateUI("Kirim Ulang OTP") + " "}</button>
       </div>
     </>
   );
@@ -525,17 +508,15 @@ export default function LoginPage() {
         type="button"
         onClick={() => goToStep('otp-verify')}
         className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1c1c] hover:text-[#2e0052] uppercase tracking-wider transition-colors mb-2"
-      >
-        Kembali
-      </button>
+      >{" " + translateUI("Kembali") + " "}</button>
       <div className="space-y-1.5">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Buat Password Baru</h1>
-        <p className="text-[14px] text-[#1a1c1c]">OTP sudah terverifikasi. Masukkan password baru minimal 8 karakter.</p>
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">{translateUI("Buat Password Baru")}</h1>
+        <p className="text-[14px] text-[#1a1c1c]">{translateUI("OTP sudah terverifikasi. Masukkan password baru minimal 8 karakter.")}</p>
       </div>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleResetSubmit(); }} noValidate>
         <FloatingInput
           id="new-password"
-          label="Password Baru"
+          label={translateUI("Password Baru")}
           required
           isPassword
           icon="lock"
@@ -552,7 +533,7 @@ export default function LoginPage() {
           disabled={forgotLoading}
           className="w-full flex items-center justify-center px-4 py-3 bg-[#2e0052] hover:bg-[#4b0082] disabled:opacity-60 text-white text-[13px] font-semibold uppercase tracking-wider rounded-[4px] transition-colors"
         >
-          {forgotLoading ? 'Mengubah Password...' : 'Simpan Password Baru'}
+          {forgotLoading ? 'Mengubah Password...' : translateUI("Simpan Password Baru")}
         </button>
       </form>
 
@@ -570,10 +551,8 @@ export default function LoginPage() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">Password Berhasil Diubah!</h1>
-        <p className="text-[14px] text-[#1a1c1c]">
-          Password Anda telah diperbarui. Silakan login menggunakan password baru.
-        </p>
+        <h1 className="text-[24px] font-semibold text-[#1a1c1c] tracking-tight">{translateUI("Password Berhasil Diubah!")}</h1>
+        <p className="text-[14px] text-[#1a1c1c]">{" " + translateUI("Password Anda telah diperbarui. Silakan login menggunakan password baru.") + " "}</p>
       </div>
 
       <div className="pt-3">
@@ -582,7 +561,7 @@ export default function LoginPage() {
           onClick={backToLogin}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-black hover:bg-[#1a1c1c] text-white text-[13px] font-semibold uppercase tracking-wider rounded-[4px] transition-colors group"
         >
-          <span>Kembali ke Login</span>
+          <span>{translateUI("Kembali ke Login")}</span>
           <svg className="w-[16px] h-[16px] group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
           </svg>
@@ -636,11 +615,11 @@ export default function LoginPage() {
         <img src={companyLandscape} alt="JAWARA, Burger Chill, dan Kripik Bujangan" className="login-company-image" />
       </div>
 
-      <Modal open={showGuestModal} onClose={() => setShowGuestModal(false)} title="Masuk sebagai Guest Crew">
+      <Modal open={showGuestModal} onClose={() => setShowGuestModal(false)} title={translateUI("Masuk sebagai Guest Crew")}>
         <div className="space-y-4">
           <FloatingInput
             id="guest-name"
-            label="Nama Lengkap"
+            label={translateUI("Nama Lengkap")}
             required
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
@@ -649,7 +628,7 @@ export default function LoginPage() {
           <FloatingInput
             id="guest-phone"
             type="tel"
-            label="Nomor WhatsApp"
+            label={translateUI("Nomor WhatsApp")}
             required
             value={guestPhone}
             onChange={(e) => setGuestPhone(e.target.value)}
@@ -663,9 +642,7 @@ export default function LoginPage() {
               setShowGuestModal(false);
             }}
             className="w-full px-4 py-3 rounded-[4px] bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-[12px] font-bold uppercase tracking-wider"
-          >
-            Lanjut ke Mode Guest
-          </button>
+          >{" " + translateUI("Lanjut ke Mode Guest") + " "}</button>
         </div>
       </Modal>
 

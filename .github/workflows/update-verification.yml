@@ -28,7 +28,7 @@ jobs:
         working-directory: frontend
         run: |
           npx tsc --noEmit
-          npm run build
+          VITE_GOOGLE_MAPS_API_KEY=qa-map-fixture npm run build
       - name: Install browser
         run: node "$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Verify crew and admin screens
@@ -43,6 +43,14 @@ jobs:
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/attendance"
           node tests/guest-submission-browser.cjs
+      - name: Verify dashboard, maps and language
+        working-directory: frontend
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
+          export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/dashboard"
+          node tests/dashboard-finance-browser.cjs
+          export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/location"
+          node tests/location-language-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
