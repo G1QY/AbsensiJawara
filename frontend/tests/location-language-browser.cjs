@@ -1,4 +1,4 @@
-// Verify UI state and persistence using explicit HTTP and Maps SDK fixtures.
+// Verify real Leaflet UI with controlled API/tile responses; no live location data.
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve('dist'),out=process.env.QA_OUTPUT_DIR||'/tmp/jawara-location-qa';fs.mkdirSync(out,{recursive:true});
@@ -9,28 +9,30 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://local
  const browser=await chromium.launch({headless:true,...(binary?{executablePath:process.env.CHROMIUM_EXECUTABLE||await binary.executablePath(),args:binary.args}:{})});
  try{
   const page=await browser.newPage({viewport:{width:1365,height:950}}),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(()=>{
-   window.mapCalls=[];window.searchMode='places';
-   const point=(lat,lng)=>({lat:()=>lat,lng:()=>lng});
-   class Map {constructor(el,options){window.mapInstance=this;this.position=options.center;this.listeners={};el.textContent='Peta uji';window.mapCalls.push('map');}addListener(name,fn){this.listeners[name]=fn;}panTo(p){this.position=p;}}
-   class Marker{constructor(options){this.position=options.position;this.listeners={};window.markerInstance=this;}setPosition(p){this.position=p;}setMap(){}addListener(name,fn){this.listeners[name]=fn;}}
-   class Geocoder{async geocode(request){window.mapCalls.push(request);if(window.searchMode==='delay'){await new Promise(resolve=>window.finishSearch=resolve);return {results:[{formatted_address:'Stale address',geometry:{location:point(-1,100)}}]};}if(window.searchMode==='denied')throw {code:'REQUEST_DENIED'};if(request.location)return {results:[{formatted_address:'Jl. Braga, Bandung',geometry:{location:point(-6.91,107.61)}}]};return {results:[]};}}
-   window.google={maps:{Map,Marker,Geocoder,event:{clearInstanceListeners(){}},importLibrary:async()=>({Place:{searchByText:async request=>{window.mapCalls.push(request);if(window.searchMode==='denied')throw {code:'PERMISSION_DENIED'};return {places:[{formattedAddress:'Kopi Toko Tua, Jl. Braga, Bandung',location:point(-6.917,107.609)},{formattedAddress:'Kopi Toko Tua, Jakarta',location:point(-6.244,106.8)}]};}}})}};
-  });
+  let mode='success', releaseSearch, reversePoint; const searches=[];
   const user={id:'admin',full_name:'Admin Uji',email:'admin@example.test'},store={id:'store-1',name:'Roll Film',code:'RF',company_name:'Kopi Toko Tua',branch_id:'b',location_kind:'STORE',status:'ACTIVE',address:'Blok M, Jakarta',latitude:-6.2448705,longitude:106.8009281,radius_meters:50};
-  await page.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin===origin)return route.continue();if(!url.pathname.startsWith('/api/'))return route.abort();let data=[];
+  await page.route('**/*',async route=>{const url=new URL(route.request().url());if(url.origin===origin)return route.continue();if(url.hostname==='tile.openstreetmap.org')return route.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1sAAAAASUVORK5CYII=','base64')});if(!url.pathname.startsWith('/api/'))return route.abort();let data=[];
    if(url.pathname==='/api/auth/login')data={token:'test',refreshToken:'test',user,role:'SUPER_ADMIN'};
    else if(url.pathname==='/api/users/me')data=user;
    else if(url.pathname==='/api/admin-directory')data={branches:[{id:'b',name:'Braga',city_name:'Bandung'}],stores:[store],events:[],archivedStores:[]};
    else if(url.pathname.startsWith('/api/admin-directory/stores/')&&route.request().method()==='PATCH'){writes.push(route.request().postDataJSON());data={};}
+   else if(url.pathname==='/api/locations/search'){
+    searches.push(route.request().postDataJSON());
+    if(mode==='delay')await new Promise(resolve=>releaseSearch=resolve);
+    if(mode==='denied')return route.fulfill({status:429,contentType:'application/json',body:JSON.stringify({message:'Pencarian alamat sedang ramai. Coba lagi beberapa saat.'})});
+    data={results:[{address:'Kopi Toko Tua, Jl. Braga, Bandung',latitude:-6.917,longitude:107.609},{address:'Kopi Toko Tua, Jakarta',latitude:-6.244,longitude:106.8}]};
+   }else if(url.pathname==='/api/locations/reverse'){
+    reversePoint=route.request().postDataJSON();
+    data={results:[{address:'Alamat titik Bandung',latitude:-1,longitude:100}]};
+   }
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });
   await page.goto(origin);await page.locator('#email').fill(user.email);await page.locator('#password').fill('test-password');await page.getByRole('button',{name:'Log in',exact:true}).click();
   await page.getByRole('button',{name:'Cabang, Store & Kantor',exact:true}).click();const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Edit',exact:true}).click();
-  const input=page.getByRole('textbox',{name:'Cari alamat atau nama tempat',exact:true});assert.equal(await input.count(),1);assert.equal((await page.evaluate(()=>window.mapCalls)).length,0);
+  const input=page.getByRole('textbox',{name:'Cari alamat atau nama tempat',exact:true});assert.equal(await input.count(),1);assert.equal(searches.length,0);await page.locator('.leaflet-container').waitFor();
   await input.fill('Kopi Toko Tua, Braga, Bandung');await dialog.getByRole('button',{name:'Simpan Store',exact:true}).click();assert.equal(writes.length,0);
   await page.getByRole('button',{name:'Cari',exact:true}).click();await page.getByRole('list',{name:'Hasil pencarian alamat'}).waitFor();await page.getByRole('button',{name:'Kopi Toko Tua, Jl. Braga, Bandung',exact:true}).click();
-  assert.equal(await input.inputValue(),'Kopi Toko Tua, Jl. Braga, Bandung');assert.deepEqual(await page.evaluate(()=>window.mapInstance.position),{lat:-6.917,lng:107.609});
+  assert.equal(await input.inputValue(),'Kopi Toko Tua, Jl. Braga, Bandung');assert.equal(await page.locator('.leaflet-marker-icon').count(),1);
   // Switch language while the unsaved store form is open. The values must survive.
   await page.getByRole('combobox',{name:'Bahasa aplikasi'}).selectOption('en');assert.equal(await page.locator('html').getAttribute('lang'),'en');
   const englishInput=page.getByRole('textbox',{name:'Search address or place name',exact:true});assert.equal(await englishInput.inputValue(),'Kopi Toko Tua, Jl. Braga, Bandung');await page.screenshot({path:out+'/store-location-english.png',animations:'disabled'});await dialog.getByRole('button',{name:'Save Store',exact:true}).click();
@@ -38,13 +40,19 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://local
   assert.equal(await page.getByRole('button',{name:/Confirm address for selected point/}).count(),0);
   await dialog.getByRole('button',{name:'Edit',exact:true}).click();await page.getByRole('combobox',{name:'App language'}).selectOption('id');
   // Reject an old response after the address changes during an in-flight request.
-  await input.fill('Permintaan lama');await page.evaluate(()=>window.searchMode='delay');await page.getByRole('button',{name:'Cari',exact:true}).click();await page.waitForFunction(()=>!!window.finishSearch);await input.fill('Alamat terbaru');await page.evaluate(()=>window.finishSearch());await page.getByRole('button',{name:'Simpan Store',exact:true}).click();assert.equal(writes.length,1);assert.equal(await input.inputValue(),'Alamat terbaru');
-  await page.evaluate(()=>window.searchMode='denied');await page.getByRole('button',{name:'Cari',exact:true}).click();await page.getByRole('alert').filter({hasText:'Pencarian ditolak Google'}).waitFor();
-  // Explicit pin selection clears an old address, and manual confirmation keeps the selected point.
-  await page.evaluate(()=>window.mapInstance.listeners.click({latLng:{lat:()=>-6.92,lng:()=>107.62}}));assert.equal(await input.inputValue(),'');await input.fill('Alamat manual Bandung');await page.getByRole('button',{name:/Konfirmasi alamat untuk titik pilihan/}).click();await dialog.getByRole('button',{name:'Simpan Store',exact:true}).click();await dialog.getByText('Data tersimpan.',{exact:true}).waitFor();assert.equal(writes[1].latitude,-6.92);assert.equal(writes[1].longitude,107.62);
-  await dialog.getByRole('button',{name:'Edit',exact:true}).click();await page.setViewportSize({width:375,height:812});await page.screenshot({path:out+'/store-location-mobile.png',animations:'disabled'});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await input.fill('Permintaan lama');mode='delay';await page.getByRole('button',{name:'Cari',exact:true}).click();while(!releaseSearch)await new Promise(r=>setTimeout(r,10));await input.fill('Alamat terbaru');releaseSearch();await page.getByRole('button',{name:'Simpan Store',exact:true}).click();assert.equal(writes.length,1);assert.equal(await input.inputValue(),'Alamat terbaru');
+  mode='denied';await page.getByRole('button',{name:'Cari',exact:true}).click();await page.getByRole('alert').filter({hasText:'Pencarian alamat sedang ramai'}).waitFor();
+  // Real map click looks up the address and keeps the chosen coordinates,
+  // even if the provider's nearby feature has different coordinates.
+  await page.locator('.leaflet-container').click({position:{x:180,y:130}});
+  await page.getByRole('textbox',{name:'Cari alamat atau nama tempat',exact:true}).filter({visible:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('input[aria-label="Cari alamat atau nama tempat"]')?.value==='Alamat titik Bandung');
+  await input.fill('Alamat manual Bandung');await page.getByRole('button',{name:/Konfirmasi alamat untuk titik pilihan/}).click();
+  await dialog.getByRole('button',{name:'Simpan Store',exact:true}).click();await dialog.getByText('Data tersimpan.',{exact:true}).waitFor();
+  assert.ok(Math.abs(writes[1].latitude-reversePoint.latitude)<0.0000001);assert.ok(Math.abs(writes[1].longitude-reversePoint.longitude)<0.0000001);
+  await dialog.getByRole('button',{name:'Edit',exact:true}).click();await page.setViewportSize({width:375,height:812});await page.locator('.leaflet-container').scrollIntoViewIfNeeded();await page.screenshot({path:out+'/store-location-mobile.png',animations:'disabled'});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await dialog.getByRole('button',{name:'Tutup dialog'}).click();await page.getByRole('combobox',{name:'Bahasa aplikasi'}).selectOption('en');await page.reload();assert.equal(await page.locator('html').getAttribute('lang'),'en');await page.getByRole('combobox',{name:'App language'}).waitFor();
   await page.getByRole('combobox',{name:'App language'}).selectOption('id');assert.equal(await page.evaluate(()=>localStorage.getItem('jawara_language')),'id');assert.deepEqual(errors,[]);
-  console.log('PASS maps and language: single input, no eager requests, Places selection, coherent save, stale/denied responses, manual pin, reset, preserved form and wire values, language persistence, mobile.');
+  console.log('PASS maps and language: single input, no keystroke requests, OSM selection, coherent save, stale/denied responses, manual pin, reset, preserved form and wire values, language persistence, mobile.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});

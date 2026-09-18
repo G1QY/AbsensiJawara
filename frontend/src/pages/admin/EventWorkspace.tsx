@@ -24,7 +24,7 @@ import { DataTable, EventBadge, Stat } from "./adminWidgets";
 import { downloadWorkbook } from "../../lib/xlsxExport";
 import { stamp, reviewLabel } from "./attendanceData";
 import { getPayrollRules } from "./payrollData";
-import GoogleLocationPicker from "../../components/maps/GoogleLocationPicker";
+import OpenStreetMapLocationPicker from "../../components/maps/OpenStreetMapLocationPicker";
 export interface ManagedEvent extends Event {
   start_time: string | null;
   end_time: string | null;
@@ -996,7 +996,7 @@ export default function EventWorkspace({
               </label>
             ))}
             <div className="sm:col-span-2">
-              <GoogleLocationPicker
+              <OpenStreetMapLocationPicker
                 address={form.address}
                 latitude={form.latitude}
                 longitude={form.longitude}

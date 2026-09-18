@@ -4,7 +4,7 @@ import ExportButtons from '../../components/ui/ExportButtons';
 import { useState, type FormEvent } from "react"
 import { api } from "../../lib/apiClient"
 import { type Directory, control, button, primary, message } from "./adminData"
-import GoogleLocationPicker from "../../components/maps/GoogleLocationPicker"
+import OpenStreetMapLocationPicker from "../../components/maps/OpenStreetMapLocationPicker"
 type Kind = "branches" | "stores" | "events"
 const blank = {
   city_name: "",
@@ -242,7 +242,7 @@ export default function DirectoryManager({
           {kind === "stores" && (
             <>
               <div className="sm:col-span-2">
-                <GoogleLocationPicker
+                <OpenStreetMapLocationPicker
                   key={`${kind}:${officeTab}:${id}:${pickerVersion}`}
                   title={officeTab ? translateUI("Lokasi Kantor") : translateUI("Lokasi Store")}
                   address={form.address}

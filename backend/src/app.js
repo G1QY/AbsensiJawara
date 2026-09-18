@@ -23,6 +23,7 @@ const api = express.Router();
 
 // Auth — publik untuk /login, butuh token untuk /logout & /me
 api.use('/auth', require('./modules/auth/auth.routes'));
+api.use('/guest-location', require('./modules/locations/locations.routes').guest);
 api.use('/guest-attendance', require('./modules/attendance/guestAttendance.routes').router);
 
 // Semua route di bawah ini WAJIB login (authenticate) + attachRole
@@ -34,6 +35,7 @@ api.use('/guest-attendance', require('./modules/attendance/guestAttendance.route
 api.use(authenticate, attachRole, userLimits, uploadLimits);
 api.use((req,res,next)=>{res.on('finish',()=>{if(!['GET','HEAD','OPTIONS'].includes(req.method))console.log(JSON.stringify({event:'authenticated_mutation',requestId:req.requestId,userId:req.user.id,role:req.role,method:req.method,route:req.route?.path,status:res.statusCode}));});next();});
 
+api.use('/locations', require('./modules/locations/locations.routes').admin);
 api.use('/users', require('./modules/users/users.routes'));
 api.use('/crew', require('./modules/crew/crew.routes'));
 api.use('/admin-directory', require('./modules/crew/directory.routes'));
