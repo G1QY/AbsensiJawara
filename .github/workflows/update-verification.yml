@@ -28,7 +28,7 @@ jobs:
         working-directory: frontend
         run: |
           npx tsc --noEmit
-          VITE_GOOGLE_MAPS_API_KEY=qa-map-fixture npm run build
+          npm run build
       - name: Install browser
         run: node "$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Verify crew and admin screens

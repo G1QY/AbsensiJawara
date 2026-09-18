@@ -1,5 +1,6 @@
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { readDeviceLocation } from '../../lib/deviceLocation';
+import { reverseAddress, type AddressResult } from '../../lib/geocoding';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
@@ -104,6 +105,31 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const [locLoading, setLocLoading] = useState(false);
   const [locSource, setLocSource] = useState<'gps' | 'none'>('none');
   const [locError, setLocError] = useState('');
+  const [gpsAddress, setGpsAddress] = useState('');
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
+  const addressRequest = useRef(0);
+  const [capturing, setCapturing] = useState(false);
+  const captureRequest = useRef(0);
+  const captureBusy = useRef(false);
+  const photoCodeRef = useRef('');
+  const photoPosition = useRef<{latitude:number;longitude:number;accuracy:number}|null>(null);
+  const resolveGpsAddress = useCallback(async (latitude: number, longitude: number) => {
+    const id = ++addressRequest.current;
+    setGpsAddress(''); setAddressError(''); setAddressLoading(true);
+    let result: AddressResult | null = null;
+    try {
+      result = await reverseAddress(latitude, longitude, true);
+      if (id === addressRequest.current) {
+        setGpsAddress(result?.address || '');
+        if (!result) setAddressError('Nama jalan belum ditemukan. Koordinat GPS tetap tercatat.');
+      }
+    } catch {
+      if (id === addressRequest.current) setAddressError('Nama jalan belum tersedia. Coba cari alamat lagi. Koordinat GPS tetap tercatat.');
+    } finally { if (id === addressRequest.current) setAddressLoading(false); }
+    return result;
+  }, []);
+  useEffect(() => () => { ++addressRequest.current; ++captureRequest.current; captureBusy.current = false; mediaStreamRef.current?.getTracks().forEach(track => track.stop()); }, []);
 
   // Camera & Photo State
   const [foto, setFoto] = useState<string>('');
@@ -139,7 +165,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     return () => { active = false; };
   }, []);
   useEffect(() => { setSelectedLocation(''); }, [jenis]);
-  useEffect(()=>{setFoto('');setPhotoAddress('');},[jenis,selectedLocation]);
+  useEffect(()=>{setFoto('');setPhotoAddress('');photoPosition.current=null;captureRequest.current++;captureBusy.current=false;setCapturing(false);},[jenis,selectedLocation,tipeAbsen]);
 
   // Realtime clock
   useEffect(() => {
@@ -169,6 +195,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     const requestId = ++locationRequest.current;
     setLat(null); setLng(null); setAccuracy(null);
     setLocSource('none'); setLocError(''); setLocLoading(true);
+    ++addressRequest.current; setGpsAddress(''); setAddressError(''); setAddressLoading(false);
     if (!window.isSecureContext || !navigator.geolocation) {
       setLocLoading(false);
       setLocError(translateUI('Lokasi perangkat tidak tersedia. Buka melalui HTTPS dan izinkan akses lokasi.'));
@@ -187,6 +214,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
         setLat(latitude); setLng(longitude); setAccuracy(Math.ceil(measuredAccuracy));
         // Existing API enum; the browser does not reveal its positioning sensor.
         setLocSource('gps'); setLocLoading(false);
+        void resolveGpsAddress(latitude, longitude);
         if (measuredAccuracy > 100) {
           setLocError(translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi, pindah ke area terbuka, lalu tekan Perbarui GPS.'));
         }
@@ -202,7 +230,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
-  }, []);
+  }, [resolveGpsAddress]);
 
   useEffect(() => {
     detectLocation();
@@ -259,6 +287,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   };
 
   const stopCamera = () => {
+    captureRequest.current++; captureBusy.current = false; setCapturing(false);
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
@@ -267,8 +296,24 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   };
 
   // Capture Photo with Clean "Timemark" Style Watermark
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+  const capturePhoto = async () => {
+    if (captureBusy.current || !videoRef.current || !canvasRef.current) return;
+    captureBusy.current = true; setCapturing(true); setCameraError('');
+    const captureId = ++captureRequest.current;
+    ++locationRequest.current; setLocLoading(false);
+    let point, result: AddressResult | null;
+    try {
+      point = await readDeviceLocation();
+      if (captureId !== captureRequest.current) return;
+      setLat(point.latitude); setLng(point.longitude); setAccuracy(point.accuracy); setLocSource('gps');
+      setLocError(point.accuracy > 100 ? translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi.') : '');
+      result = await resolveGpsAddress(point.latitude, point.longitude);
+    } catch (error) {
+      if (captureId === captureRequest.current) { setCameraError(error instanceof Error ? error.message : 'GPS belum tersedia'); captureBusy.current = false; setCapturing(false); }
+      return;
+    }
+    if (captureId !== captureRequest.current || !videoRef.current || !canvasRef.current) return;
+    captureBusy.current = false; setCapturing(false);
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
@@ -291,12 +336,15 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
 
     // Generate Verification Code
     const photoCode = generatePhotoCode();
-    const { timeShort, dateFull } = currentTimeFormatted;
+    const takenAt = new Date();
+    const timeShort = takenAt.toLocaleTimeString(getLocale(), {timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit'}).replace('.',':');
+    const dateFull = takenAt.toLocaleDateString(getLocale(), {timeZone:'Asia/Jakarta',weekday:'long',day:'numeric',month:'long',year:'numeric'});
     const locationName = getLocationText();
-    const assignedAddress = jenis === 'Kantor' ? locations.offices.find(item=>item.id===selectedLocation)?.address : jenis === 'Crew Store' ? locations.stores.find(item=>item.id===selectedLocation)?.address : locations.events.find(item=>item.id===selectedLocation)?.event_locations?.[0]?.address;
-    const gpsText = lat !== null && lng !== null ? `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} (±${accuracy ?? '?'} m)` : 'GPS belum tersedia';
-    const resolvedAddress = `Penugasan: ${locationName || 'Tanpa pilihan lokasi'}\nAlamat penugasan: ${assignedAddress || 'Belum diisi admin'}\n${gpsText}`;
-    setPhotoAddress(assignedAddress || '');
+    const gpsText = `GPS saat foto: ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} (±${point.accuracy} m)`;
+    const resolvedAddress = `Lokasi GPS: ${result?.address || 'Nama jalan belum tersedia'}\n${gpsText}\nPenugasan: ${locationName || 'Tanpa pilihan lokasi'}${result ? '\n© OpenStreetMap contributors' : ''}`;
+    setPhotoAddress(result?.address || '');
+    photoPosition.current = point;
+    photoCodeRef.current = photoCode;
 
     // -------------------------------------------------------------
     // Branding is not a guarantee of identity or GPS accuracy.
@@ -402,7 +450,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     }
 
     const { timeShort, dateFull } = currentTimeFormatted;
-    const photoCode = generatePhotoCode();
+    const photoCode = photoCodeRef.current;
 
     const newRecord: GuestAttendanceRecord = {
       companyName: companyName.trim(), jobTitle: jobTitle.trim(),
@@ -419,7 +467,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       latitude: lat,
       longitude: lng,
       accuracy,
-      address: photoAddress ? `Alamat penugasan: ${photoAddress}` : '',
+      address: photoAddress ? `Lokasi GPS saat foto: ${photoAddress}` : 'Nama jalan belum tersedia',
       photoCode,
       foto,
       catatan: catatan.trim(),
@@ -435,7 +483,19 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       try { fresh = await readDeviceLocation(); } finally { setLocLoading(false); }
       setLat(fresh.latitude); setLng(fresh.longitude); setAccuracy(fresh.accuracy);
       setLocError(fresh.accuracy > 100 ? translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi.') : '');
-      newRecord.latitude = fresh.latitude; newRecord.longitude = fresh.longitude; newRecord.accuracy = fresh.accuracy;
+      const captured = photoPosition.current;
+      if (!captured) throw new Error('Ambil ulang foto agar lokasi GPS tercatat.');
+      const radians = Math.PI / 180;
+      const dLat = (fresh.latitude - captured.latitude) * radians;
+      const dLng = (fresh.longitude - captured.longitude) * radians;
+      const hav = Math.sin(dLat / 2) ** 2 + Math.cos(captured.latitude * radians) * Math.cos(fresh.latitude * radians) * Math.sin(dLng / 2) ** 2;
+      const distance = 6371000 * 2 * Math.atan2(Math.sqrt(hav), Math.sqrt(Math.max(0, 1 - hav)));
+      if (distance > Math.max(100, fresh.accuracy + captured.accuracy)) {
+        setFoto(''); setPhotoAddress(''); photoPosition.current = null;
+        void resolveGpsAddress(fresh.latitude, fresh.longitude);
+        throw new Error('Lokasi berubah sejak foto diambil. Ambil ulang foto di lokasi saat ini.');
+      }
+      newRecord.latitude = captured.latitude; newRecord.longitude = captured.longitude; newRecord.accuracy = captured.accuracy;
       const fingerprint = JSON.stringify([nama, hp, jenis, selectedLocation, posisi, tipeAbsen, catatan, foto]);
       if (fingerprint !== submissionFingerprint.current) { submissionKey.current = crypto.randomUUID(); submissionFingerprint.current = fingerprint; }
       const form = new FormData();
@@ -660,7 +720,7 @@ _Foto selfie telah tersimpan di sistem._`;
                       <button
                         type="button"
                         onClick={detectLocation}
-                        disabled={locLoading}
+                        disabled={locLoading || capturing || submitting}
                         className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 bg-white hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors disabled:opacity-50"
                       >
                         <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -689,7 +749,16 @@ _Foto selfie telah tersimpan di sistem._`;
                     )}
 
                     {lat !== null && lng !== null && locSource === 'gps' && (
-                      <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
+                      <div className="space-y-3">
+                        <div className="text-xs text-slate-700 space-y-2" aria-live="polite">
+                          <p className="font-semibold">{translateUI('Alamat dari GPS perangkat')}</p>
+                          <p className="break-words">{addressLoading ? translateUI('Mencari nama jalan...') : gpsAddress || translateUI('Nama jalan belum tersedia')}</p>
+                          {addressError && <p className="text-amber-700">{translateUI(addressError)}</p>}
+                          {!addressLoading && !gpsAddress && <button type="button" disabled={capturing || submitting} onClick={() => void resolveGpsAddress(lat, lng)} className="rounded-lg border px-3 py-2">{translateUI('Cari alamat GPS lagi')}</button>}
+                          {gpsAddress && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="inline-block underline">© OpenStreetMap contributors</a>}
+                        </div>
+                        <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
+                      </div>
                     )}
                   </div>
 
@@ -752,18 +821,21 @@ _Foto selfie telah tersimpan di sistem._`;
 
                             <div className="border-l-2 border-amber-400 pl-2 text-white text-[11px] leading-tight">
                               <p className="font-bold">{currentTimeFormatted.dateFull}</p>
+                              <p className="text-slate-200 line-clamp-3 mt-0.5">{gpsAddress || translateUI('Nama jalan belum tersedia')}</p>
                               <p className="text-slate-200 line-clamp-2 mt-0.5">{`Penugasan: ${getLocationText() || 'Tidak dipilih'}`}</p>
                             </div>
                           </div>
                         </div>
 
+                        {cameraError && <p role="alert" className="text-sm text-red-300">{translateUI(cameraError)}</p>}
                         {/* Capture Trigger Button */}
                         <div className="max-w-lg mx-auto">
                           <button
                             type="button"
-                            onClick={capturePhoto}
+                            onClick={() => void capturePhoto()}
+                            disabled={capturing}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all"
-                          >{" " + translateUI("Ambil Gambar Sekarang") + " "}</button>
+                          >{" " + (capturing ? translateUI("Menyiapkan foto dan alamat...") : translateUI("Ambil Gambar Sekarang")) + " "}</button>
                         </div>
                       </div>
                     ) : (
@@ -840,7 +912,7 @@ _Foto selfie telah tersimpan di sistem._`;
                   <div className="pt-2">
                     <button
                       type="submit"
-                      disabled={submitting || !!optionsError}
+                      disabled={submitting || capturing || isCameraActive || !!optionsError}
                       className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
                     >
                       {submitting ? 'Mengirim ke server...' : translateUI("Kirim Absensi Lapangan")}

@@ -7,7 +7,7 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
   const binary=process.env.CHROMIUM_MODULE?(await import(process.env.CHROMIUM_MODULE)).default:null;await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
   const browser=await chromium.launch({headless:true,...(binary?{executablePath:process.env.CHROMIUM_EXECUTABLE||await binary.executablePath(),args:binary.args}:{})});
   try{
-    const page=await browser.newPage({viewport:{width:1365,height:950},permissions:['geolocation'],geolocation:{latitude:-6.9,longitude:107.6,accuracy:20}});const errors=[],submissions=[];
+    const page=await browser.newPage({viewport:{width:1365,height:950},permissions:['geolocation'],geolocation:{latitude:-6.9,longitude:107.6,accuracy:20}});const errors=[],submissions=[];let addressMode='ok',expectedCoordinates={latitude:-6.9,longitude:107.6};
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(()=>{
       window.watermarkText=[];const originalText=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,x,y){window.watermarkText.push({text,x,y,width:this.canvas.width,height:this.canvas.height,font:this.font});return originalText.call(this,text,x,y);};
@@ -17,11 +17,16 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     await page.route('**/*',async r=>{
       const url=new URL(r.request().url());if(url.origin===origin||url.protocol==='data:')return r.continue();
       let status=200,data={};
-      if(url.pathname==='/api/guest-attendance/options')data={stores:[],events:[{id:locationId,event_name:'Event Uji Server',event_date:'2026-08-31',event_locations:[{address:'Jl. Braga, Babakan Ciamis, Sumur Bandung, Kota Bandung, Jawa Barat 40111, Indonesia'}]}]};
+      if(url.pathname==='/api/guest-attendance/options')data={stores:[],events:[{id:locationId,event_name:'Event Uji Server',event_date:'2026-08-31',event_locations:[{address:'Alamat penugasan Jakarta harus tidak tercetak sebagai GPS'}]}]};
       else if(url.pathname==='/api/guest-attendance'&&r.request().method()==='POST'){
         const body=r.request().postData();submissions.push(body);assert.match(body,/Event Uji Server|44444444-4444-4444-8444-444444444444/);assert.match(body,/Catatan uji server/);assert.match(body,/name="photo"/);assert.match(body,/name="locationSource"\r\n\r\ngps/);
         if(submissions.length===1){status=503;data={message:'Uji server belum tersedia'};}else {status=201;data={id:'55555555-5555-4555-8555-555555555555',occurred_at:'2026-08-31T06:04:00Z'};}
-      }else if(url.hostname==='nominatim.openstreetmap.org')throw new Error('Absensi tidak boleh melakukan geocoding');
+      }else if(url.pathname==='/api/guest-location/reverse'){
+        assert.deepEqual(r.request().postDataJSON(),expectedCoordinates);
+        if(addressMode==='failed')return r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Layanan alamat belum tersedia.'})});
+        data={results:[{address:'Jalan Braga, Babakan Ciamis, Sumur Bandung, Kota Bandung, Jawa Barat 40111, Indonesia',street:'Jalan Braga',source:'OpenStreetMap'}]};
+      }else if(url.hostname==='nominatim.openstreetmap.org')throw new Error('Browser tidak boleh memanggil Nominatim langsung');
+      else if(url.hostname==='tile.openstreetmap.org')return r.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1sAAAAASUVORK5CYII=','base64')});
       else return r.abort();
       await r.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
     });
@@ -29,7 +34,7 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     await page.getByLabel('Lokasi Event / Toko',{exact:true}).selectOption(locationId);
     await page.getByText('-6.900000, 107.600000',{exact:true}).first().waitFor();
     await page.getByRole('button',{name:'Buka Kamera Selfie'}).click();await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);await page.getByRole('button',{name:'Ambil Gambar Sekarang'}).click();await page.getByAltText('Bukti Kehadiran',{exact:true}).waitFor();
-    const watermark=await page.evaluate(()=>window.watermarkText);assert.match(watermark.map(row=>row.text).join(''),/Alamat penugasan: Jl. Braga/);assert.match(watermark.map(row=>row.text).join(''),/GPS: -6.900000, 107.600000/);assert.ok(watermark.every(row=>row.y>=0&&row.y+parseFloat(row.font.match(/(\d+)px/)[1])<=row.height));
+    const watermark=await page.evaluate(()=>window.watermarkText);assert.match(watermark.map(row=>row.text).join(''),/Lokasi GPS: Jalan Braga/);assert.match(watermark.map(row=>row.text).join(''),/GPS saat foto: -6.900000, 107.600000/);assert.doesNotMatch(watermark.map(row=>row.text).join(''),/Alamat penugasan Jakarta/);assert.match(watermark.map(row=>row.text).join(''),/OpenStreetMap contributors/);assert.ok(watermark.every(row=>row.y>=0&&row.y+parseFloat(row.font.match(/(\d+)px/)[1])<=row.height));
     const photo=(await page.getByAltText('Bukti Kehadiran',{exact:true}).getAttribute('src')).split(',')[1];fs.mkdirSync(process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa',{recursive:true});fs.writeFileSync((process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa')+'/guest-watermark.jpg',Buffer.from(photo,'base64'));
     await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').fill('Catatan uji server');await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByText('Uji server belum tersedia',{exact:true}).waitFor();assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'Catatan uji server');assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),1);
     await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();await page.getByRole('heading',{name:'Absensi berhasil dikirim'}).waitFor();assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),0);assert.equal(await page.getByPlaceholder('Ketik keterangan jika ada kendala di lapangan...').inputValue(),'');
@@ -43,6 +48,21 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     await page.keyboard.press('Tab');assert.equal(await dialog.getByRole('link').evaluate(el=>document.activeElement===el),true);
     await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await page.evaluate(()=>document.getElementById('root').inert),false);
     const key=b=>b.match(/name="submissionKey"\r\n\r\n([^\r]+)/)[1];assert.equal(key(submissions[0]),key(submissions[1]));assert.equal(await page.evaluate(()=>localStorage.getItem('fotosnaps_guest_attendances')),null);assert.deepEqual(errors,[]);
-    console.log('PASS guest browser: real options IDs, GPS/camera, failure retains photo/note, retry idempotency key, success only after server acceptance, no new local-only records.');
+    // Provider failure at a new GPS point must not reuse the previous street.
+    addressMode='failed';expectedCoordinates={latitude:-6.95,longitude:107.65};
+    await page.context().setGeolocation({...expectedCoordinates,accuracy:20});
+    await page.getByRole('button',{name:'Perbarui GPS',exact:true}).click();
+    await page.getByText('Nama jalan belum tersedia. Coba cari alamat lagi. Koordinat GPS tetap tercatat.',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Buka Kamera Selfie'}).click();await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);
+    await page.evaluate(()=>window.watermarkText=[]);
+    await page.getByRole('button',{name:'Ambil Gambar Sekarang'}).click();await page.getByAltText('Bukti Kehadiran',{exact:true}).waitFor();
+    const fallbackText=await page.evaluate(()=>window.watermarkText.map(row=>row.text).join(''));
+    assert.match(fallbackText,/Lokasi GPS: Nama jalan belum tersedia/);assert.match(fallbackText,/-6.950000, 107.650000/);assert.doesNotMatch(fallbackText,/Braga/);
+    await page.screenshot({path:out+'/guest-map-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    expectedCoordinates={latitude:-6.98,longitude:107.68};await page.context().setGeolocation({...expectedCoordinates,accuracy:20});
+    await page.getByRole('button',{name:'Kirim Absensi Lapangan',exact:true}).click();
+    await page.getByText('Lokasi berubah sejak foto diambil. Ambil ulang foto di lokasi saat ini.',{exact:true}).waitFor();
+    assert.equal(submissions.length,2);assert.equal(await page.getByAltText('Bukti Kehadiran',{exact:true}).count(),0);assert.deepEqual(errors,[]);
+    console.log('PASS guest browser: GPS street watermark, unavailable address fallback, changed GPS invalidates photo, mobile layout; real options IDs, GPS/camera, failure retains photo/note, retry idempotency key, success only after server acceptance, no new local-only records.');
   }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});

@@ -72,11 +72,6 @@ services:
       # Exact backend HTTPS origin, without /api or trailing slash.
       - key: VITE_API_BASE_URL
         sync: false
-      - key: VITE_GOOGLE_MAPS_API_KEY
-        sync: false
-      # Optional. Fill with a domain-restricted MapTiler key to enable guest map previews.
-      - key: VITE_MAPTILER_API_KEY
-        value: ""
       - key: VITE_ADMIN_WHATSAPP
         sync: false
     routes:
