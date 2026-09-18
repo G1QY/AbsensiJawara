@@ -4,7 +4,7 @@ const supabase = require('../../config/supabaseClient');
 async function attendance(req, res, next) {
   try {
     const { from, to } = req.query;
-    let query = supabase.from('attendance_logs').select('*, crew:crew(company_name,job_title,employee_code, user:users(full_name))');
+    let query = supabase.from('attendance_logs').select('id,attendance_date,status,check_in,check_out,late_minutes,overtime_minutes,overtime_status,crew:crew(company_name,job_title,employee_code,user:users(full_name)),store_schedule:store_schedules(schedule_date,start_time,end_time,late_tolerance_minutes),event_schedule:event_schedules(schedule_date,start_time,end_time)');
     if (from) query = query.gte('attendance_date', from);
     if (to) query = query.lte('attendance_date', to);
 

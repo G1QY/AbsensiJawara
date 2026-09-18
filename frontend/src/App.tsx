@@ -1,6 +1,8 @@
 import {t as translateUI, useLanguage} from './lib/i18n';
 import LanguageSelect from './components/ui/LanguageSelect';
 import { useCallback, useEffect, useState } from 'react';
+import AccountsWorkspace from './pages/admin/AccountsWorkspace';
+import HeadStoreWorkspace from './pages/headStore/HeadStoreWorkspace';
 import LoginPage from './pages/LoginPage';
 import { useAuth } from './lib/AuthContext';
 import Sidebar from './components/layout/Sidebar';
@@ -26,10 +28,14 @@ import CrewEventPayroll from './pages/crewEvent/CrewEventPayroll';
 import CrewStoreDashboard from './pages/crewStore/CrewStoreDashboard';
 import CrewStorePayroll from './pages/crewStore/CrewStorePayroll';
 
-type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
+type Role = 'admin' | 'head_store' | 'crew_event' | 'crew_store' | 'guest_crew';
 type Toast = { id: string; message: string; type: 'success' | 'error' | 'warning' | 'info' };
 
 const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
+  'admin-accounts': { breadcrumbs: ['JAWARA', 'Super Admin'], title: 'Akun & Hak Akses' },
+  'hs-dashboard': { breadcrumbs: ['JAWARA', 'Head Store'], title: 'Monitoring Kota' },
+  'hs-crew': { breadcrumbs: ['JAWARA', 'Head Store'], title: 'Crew per Cabang' },
+  'hs-attendance': { breadcrumbs: ['JAWARA', 'Head Store'], title: 'Absensi Kota' },
   'admin-dashboard': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Dashboard' },
   'admin-event': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Kelola Event' },
   'admin-payroll': { breadcrumbs: ['JAWARA', 'Admin'], title: 'Payroll' },
@@ -56,6 +62,7 @@ const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
 
 function defaultPage(role: Role): string {
   if (role === 'guest_crew') return 'guest-portal';
+  if (role === 'head_store') return 'hs-dashboard';
   if (role === 'admin') return 'admin-crew';
   if (role === 'crew_event') return 'ce-dashboard';
   return 'cs-dashboard';
@@ -93,7 +100,7 @@ export default function App() {
 
   const role = frontendRole as Role;
   // Do not briefly mount an admin screen while the role-change effect runs.
-  const prefix = role === 'guest_crew' ? 'guest-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
+  const prefix = role === 'guest_crew' ? 'guest-' : role === 'head_store' ? 'hs-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
   const activePage = ['account-profile', 'account-settings'].includes(currentPage) || currentPage.startsWith(prefix) ? currentPage : defaultPage(role);
   const meta = activePage.startsWith('account-') ? { breadcrumbs: ['JAWARA', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
   const navigate = (page: string) => {
@@ -105,7 +112,9 @@ export default function App() {
     if (activePage === 'account-profile') return <ProfilePage />;
     if (activePage === 'account-settings') return <SettingsPage onLogout={logout} onProfile={() => navigate('account-profile')} />;
     if (role === 'guest_crew') return <GuestCrewPortal page={activePage} onNavigate={navigate} />;
+    if (role === 'head_store') return <HeadStoreWorkspace page={activePage} />;
     switch (activePage) {
+      case 'admin-accounts': return <AccountsWorkspace />;
       case 'admin-dashboard': return <DashboardWorkspace />;
       case 'admin-event': return <EventWorkspace onAttendance={() => navigate('admin-absensi')} onPayroll={() => navigate('admin-payroll')} />;
       case 'admin-payroll': return <PayrollWorkspace />;

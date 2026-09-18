@@ -5,9 +5,9 @@ import Avatar from '../ui/Avatar';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { usePreferences } from '../../lib/PreferencesContext';
-type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
+type Role = 'admin' | 'head_store' | 'crew_event' | 'crew_store' | 'guest_crew';
 interface TopNavProps { breadcrumbs: string[]; title: string; role: Role; onLogout: () => void; onOpenMobileNav: () => void; onProfile: () => void; onSettings: () => void; userName: string; userEmail: string; avatarUrl?: string; }
-const labels: Record<Role, string> = { admin: 'Administrator', crew_event: 'Crew Event', crew_store: 'Crew Store', guest_crew: 'Guest Crew' };
+const labels: Record<Role, string> = { admin: 'Administrator', head_store: 'Head Store', crew_event: 'Crew Event', crew_store: 'Crew Store', guest_crew: 'Guest Crew' };
 export default function TopNav({ breadcrumbs, title, role, onLogout, onOpenMobileNav, onProfile, onSettings, userName, userEmail, avatarUrl }: TopNavProps) {
   const [panel, setPanel] = useState<'profile' | 'notifications' | null>(null);
   const [now, setNow] = useState(() => new Date());

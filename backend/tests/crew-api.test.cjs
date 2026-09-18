@@ -158,7 +158,7 @@ test("HTTP crew routes enforce admin role, transaction, password handling and ro
       (await call("/crew/" + crewId, "PATCH", { status: "INACTIVE" })).status,
       200,
     )
-    assert.equal((await call("/crew/" + crewId, "DELETE")).status, 200)
+    assert.equal((await call("/crew/" + crewId, "DELETE")).status, 422)
     assert.equal(
       (
         await call("/crew/" + crewId + "/reset-password", "PATCH", {

@@ -1,8 +1,9 @@
 import {t as translateUI} from '../../lib/i18n';
+import { useAuth } from '../../lib/AuthContext';
 import { useState } from 'react';
 import fotoSnapsLogo from '../../assets/landscape.jpg';
 
-type Role = 'admin' | 'crew_event' | 'crew_store' | 'guest_crew';
+type Role = 'admin' | 'head_store' | 'crew_event' | 'crew_store' | 'guest_crew';
 type Page = string;
 
 interface NavItem {
@@ -47,6 +48,7 @@ const ic = {
 
 const adminNav: NavItem[] = [
   { id: 'admin-dashboard', label: 'Dashboard', icon: ic.dashboard },
+  { id: 'admin-accounts', label: 'Akun & Hak Akses', icon: ic.cog },
   { id: 'admin-crew', label: 'Kelola Crew', icon: ic.crew },
   { id: 'admin-event', label: 'Kelola Event', icon: ic.event },
   { id: 'admin-absensi', label: 'Absensi', icon: ic.absensi },
@@ -80,6 +82,7 @@ const guestCrewNav: NavItem[] = [
 
 const navMap: Record<Role, NavItem[]> = {
   admin: adminNav,
+  head_store: [{ id: 'hs-dashboard', label: 'Monitoring Kota', icon: ic.dashboard }, { id: 'hs-crew', label: 'Crew per Cabang', icon: ic.crew }, { id: 'hs-attendance', label: 'Absensi Kota', icon: ic.absensi }],
   crew_event: crewEventNav,
   crew_store: crewStoreNav,
   guest_crew: guestCrewNav,
@@ -87,6 +90,7 @@ const navMap: Record<Role, NavItem[]> = {
 
 const roleLabel: Record<Role, string> = {
   admin: 'Administrator',
+  head_store: 'Head Store',
   crew_event: 'Crew Event',
   crew_store: 'Crew Store',
   guest_crew: 'Guest Crew',
@@ -94,6 +98,7 @@ const roleLabel: Record<Role, string> = {
 
 const roleBadge: Record<Role, string> = {
   admin: 'bg-purple-100 text-purple-800',
+  head_store: 'bg-blue-100 text-blue-800',
   crew_event: 'bg-blue-100 text-blue-800',
   crew_store: 'bg-emerald-100 text-emerald-800',
   guest_crew: 'bg-amber-100 text-amber-800',
@@ -181,7 +186,8 @@ function NavItemRow({
 }
 
 export default function Sidebar({ role, currentPage, onNavigate, collapsed, onToggle, mobileOpen = false, onCloseMobile, userName = 'Pengguna', avatarUrl }: SidebarProps) {
-  const nav = navMap[role];
+  const { auth } = useAuth();
+  const nav = navMap[role].filter(item => item.id !== 'admin-accounts' || auth?.role === 'SUPER_ADMIN');
 
   const handleNavigate = (page: string) => {
     onNavigate(page);

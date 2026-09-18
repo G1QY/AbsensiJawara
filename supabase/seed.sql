@@ -17,7 +17,7 @@
 
 insert into roles (code, name, description) values
   ('SUPER_ADMIN',   'Super Admin',    'Akses penuh — kelola crew, store, event, konfigurasi, audit'),
-  ('ADMIN_STORE',   'Admin Store',    'Kelola store, crew, shift, absensi, approval'),
+  ('HEAD_STORE',    'Head Store',     'Monitoring cabang, store, crew dan absensi dalam satu kota'),
   ('CREW_STORE',    'Crew Store',     'Absensi, checklist, stock opname, waste'),
   ('EVENT_MANAGER', 'Event Manager',  'Kelola event, equipment, assignment, checklist, approval, PDF report'),
   ('CREW_EVENT',    'Crew Event',     'Absensi event, PRE/POST checklist, evidence foto')

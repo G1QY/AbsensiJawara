@@ -3,7 +3,8 @@
 module.exports = {
   ROLES: {
     SUPER_ADMIN: 'SUPER_ADMIN',
-    ADMIN_STORE: 'ADMIN_STORE',
+    HEAD_STORE: 'HEAD_STORE',
+    ADMIN_STORE: 'ADMIN_STORE', // Legacy accounts are also subject to the city boundary.
     CREW_STORE: 'CREW_STORE',
     EVENT_MANAGER: 'EVENT_MANAGER',
     CREW_EVENT: 'CREW_EVENT',

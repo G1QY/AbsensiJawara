@@ -20,7 +20,7 @@ jobs:
       - name: Backend and migration tests
         run: |
           export PGLITE_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/@electric-sql/pglite"
-          node --test --test-concurrency=1 backend/tests/*.test.cjs backend/tests/security/*.test.cjs
+          node --test --test-concurrency=1 backend/tests/*.test.cjs backend/tests/*.test.js backend/tests/security/*.test.cjs
       - name: Frontend regression tests
         working-directory: frontend
         run: node --experimental-vm-modules --test tests/*.test.mjs tests/crew-csv.test.cjs tests/employment-alignment.test.cjs tests/report-exports.test.cjs tests/location-budget.test.cjs
@@ -37,6 +37,12 @@ jobs:
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/event"
           node tests/update-browser.cjs
+      - name: Verify Head Store, account roles and attendance reports
+        working-directory: frontend
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
+          export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/accounts"
+          node tests/head-store-accounts-browser.cjs
       - name: Verify attendance success dialog
         working-directory: frontend
         run: |

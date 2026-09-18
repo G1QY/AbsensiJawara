@@ -20,7 +20,7 @@ export default function DeviceLocationMap({ latitude, longitude, accuracy }: {
     if (!opened || !container.current) return;
     const point: L.LatLngExpression = [initial.current.latitude, initial.current.longitude];
     const map = L.map(container.current, {
-      dragging: false, touchZoom: false, doubleClickZoom: false,
+      dragging: false, touchZoom: false, tapHold: false, doubleClickZoom: false,
       scrollWheelZoom: false, boxZoom: false, keyboard: false, zoomControl: false,
     }).setView(point, 17);
     mapRef.current = map;

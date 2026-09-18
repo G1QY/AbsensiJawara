@@ -33,6 +33,15 @@ const server=http.createServer((req,res)=>{const file=path.join(root,new URL(req
     await page.goto(origin);await page.getByRole('button',{name:'Masuk sebagai Guest Crew',exact:true}).click();await page.locator('#guest-name').fill('Guest Uji');await page.locator('#guest-phone').fill('081234567890');await page.getByRole('button',{name:'Lanjut ke Mode Guest',exact:true}).click();
     await page.getByLabel('Lokasi Event / Toko',{exact:true}).selectOption(locationId);
     await page.getByText('-6.900000, 107.600000',{exact:true}).first().waitFor();
+    // Guest map must resist mouse drag, wheel, double-click, keyboard and touch.
+    const map=page.locator('.leaflet-container').first();await map.scrollIntoViewIfNeeded();
+    const state=()=>map.evaluate(el=>({pan:el.querySelector('.leaflet-map-pane').style.transform,tiles:el.querySelector('.leaflet-tile-container')?.style.transform,gps:el.getAttribute('aria-label')}));
+    const before=await state(),box=await map.boundingBox();const x=box.x+box.width/2,y=box.y+box.height/2;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+70,y+40,{steps:8});await page.mouse.up();
+    await map.dblclick({position:{x:80,y:80}});await page.mouse.move(x,y);await page.mouse.wheel(0,-400);await map.focus();await page.keyboard.press('ArrowRight');await page.keyboard.press('+');
+    const touch=await page.context().newCDPSession(page);
+    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+70,y:y+35}]});await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    assert.deepEqual(await state(),before);assert.equal(await map.locator('.leaflet-control-zoom').count(),0);await touch.detach();
     await page.getByRole('button',{name:'Buka Kamera Selfie'}).click();await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);await page.getByRole('button',{name:'Ambil Gambar Sekarang'}).click();await page.getByAltText('Bukti Kehadiran',{exact:true}).waitFor();
     const watermark=await page.evaluate(()=>window.watermarkText);assert.match(watermark.map(row=>row.text).join(''),/Lokasi GPS: Jalan Braga/);assert.match(watermark.map(row=>row.text).join(''),/GPS saat foto: -6.900000, 107.600000/);assert.doesNotMatch(watermark.map(row=>row.text).join(''),/Alamat penugasan Jakarta/);assert.match(watermark.map(row=>row.text).join(''),/OpenStreetMap contributors/);assert.ok(watermark.every(row=>row.y>=0&&row.y+parseFloat(row.font.match(/(\d+)px/)[1])<=row.height));
     const photo=(await page.getByAltText('Bukti Kehadiran',{exact:true}).getAttribute('src')).split(',')[1];fs.mkdirSync(process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa',{recursive:true});fs.writeFileSync((process.env.QA_OUTPUT_DIR||'/tmp/jawara-update-qa')+'/guest-watermark.jpg',Buffer.from(photo,'base64'));
