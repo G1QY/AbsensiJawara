@@ -1,6 +1,7 @@
 import {t as translateUI} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
+import { useAuth } from '../../lib/AuthContext';
 import CrewCsvImport from "./CrewCsvImport"
 import { useState, useEffect, type FormEvent } from "react"
 import { StatusBadge } from "../../components/ui/Badge"
@@ -37,6 +38,8 @@ const empty = {
   assignTo: "",
 }
 export default function KelolaCrew() {
+  const { auth } = useAuth();
+  const [confirmEmail, setConfirmEmail] = useState('');
   const [crew, setCrew] = useState<Crew[]>([])
   const [directory, setDirectory] = useState<Directory>({
     branches: [],
@@ -198,14 +201,14 @@ export default function KelolaCrew() {
           "Password baru tersimpan. Sampaikan kepada pemilik akun melalui jalur pribadi.",
         )
       } else {
-        if (action === "delete") await api.delete(`/crew/${detail.id}`)
+        if (action === "delete") await api.delete(`/crew/${detail.id}`, {confirm:true, email:confirmEmail})
         else
           await api.patch(`/crew/${detail.id}`, {
             status: detail.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
           })
         setNotice(
           action === "delete"
-            ? "Crew diarsipkan. Riwayat absensi tetap tersimpan."
+            ? "Crew dan akun login dihapus permanen. Email dapat digunakan kembali."
             : "Status dan akses akun crew telah diperbarui.",
         )
         setDetail(null)
@@ -705,19 +708,20 @@ export default function KelolaCrew() {
                 >
                   {detail.status === "ACTIVE" ? translateUI("Nonaktifkan") : translateUI("Aktifkan")}
                 </button>
-                <button
+                {auth?.role === 'SUPER_ADMIN' && <button
                   className={button.replace("text-slate-700", "text-red-700")}
                   onClick={() => {
+                    setConfirmEmail('')
                     setAction("delete")
                     setFormError("")
                   }}
-                >{" " + translateUI("Hapus") + " "}</button>
+                >{" " + translateUI("Hapus permanen") + " "}</button>}
               </div>
             ) : (
               <form onSubmit={confirmAction} className={panel + " space-y-3"}>
                 <p className="text-sm text-slate-700">
                   {action === "delete"
-                    ? translateUI("Hapus dari daftar dan tutup akses login crew ini? Data akan diarsipkan, bukan dihapus permanen. Riwayat absensi tetap tersedia.")
+                    ? translateUI("Akun login, profil crew, penugasan, jadwal, absensi, izin, koreksi dan lembur terkait akan dihapus permanen. Event dan store tetap tersedia. Gunakan Nonaktifkan bila riwayat perlu dipertahankan.")
                     : action === "status"
                       ? `Konfirmasi ${
                           detail.status === "ACTIVE"
@@ -726,6 +730,7 @@ export default function KelolaCrew() {
                         } ${detail.user.full_name}?`
                       : translateUI("Password lama tidak dapat ditampilkan. Isi password baru untuk akun ini.")}
                 </p>
+                {action === "delete" && <label className="block text-sm">{translateUI('Ketik email akun untuk konfirmasi')}<input required type="email" className={control} value={confirmEmail} onChange={e=>setConfirmEmail(e.target.value)} /></label>}
                 {action === "password" && (
                   <label className="block text-sm text-slate-700">{" " + translateUI("Password Baru") + " "}<input
                       required
@@ -754,7 +759,7 @@ export default function KelolaCrew() {
                       setPassword("")
                     }}
                   >{" " + translateUI("Batal") + " "}</button>
-                  <button disabled={busy} className={primary} type="submit">
+                  <button disabled={busy || (action === "delete" && confirmEmail.trim().toLowerCase() !== detail.user.email.toLowerCase())} className={primary} type="submit">
                     {busy ? translateUI("Menyimpan...") : translateUI("Konfirmasi")}
                   </button>
                 </div>

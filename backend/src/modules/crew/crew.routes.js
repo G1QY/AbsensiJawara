@@ -8,7 +8,7 @@ const canManage = requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_
 // GET /crew
 router.get('/', canManage, controller.list);
 router.get('/:id', canManage, controller.detail);
-router.delete('/:id', canManage, controller.archive);
+router.delete('/:id', requireRole(ROLES.SUPER_ADMIN), require('./deleteCrew').deleteCrew);
 
 // POST /crew — buat akun crew baru (auth.users + user_roles + crew sekaligus)
 router.post('/', canManage, controller.create);

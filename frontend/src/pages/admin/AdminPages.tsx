@@ -1,4 +1,6 @@
 import {t as translateUI,getLocale} from '../../lib/i18n';
+import { arrivalLabel, overtimeLabel } from '../../lib/attendanceLabels';
+import ExportButtons from '../../components/ui/ExportButtons';
 import { branchLabel } from '../../lib/locationLabel';
 import { useEffect, useState, type ReactNode } from "react"
 import { api } from "../../lib/apiClient"
@@ -14,6 +16,11 @@ import {
   message,
 } from "./adminData"
 interface Attendance {
+  late_minutes?: number
+  overtime_minutes?: number
+  overtime_status?: string
+  store_schedule?: {start_time:string;end_time:string;late_tolerance_minutes?:number}|null
+  event_schedule?: {start_time:string;end_time:string}|null
   id: string
   attendance_date: string
   status: string
@@ -126,6 +133,11 @@ export default function AdminPages({
     s
       ? new Date(s).toLocaleString(getLocale(), { timeZone: "Asia/Jakarta" })
       : "Belum ada"
+  const reportHeaders = ['Tanggal','Crew','Perusahaan','Jabatan','Jadwal (WIB)','Toleransi (menit)','Check-in (WIB)','Check-out (WIB)','Status masuk','Telat (menit)','Status lembur'];
+  const reportRows = attendance.map(a => {
+    const schedule = a.store_schedule || a.event_schedule;
+    return [a.attendance_date,a.crew?.user?.full_name || 'Crew',a.crew?.company_name || 'Belum diisi',a.crew?.job_title || 'Belum diisi',schedule ? `${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}` : translateUI('Tanpa jadwal'),a.store_schedule?.late_tolerance_minutes || 0,time(a.check_in),time(a.check_out),arrivalLabel(a),a.late_minutes ?? 0,overtimeLabel(a)];
+  });
   return (
     <div className="p-4 sm:p-6 space-y-5">
       {error && (
@@ -242,26 +254,16 @@ export default function AdminPages({
           {page === "admin-laporan" && (
             <>
               <p className="text-xs text-slate-500">{" " + translateUI("Menampilkan") + " "}{attendance.length}{" " + translateUI("catatan. Maksimal 1.000 catatan terbaru per rentang; persempit tanggal bila mencapai batas.") + " "}</p>
-              <Table
-                headers={[
-                  "Tanggal",
-                  "Crew",
-                  "Perusahaan",
-                  "Jabatan",
-                  "Check-in (WIB)",
-                  "Check-out (WIB)",
-                  "Status",
-                ]}
-                rows={attendance.map((a) => [
-                  a.attendance_date,
-                  a.crew?.user?.full_name || "Crew",
-                  a.crew?.company_name || "Belum diisi",
-                  a.crew?.job_title || "Belum diisi",
-                  time(a.check_in),
-                  time(a.check_out),
-                  a.status,
-                ])}
-              />
+              <p className="text-sm text-slate-600">{translateUI('Status masuk mengikuti jadwal dan toleransi. Telat dibulatkan ke atas. Lembur dihitung per jam penuh setelah jadwal selesai dan memerlukan persetujuan atau jadwal prapersetujuan.')}</p>
+              <ExportButtons filename="Laporan_Absensi" title="Laporan Absensi" subtitle={`${from || 'Semua tanggal'} - ${to || 'Sekarang'}`} headers={reportHeaders} rows={reportRows}/>
+              <Table headers={['Tanggal','Crew','Jadwal (WIB)','Check-in (WIB)','Check-out (WIB)','Status lembur']} rows={attendance.map(a => {
+                const schedule = a.store_schedule || a.event_schedule;
+                return [a.attendance_date,
+                  <div><strong>{a.crew?.user?.full_name || 'Crew'}</strong><p className="text-xs text-slate-500 mt-1">{[a.crew?.company_name,a.crew?.job_title].filter(Boolean).join(' · ')}</p></div>,
+                  <div>{schedule ? `${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}` : translateUI('Tanpa jadwal')}<p className="text-xs text-slate-500 mt-1">{translateUI('Toleransi')}: {a.store_schedule?.late_tolerance_minutes || 0} {translateUI('menit')}</p></div>,
+                  <div>{time(a.check_in)}<p className={`text-xs font-semibold mt-1 ${a.status === 'LATE' ? 'text-amber-700' : 'text-emerald-700'}`}>{arrivalLabel(a)}{a.late_minutes ? ` · ${a.late_minutes} ${translateUI('menit')}` : ''}</p></div>,
+                  time(a.check_out),overtimeLabel(a)];
+              })} />
             </>
           )}
           {page === "admin-audit" && (
