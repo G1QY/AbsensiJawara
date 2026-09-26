@@ -1,6 +1,6 @@
-import {t as translateUI, useLanguage} from './lib/i18n';
+import {t as translateUI, tx, useLanguage} from './lib/i18n';
 import LanguageSelect from './components/ui/LanguageSelect';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import EventManagerWorkspace from './pages/eventManager/EventManagerWorkspace';
 import StaffWorkspace from './pages/staff/StaffWorkspace';
 import type {FrontendRole as Role} from './lib/AuthContext';
@@ -86,18 +86,31 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const welcomedAccount = useRef<string | null>(null);
 
   const addToast = useCallback((message: string, type: Toast['type'] = 'success') => {
     setToasts(items => [...items, { id: crypto.randomUUID(), message, type }]);
   }, []);
 
   useEffect(() => {
-    if (!frontendRole) return;
+    if (!auth || !frontendRole) {
+      welcomedAccount.current = null;
+      setToasts([]);
+      return;
+    }
+    const accountKey = `${auth.user.id}:${auth.role}`;
+    if (welcomedAccount.current === accountKey) return;
+    welcomedAccount.current = accountKey;
     setCurrentPage(defaultPage(frontendRole));
     setSidebarCollapsed(false);
     setMobileNavOpen(false);
-    addToast(translateUI('Berhasil masuk ke JAWARA'));
-  }, [frontendRole, addToast]);
+    setToasts([]);
+    const name = auth.user.full_name.trim() || translateUI('Pengguna');
+    const roleLabel = accountRoles[auth.role === 'ADMIN_STORE' ? 'HEAD_STORE' : auth.role] || auth.role;
+    addToast(frontendRole === 'guest_crew'
+      ? tx('Halo, {name}. Kamu masuk sebagai Guest Crew.', {name})
+      : tx('Selamat datang, {name}. Kamu masuk sebagai {role}.', {name, role: translateUI(roleLabel)}));
+  }, [auth, frontendRole, addToast]);
 
   if (!auth || !frontendRole) {
     return (
