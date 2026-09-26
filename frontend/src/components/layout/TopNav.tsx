@@ -9,7 +9,7 @@ import type { FrontendRole as Role } from '../../lib/AuthContext';
 import {accountRoles} from '../../lib/accountRoles';
 interface TopNavProps { breadcrumbs: string[]; title: string; role: Role; onLogout: () => void; onOpenMobileNav: () => void; onProfile: () => void; onSettings: () => void; userName: string; userEmail: string; avatarUrl?: string; }
 import {useAuth} from '../../lib/AuthContext';
-const labels: Record<Role, string> = { head_office:'Head Office',office_staff:'Staff Kantor',production_staff:'Staff Produksi', admin: 'Administrator', head_store: 'Head Store', crew_event: 'Crew Event', crew_store: 'Crew Store', guest_crew: 'Guest Crew' };
+const labels: Record<Role, string> = { event_manager:'Event Manager', head_office:'Head Office',office_staff:'Staff Kantor',production_staff:'Staff Produksi', admin: 'Administrator', head_store: 'Head Store', crew_event: 'Crew Event', crew_store: 'Crew Store', guest_crew: 'Guest Crew' };
 export default function TopNav({ breadcrumbs, title, role, onLogout, onOpenMobileNav, onProfile, onSettings, userName, userEmail, avatarUrl }: TopNavProps) {
   const {auth} = useAuth();
   const roleTitle = [accountRoles[auth?.role || ''] || labels[role], auth?.user.division].filter(Boolean).join(' · ');

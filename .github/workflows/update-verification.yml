@@ -56,6 +56,7 @@ jobs:
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/v13"
           node tests/staff-v13-browser.cjs
+          node tests/role-workspaces-v14-browser.cjs
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/payroll"
           node tests/payroll-persisted-browser.cjs
       - name: Verify dashboard, maps and language

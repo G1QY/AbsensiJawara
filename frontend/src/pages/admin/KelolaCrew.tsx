@@ -3,7 +3,6 @@ import {t as translateUI} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
 import { useAuth } from '../../lib/AuthContext';
-import CrewAccountControls from "./CrewAccountControls"
 import CrewCsvImport from "./CrewCsvImport"
 import { useState, useEffect, type FormEvent } from "react"
 import { StatusBadge } from "../../components/ui/Badge"
@@ -65,10 +64,9 @@ export default function KelolaCrew() {
   const [showBulkSchedule, setShowBulkSchedule] = useState(false)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState("")
-  const [action, setAction] = useState<"status" | "delete" | "password" | null>(
+  const [action, setAction] = useState<"status" | "delete" | null>(
     null,
   )
-  const [password, setPassword] = useState("")
   const [visible, setVisible] = useState(false)
   const [emailNotice, setEmailNotice] = useState('')
   async function saveEmail() {
@@ -179,7 +177,6 @@ export default function KelolaCrew() {
     setError("")
     setAction(null)
     setFormError("")
-    setPassword("")
     try {
       setDetail(await api.get<Crew>(`/crew/${c.id}`))
     } catch (e) {
@@ -194,36 +191,26 @@ export default function KelolaCrew() {
     setBusy(true)
     setFormError("")
     try {
-      if (action === "password") {
-        const result = await api.patch<{passwordNotice?:string}>(`/crew/${detail.id}/reset-password`, {
-          newPassword: password,
+      if (action === "delete") await api.delete(`/crew/${detail.id}`, {confirm:true, email:confirmEmail})
+      else
+        await api.patch(`/crew/${detail.id}`, {
+          status: detail.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
         })
-        setPassword("")
-        setAction(null)
-        setNotice(
-          "Password baru tersimpan. Sampaikan kepada pemilik akun melalui jalur pribadi. " + (result.passwordNotice || ""),
+      setNotice(
+        action === "delete"
+          ? "Crew dan akun login dihapus permanen. Email dapat digunakan kembali."
+          : "Status dan akses akun crew telah diperbarui.",
+      )
+      setDetail(null)
+      setAction(null)
+      try {
+        await reload()
+      } catch (e) {
+        setError(
+          "Perubahan tersimpan, tetapi daftar belum termuat: " + message(e),
         )
-      } else {
-        if (action === "delete") await api.delete(`/crew/${detail.id}`, {confirm:true, email:confirmEmail})
-        else
-          await api.patch(`/crew/${detail.id}`, {
-            status: detail.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-          })
-        setNotice(
-          action === "delete"
-            ? "Crew dan akun login dihapus permanen. Email dapat digunakan kembali."
-            : "Status dan akses akun crew telah diperbarui.",
-        )
-        setDetail(null)
-        setAction(null)
-        try {
-          await reload()
-        } catch (e) {
-          setError(
-            "Perubahan tersimpan, tetapi daftar belum termuat: " + message(e),
-          )
-        }
       }
+
     } catch (e) {
       setFormError(message(e))
     } finally {
@@ -611,7 +598,6 @@ export default function KelolaCrew() {
         onClose={() => {
           if (!busy) {
             setDetail(null)
-            setPassword("")
             setAction(null)
           }
         }}
@@ -661,7 +647,6 @@ export default function KelolaCrew() {
                 {sources(detail).join(", ") || translateUI("Belum ditugaskan")}
               </p>
             </div>
-            {auth?.role === 'SUPER_ADMIN' && !action && <CrewAccountControls key={detail.id} crew={detail} directory={directory} onSaved={async()=>{await reload();setDetail(await api.get<Crew>(`/crew/${detail.id}`))}} />}
             <details className="text-sm text-slate-600">
               <summary className="cursor-pointer">{translateUI("Riwayat penugasan")}</summary>
               <ul className="mt-2 space-y-2">
@@ -699,14 +684,6 @@ export default function KelolaCrew() {
                   Edit
                 </button>
                 <button
-                  className={button}
-                  onClick={() => {
-                    setAction("password")
-                    setVisible(false)
-                    setFormError("")
-                  }}
-                >{" " + translateUI("Atur Password") + " "}</button>
-                <button
                   className={button.replace("text-slate-700", "text-amber-700")}
                   onClick={() => {
                     setAction("status")
@@ -729,28 +706,14 @@ export default function KelolaCrew() {
                 <p className="text-sm text-slate-700">
                   {action === "delete"
                     ? translateUI("Akun login, profil crew, penugasan, jadwal, absensi, izin, koreksi dan lembur terkait akan dihapus permanen. Event dan store tetap tersedia. Gunakan Nonaktifkan bila riwayat perlu dipertahankan.")
-                    : action === "status"
-                      ? `Konfirmasi ${
+                    : `Konfirmasi ${
                           detail.status === "ACTIVE"
                             ? "menonaktifkan akses login"
                             : "mengaktifkan kembali akun"
-                        } ${detail.user.full_name}?`
-                      : translateUI("Isi password baru. Password sebelumnya langsung tidak berlaku setelah disimpan.")}
+                        } ${detail.user.full_name}?`}
                 </p>
                 {action === "delete" && <label className="block text-sm">{translateUI('Ketik email akun untuk konfirmasi')}<input required type="email" className={control} value={confirmEmail} onChange={e=>setConfirmEmail(e.target.value)} /></label>}
-                {action === "password" && (
-                  <label className="block text-sm text-slate-700">{" " + translateUI("Password Baru") + " "}<input
-                      required
-                      minLength={8}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      type="password"
-                      className={control}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </label>
-                )}
+
                 {formError && (
                   <p role="alert" className="text-sm text-red-700">
                     {formError}
@@ -763,7 +726,6 @@ export default function KelolaCrew() {
                     className={button}
                     onClick={() => {
                       setAction(null)
-                      setPassword("")
                     }}
                   >{" " + translateUI("Batal") + " "}</button>
                   <button disabled={busy || (action === "delete" && confirmEmail.trim().toLowerCase() !== detail.user.email.toLowerCase())} className={primary} type="submit">

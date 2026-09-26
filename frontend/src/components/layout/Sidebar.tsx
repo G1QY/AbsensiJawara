@@ -84,6 +84,16 @@ const guestCrewNav: NavItem[] = [
 const staffNav: NavItem[] = [{id:'staff-dashboard',label:'Dashboard',icon:ic.dashboard},{id:'staff-absensi',label:'Absensi Saya',icon:ic.absensi},{id:'staff-riwayat',label:'Riwayat Saya',icon:ic.riwayat},{id:'staff-payroll',label:'Payroll Saya',icon:ic.payroll}];
 const navMap: Record<Role, NavItem[]> = {
   admin: [...adminNav, {id:'admin-my-attendance',label:'Absensi Saya',icon:ic.absensi}, {id:'admin-my-history',label:'Riwayat Saya',icon:ic.riwayat},{id:'admin-my-payroll',label:'Payroll Saya',icon:ic.payroll}],
+  event_manager: [
+    {id:'em-dashboard',label:'Dashboard Event',icon:ic.dashboard},
+    {id:'em-events',label:'Kelola Event',icon:ic.event},
+    {id:'em-crew',label:'Crew Event',icon:ic.crew},
+    {id:'em-attendance',label:'Absensi Event',icon:ic.absensi},
+    {id:'em-reports',label:'Rekap Event',icon:ic.laporan},
+    {id:'em-my-attendance',label:'Absensi Saya',icon:ic.absensi},
+    {id:'em-my-history',label:'Riwayat Saya',icon:ic.riwayat},
+    {id:'em-my-payroll',label:'Payroll Saya',icon:ic.payroll},
+  ],
   head_office: staffNav, office_staff: staffNav, production_staff: staffNav,
   head_store: [{ id: 'hs-dashboard', label: 'Monitoring Kota', icon: ic.dashboard }, { id: 'hs-crew', label: 'Crew per Cabang', icon: ic.crew }, { id: 'hs-attendance', label: 'Absensi Kota', icon: ic.absensi }, {id:'hs-my-attendance',label:'Absensi Saya',icon:ic.absensi},{id:'hs-my-history',label:'Riwayat Saya',icon:ic.riwayat},{id:'hs-my-payroll',label:'Payroll Saya',icon:ic.payroll}],
   crew_event: crewEventNav,
@@ -93,6 +103,7 @@ const navMap: Record<Role, NavItem[]> = {
 
 const roleLabel: Record<Role, string> = {
   admin: 'Administrator',
+  event_manager: 'Event Manager',
   head_office:'Head Office',office_staff:'Staff Kantor',production_staff:'Staff Produksi',
   head_store: 'Head Store',
   crew_event: 'Crew Event',
@@ -102,6 +113,7 @@ const roleLabel: Record<Role, string> = {
 
 const roleBadge: Record<Role, string> = {
   admin: 'bg-purple-100 text-purple-800',
+  event_manager: 'bg-violet-100 text-violet-800',
   head_office:'bg-indigo-100 text-indigo-800',office_staff:'bg-cyan-100 text-cyan-800',production_staff:'bg-orange-100 text-orange-800',
   head_store: 'bg-blue-100 text-blue-800',
   crew_event: 'bg-blue-100 text-blue-800',

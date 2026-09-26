@@ -6,7 +6,8 @@ const { uuid, fail } = require('../crew/crew.validation');
 const { getSignedDownloadUrl } = require('../../utils/signedUrl');
 const { importGuest, upload } = require('./guestAttendance.routes');
 router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER));
-const selection = `*, crew:crew(company_name,job_title,division,employee_code,user:users(full_name,email,phone_number,user_roles(role:roles(code)))),
+const {eventAttendance} = require('../../security/eventManager');
+const selection = `*, crew:crew(user_id,company_name,job_title,division,employee_code,user:users(full_name,email,phone_number,user_roles(role:roles(code)))),
   store_assignment:store_assignments(store:stores(name,location_kind,branch:branches(name,city_name))),event_assignment:event_assignments(event:events(event_name,branch:branches(name,city_name))),
   store_schedule:store_schedules(schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved),event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved)`;
 function check(error) {
@@ -24,19 +25,30 @@ function hideKeys(row) {
   const {check_in_photo_url,check_out_photo_url,photo_key,...rest}=row;
   return {...rest,hasInPhoto:!!(row.check_in&&check_in_photo_url),hasOutPhoto:!!(row.check_out&&check_out_photo_url),hasPhoto:!!photo_key};
 }
+async function assertEventScope(req) {
+  if (req.role !== 'EVENT_MANAGER') return;
+  const kind = req.params.kind;
+  const {data,error} = await db.from(kind === 'guest' ? 'guest_attendances' : 'attendance_logs')
+    .select(kind === 'guest' ? 'crew_type,assignment_kind' : 'event_assignment_id,crew:crew(user_id)')
+    .eq('id', req.params.id).maybeSingle();
+  check(error);
+  if (!data) throw fail('Absensi tidak ditemukan.',404);
+  if (!eventAttendance(data,kind,req.user.id)) throw fail('Absensi berada di luar cakupan event.',403);
+}
 router.get('/',async(req,res,next)=>{
   try {
     const [registered,guest]=await Promise.all([all('attendance_logs',selection,'attendance_date'),all('guest_attendances','*','occurred_at')]);
-    res.json({registered:registered.map(hideKeys),guest:guest.map(hideKeys)});
+    res.json({registered:registered.filter(r=>req.role!=='EVENT_MANAGER'||eventAttendance(r,'registered',req.user.id)).map(hideKeys),guest:guest.filter(r=>req.role!=='EVENT_MANAGER'||eventAttendance(r,'guest',req.user.id)).map(hideKeys)});
   }catch(error){next(error);}
 });
-router.post('/import-guest',upload.single('photo'),importGuest);
+router.post('/import-guest', requireRole(ROLES.SUPER_ADMIN), upload.single('photo'),importGuest);
 router.get('/:kind/:id',async(req,res,next)=>{
   try {
     uuid(req.params.id);const kind=req.params.kind;
     if(!['registered','guest'].includes(kind))throw fail('Sumber absensi tidak valid.');
     const {data,error}=await db.from(kind==='guest'?'guest_attendances':'attendance_logs').select(kind==='guest'?'*':selection).eq('id',req.params.id).maybeSingle();
     check(error);if(!data)throw fail('Absensi tidak ditemukan.',404);
+    if(req.role==='EVENT_MANAGER'&&!eventAttendance(data,kind,req.user.id))throw fail('Absensi berada di luar cakupan event.',403);
     const sign=key=>typeof key==='string'&&/^(attendance|guest-attendance)\/[a-zA-Z0-9_./-]+$/.test(key)&&!key.includes('..')?getSignedDownloadUrl(key,600):Promise.resolve('');
     const photoIn=kind==='guest'?(data.clock_type==='IN'?data.photo_key:null):(data.check_in?data.check_in_photo_url:null);
     const photoOut=kind==='guest'?(data.clock_type==='OUT'?data.photo_key:null):(data.check_out?data.check_out_photo_url:null);
@@ -49,6 +61,7 @@ router.patch('/:kind/:id/review',async(req,res,next)=>{
     uuid(req.params.id);const {decision,target,note=''}=req.body;
     if(!['registered','guest'].includes(req.params.kind)||!['APPROVED','REJECTED'].includes(decision)||!['attendance','overtime'].includes(target)||typeof note!=='string'||note.length>2000)throw fail('Data keputusan tidak valid.');
     if(decision==='REJECTED'&&!note.trim())throw fail('Alasan penolakan wajib diisi.');
+    await assertEventScope(req);
     const {error}=await db.rpc('review_attendance',{p_actor:req.user.id,p_kind:req.params.kind,p_id:req.params.id,p_target:target,p_decision:decision,p_note:note.trim()});
     if(error)throw fail(error.message,error.code==='40001'?409:error.code==='P0002'?404:error.code==='42501'?403:422);
     res.json({message:'Keputusan tersimpan di server.'});
@@ -60,6 +73,7 @@ router.delete('/:kind/:id',async(req,res,next)=>{
     if(!['registered','guest'].includes(req.params.kind))throw fail('Sumber absensi tidak valid.');
     const reason=req.body?.reason;
     if(typeof reason!=='string'||!reason.trim()||reason.length>1000)throw fail('Alasan penghapusan wajib diisi (maksimal 1000 karakter).');
+    await assertEventScope(req);
     const {error}=await db.rpc('delete_admin_attendance',{p_actor:req.user.id,p_kind:req.params.kind,p_id:id,p_reason:reason.trim()});
     if(error)throw fail(error.message,error.code==='42501'?403:error.code==='P0002'?404:error.code==='23503'?409:422);
     res.json({id,message:'Absensi dihapus. Rekap diperbarui dan penghapusan tercatat di audit log.'});
