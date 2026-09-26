@@ -1,3 +1,4 @@
+import AuditTrail, {type AuditEntry} from './AuditTrail';
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import {reviewLabel} from './attendanceData';
 import { arrivalLabel, overtimeLabel } from '../../lib/attendanceLabels';
@@ -29,17 +30,6 @@ interface Attendance {
   check_in: string | null
   check_out: string | null
   crew: { company_name?: string; job_title?: string; employee_code: string; user: { full_name: string } } | null
-}
-interface Audit {
-  id: string
-  created_at: string
-  action: string
-  entity_type: string
-  entity_id: string
-  actor_user_id: string
-  actor_name?: string
-  entity_name?: string
-  actor?: { full_name?: string; email?: string }
 }
 interface Summary {
   totalCrew: number
@@ -96,7 +86,7 @@ export default function AdminPages({
   })
   const [crew, setCrew] = useState<Crew[]>([])
   const [attendance, setAttendance] = useState<Attendance[]>([])
-  const [audit, setAudit] = useState<Audit[]>([])
+  const [audit, setAudit] = useState<AuditEntry[]>([])
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
   async function load() {
@@ -268,27 +258,7 @@ export default function AdminPages({
               })} />
             </>
           )}
-          {page === "admin-audit" && (
-            <>
-              <p className="text-xs text-slate-500">{" " + translateUI("Maksimal 200 aktivitas terbaru. Password tidak dicatat dalam audit.") + " "}</p>
-              <Table
-                headers={[
-                  "Waktu (WIB)",
-                  "Tindakan",
-                  "Entitas",
-                  "Nama Data",
-                  "Pelaku",
-                ]}
-                rows={audit.map((a) => [
-                  time(a.created_at),
-                  a.action,
-                  a.entity_type,
-                  a.entity_name || "Nama data tidak tersedia",
-                  a.actor_name || a.actor?.full_name || "Pengguna tidak tersedia",
-                ])}
-              />
-            </>
-          )}
+          {page === "admin-audit" && <AuditTrail rows={audit} />}
         </>
       )}
     </div>

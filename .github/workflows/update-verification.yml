@@ -57,6 +57,7 @@ jobs:
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/v13"
           node tests/staff-v13-browser.cjs
           node tests/role-workspaces-v14-browser.cjs
+          node tests/audit-log-browser.cjs
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/payroll"
           node tests/payroll-persisted-browser.cjs
       - name: Verify dashboard, maps and language
