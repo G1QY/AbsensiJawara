@@ -71,6 +71,7 @@ api.use('/inspection-reports', require('./modules/equipment/inspectionReports.ro
 
 api.use('/dashboard', require('./modules/dashboard/dashboard.routes'));
 api.use('/reports', require('./modules/reports/reports.routes'));
+api.use('/payroll', require('./modules/payroll/payroll.routes'));
 api.use('/audit-logs', require('./modules/auditLogs/auditLogs.routes'));
 api.use('/notifications', require('./modules/notifications/notifications.routes'));
 

@@ -1,28 +1,465 @@
-import {t as translateUI} from '../../lib/i18n';
-import { exportToPDF } from '../../utils/exportUtils';
-import { useEffect, useState } from 'react';
-import { api } from '../../lib/apiClient';
-import { type Crew, money, button, primary, control, panel, message } from './adminData';
-import { DataTable, MiniChart, Stat } from './adminWidgets';
-import { type PayrollAttendance, type PayrollContext, type PayrollRow, type PayrollRules, estimatePayroll, monthKeys, payrollSheet, getPayrollRules, rememberPayrollRules } from './payrollData';
-import { downloadWorkbook } from '../../lib/xlsxExport';
-import Modal from '../../components/ui/Modal';
+import { useState } from "react"
+import { api } from "../../lib/apiClient"
+import { button, primary, control, panel, message, money } from "./adminData"
+import Modal from "../../components/ui/Modal"
+import {
+  type PayrollEntry,
+  currentMonth,
+  usePayroll,
+} from "../payroll/payrollApi"
+import {
+  PayrollTotals,
+  PayrollExports,
+  PayrollList,
+  PayrollDetails,
+  PolicyForm,
+  AdjustmentForm,
+} from "../payroll/PayrollComponents"
 export default function PayrollWorkspace() {
-    const [crew, setCrew] = useState<Crew[]>([]), [logs, setLogs] = useState<PayrollAttendance[]>([]), [loading, setLoading] = useState(true), [error, setError] = useState('');
-    const [month, setMonth] = useState(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()).slice(0, 7)), [search, setSearch] = useState(''), [kind, setKind] = useState(''), [detail, setDetail] = useState<PayrollRow | null>(null);
-    const [payrollContext, setPayrollContext] = useState<PayrollContext>({ schedules: [], permissions: [] });
-    const [rules, setRulesState] = useState<PayrollRules>(getPayrollRules);
-    const setRules = (next: PayrollRules | ((previous: PayrollRules) => PayrollRules)) => setRulesState(previous => { const value = typeof next === 'function' ? next(previous) : next; rememberPayrollRules(value); return value; });
-    async function load() { setLoading(true); setError(''); try { const [c, a, p] = await Promise.all([api.get<Crew[]>('/crew'), api.get<{ registered: PayrollAttendance[] }>('/admin-attendance'), api.get<PayrollContext>(`/admin-store-schedules/payroll-context?month=${month}`)]); setCrew(c); setLogs(a.registered); setPayrollContext(p); } catch (e) { setError(message(e)); } finally { setLoading(false); } }
-    useEffect(() => { void load(); }, [month]);
-    const rows = estimatePayroll(crew, logs, month, rules, payrollContext).filter(r => (!kind || r.crew.crew_type === kind) && [r.crew.user.full_name, r.crew.user.email, r.crew.company_name, r.crew.job_title].join(' ').toLowerCase().includes(search.toLowerCase().trim()));
-    const sum = (k: 'total' | 'bonus' | 'deduction' | 'lateHours' | 'overtimeHours') => rows.reduce((n, r) => n + r[k], 0);
-    async function pdf(list: PayrollRow[]) { try { const sheet=payrollSheet(list,month,rules); await exportToPDF(`Payroll ${month}`,'Estimasi pembayaran. Identitas dan tarif mengikuti data saat ini.',sheet[0] as string[],sheet.slice(1)); } catch(e){setError(message(e));} }
-    const actions = (list: PayrollRow[]) => <div className="flex flex-wrap gap-2"><button disabled={loading || !!error || !list.length} className={button} onClick={() => downloadWorkbook(payrollSheet(list, month, rules), `Payroll-${month}.xlsx`)}>{translateUI("Export Excel")}</button><button disabled={loading || !!error || !list.length} className={primary} onClick={() => void pdf(list)}>{translateUI("Export PDF")}</button></div>;
-    return <div className="p-4 sm:p-6 space-y-5"><div className="flex justify-between gap-3"><h2 className="text-lg font-bold text-slate-900">{translateUI("Payroll Crew")}</h2><button className={button} disabled={loading} onClick={() => void load()}>{translateUI("Muat ulang")}</button></div>{error && <p role="alert" className="ui-error p-4 rounded-xl">{translateUI(error)}</p>}
-        <div className="grid sm:grid-cols-3 gap-4"><Stat label={translateUI("Total Estimasi Payroll")} value={loading ? '...' : money(sum('total'))} sub={`${rows.length} crew`} /><Stat label={translateUI("Total Bonus Lembur")} value={money(sum('bonus'))} sub={`${sum('overtimeHours')} jam disetujui`} tone="green" /><Stat label={translateUI("Total Potongan")} value={money(sum('deduction'))} sub={`${sum('lateHours')} jam telat, termasuk potongan absen`} tone="red" /></div>
-        <details className={panel}><summary className="text-sm font-semibold cursor-pointer text-slate-900">{translateUI("Aturan simulasi payroll")}</summary><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{(['eventBasis', 'storeBasis'] as const).map(key => <label className="text-xs text-slate-600" key={key}>{key === 'eventBasis' ? translateUI("Dasar gaji Event") : translateUI("Dasar gaji Store")}<select className={control} value={rules[key]} onChange={e => setRules(r => ({ ...r, [key]: e.target.value }))}><option value="MONTHLY">{translateUI("Per bulan (tanpa prorata)")}</option><option value="PER_ATTENDANCE">{translateUI("Per absensi lengkap sah")}</option></select></label>)}{(['lateRate', 'overtimeRate'] as const).map(key => <label className="text-xs text-slate-600" key={key}>{key === 'lateRate' ? translateUI("Potongan / jam (Rp)") : translateUI("Bonus lembur / jam (Rp)")}<input className={control} inputMode="numeric" value={rules[key]} onFocus={e => e.target.select()} onChange={e => { if (/^\d{0,7}$/.test(e.target.value)) setRules(r => ({ ...r, [key]: Number(e.target.value) })); }} /></label>)}</div><p className="text-xs text-slate-500 mt-3">{translateUI("Aturan ini hanya untuk simulasi pada sesi ini dan ikut dicatat dalam ekspor. Tarif belum menjadi kebijakan payroll tersimpan.")}</p></details>
-        <div className="flex flex-wrap justify-between gap-3"><div className="flex flex-wrap gap-3"><input aria-label={translateUI("Periode payroll")} type="month" className={control + ' !w-auto'} value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} /><select aria-label={translateUI("Jenis payroll")} className={control + ' !w-auto'} value={kind} onChange={e => setKind(e.target.value)}><option value="">{translateUI("Semua jenis")}</option><option value="CREW_EVENT">Event</option><option value="CREW_STORE">Store</option></select><input aria-label={translateUI("Cari payroll")} className={control + ' !w-auto'} placeholder={translateUI("Cari nama atau email...")} value={search} onChange={e => setSearch(e.target.value)} /></div>{actions(rows)}</div>
-        {loading ? <p>{translateUI("Memuat payroll...")}</p> : <DataTable headers={['Nama', 'Perusahaan', 'Jabatan', 'Jenis', 'Gaji Pokok', 'Absen', 'Jam Telat', 'Total Potongan', 'Jam Lembur', 'Bonus Lembur', 'Estimasi Payroll', 'Aksi']} rows={rows.map(r => [r.crew.user.full_name, r.crew.company_name || 'Belum diisi', r.crew.job_title || 'Belum diisi', r.crew.crew_type === 'CREW_EVENT' ? 'Event' : 'Store', <span>{money(r.base)}<small className="block text-xs">{r.units} × {money(r.baseRate)}</small></span>, r.crew.crew_type === 'CREW_STORE' ? `${r.absentDays} hari` : '—', `${r.lateHours} jam`, <span className="text-red-700">-{money(r.deduction)}</span>, `${r.overtimeHours} jam`, <span className="text-emerald-700">+{money(r.bonus)}</span>, <strong>{money(r.total)}</strong>, <button className="text-blue-700" onClick={() => setDetail(r)}>{translateUI("Detail")}</button>])} />}
-        <Modal open={!!detail} onClose={() => setDetail(null)} title={`Detail Payroll${detail ? ' • ' + detail.crew.user.full_name : ''}`} size="lg">{detail && <div className="space-y-4"><div className="grid grid-cols-2 gap-3"><Stat label={translateUI("Gaji Pokok")} value={money(detail.base)} /><Stat label={translateUI("Total Potongan")} value={'-' + money(detail.deduction)} tone="red" /><Stat label={translateUI("Bonus Lembur")} value={money(detail.bonus)} tone="green" /><Stat label={translateUI("Estimasi Payroll")} value={money(detail.total)} tone="plain" /></div><DataTable headers={['Rincian Perhitungan', month]} rows={[[`Gaji (${detail.units} × ${money(detail.baseRate)})`, money(detail.base)], [`Bonus (${detail.overtimeHours} jam × ${money(rules.overtimeRate)})`, money(detail.bonus)], [`Potongan absen (${detail.absentDays} dari ${detail.scheduledDays} hari kerja)`, '-' + money(detail.absenceDeduction)], [`Potongan telat (${detail.lateHours} jam × ${money(rules.lateRate)})`, '-' + money(detail.lateDeduction)], ['Total estimasi', money(detail.total)]]} /><p className="text-xs text-slate-500">{detail.excluded}{" " + translateUI("catatan tidak lengkap, belum disetujui, atau bukan kehadiran sah tidak dimasukkan. Riwayat pembayaran final belum tersedia.")}</p><MiniChart title={translateUI("Tren lembur disetujui")} subtitle={translateUI("6 bulan, dari absensi server. Bukan riwayat pembayaran.")} points={monthKeys(month).map(m => ({ label: m.slice(5), value: estimatePayroll([detail.crew], logs, m, rules)[0]?.overtimeHours || 0 }))} />{actions([detail])}</div>}</Modal></div>;
+  const [month, setMonth] = useState(currentMonth),
+    [kind, setKind] = useState("MONTHLY"),
+    [placementKind, setPlacementKind] = useState(""),
+    [placement, setPlacement] = useState(""),
+    [search, setSearch] = useState(""),
+    [status, setStatus] = useState("")
+  const { data, loading, error, reload } = usePayroll(month)
+  const [detailKey, setDetailKey] = useState<string | null>(null),
+    [policyOpen, setPolicyOpen] = useState(false),
+    [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState(""),
+    [actionError, setActionError] = useState(""),
+    [confirm, setConfirm] = useState(""),
+    [reference, setReference] = useState(""),
+    [paidDate, setPaidDate] = useState(
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(
+        new Date(),
+      ),
+    )
+  const all = data?.rows || [],
+    detail = all.find((r) => r.key === detailKey) || null
+  const base = all.filter(
+    (r) =>
+      r.kind === kind &&
+      (!placementKind ||
+        (placementKind === "NONE"
+          ? !r.placements.length
+          : r.placements.some((p) => p.kind === placementKind))),
+  )
+  const places = [
+    ...new Map(
+      base.flatMap((r) => r.placements).map((p) => [p.id, p]),
+    ).values(),
+  ]
+  const rows = base.filter(
+    (r) =>
+      (!placement || r.placements.some((p) => p.id === placement)) &&
+      (!status || r.status === status) &&
+      [
+        r.person.full_name,
+        r.person.email,
+        r.person.employee_code,
+        r.person.company_name,
+        r.person.division,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(search.trim().toLowerCase()),
+  )
+  async function save(action: string, payload: Record<string, unknown>) {
+    if (!data || busy) return
+    setBusy(true)
+    setActionError("")
+    setNotice("")
+    try {
+      await api.post(`/payroll/${action}`, {
+        month,
+        revision: data.revision,
+        ...payload,
+      })
+      await reload()
+      setPolicyOpen(false)
+      setConfirm("")
+      setReference("")
+      setNotice(
+        action === "paid"
+          ? "Pembayaran berhasil dicatat."
+          : "Payroll berhasil disimpan.",
+      )
+    } catch (e) {
+      setActionError(message(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  function show(r: PayrollEntry) {
+    setDetailKey(r.key)
+    setConfirm("")
+    setActionError("")
+    setReference("")
+  }
+  const close = () => {
+    if (!busy) {
+      setDetailKey(null)
+      setConfirm("")
+      setActionError("")
+    }
+  }
+  return (
+    <div className="p-4 sm:p-6 space-y-5">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">Payroll Karyawan</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Aturan gaji, penyesuaian, dan pencatatan pembayaran.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            className={button}
+            disabled={loading || busy}
+            onClick={() => void reload()}
+          >
+            Muat ulang
+          </button>
+          <button
+            className={primary}
+            disabled={!data || busy || loading}
+            onClick={() => {
+              setActionError("")
+              setPolicyOpen(true)
+            }}
+          >
+            Atur payroll
+          </button>
+        </div>
+      </header>
+      {(error || (!detail && !policyOpen && actionError)) && (
+        <p role="alert" className="ui-error p-4 rounded-xl">
+          {error || actionError}
+        </p>
+      )}
+      {notice && (
+        <p
+          role="status"
+          className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"
+        >
+          {notice}
+        </p>
+      )}
+      <section className={panel + " space-y-4"}>
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          <div
+            className="flex gap-1 rounded-full bg-slate-100 p-1"
+            role="tablist"
+            aria-label="Sistem payroll"
+          >
+            {[
+              ["MONTHLY", "Store & Kantor"],
+              ["EVENT", "Crew Event"],
+            ].map(([value, label]) => (
+              <button
+                role="tab"
+                aria-selected={kind === value}
+                key={value}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  kind === value ? "bg-blue-600 text-white" : "text-slate-600"
+                }`}
+                onClick={() => {
+                  setKind(value)
+                  setPlacement("")
+                  setPlacementKind("")
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="text-sm text-slate-500 flex items-center gap-2">
+            Periode
+            <input
+              aria-label="Periode payroll"
+              type="month"
+              className={control + " !w-auto"}
+              value={month}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setMonth(e.target.value)
+                  setDetailKey(null)
+                  setNotice("")
+                }
+              }}
+            />
+          </label>
+        </div>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {kind === "MONTHLY" && (
+            <select
+              aria-label="Jenis penempatan"
+              className={control}
+              value={placementKind}
+              onChange={(e) => {
+                setPlacementKind(e.target.value)
+                setPlacement("")
+              }}
+            >
+              <option value="">Semua penempatan</option>
+              <option value="STORE">Store</option>
+              <option value="OFFICE">Kantor</option>
+              <option value="NONE">Belum ditempatkan</option>
+            </select>
+          )}
+          <select
+            aria-label={kind === "EVENT" ? "Filter event" : "Lokasi penempatan"}
+            className={control}
+            value={placement}
+            onChange={(e) => setPlacement(e.target.value)}
+          >
+            <option value="">
+              {kind === "EVENT" ? "Semua event" : "Semua lokasi"}
+            </option>
+            {places.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Status payroll"
+            className={control}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">Semua status</option>
+            <option value="DRAFT">Draft</option>
+            <option value="FINAL">Final</option>
+            <option value="PAID">Dibayar</option>
+          </select>
+          <input
+            className={control}
+            aria-label="Cari payroll"
+            placeholder="Cari nama, kode, atau divisi..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </section>
+      {loading ? (
+        <p role="status">Memuat payroll...</p>
+      ) : (
+        data && (
+          <>
+            {!data.configured && (
+              <p className="bg-amber-50 rounded-xl p-4 text-sm text-amber-800">
+                Aturan periode ini belum disimpan. Potongan dan tambahan
+                otomatis belum aktif.
+              </p>
+            )}
+            <PayrollTotals rows={rows} />
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <p className="text-sm text-slate-500">
+                {kind === "EVENT"
+                  ? "Fee dihitung per event. Telat dan lembur tidak menambah atau memotong fee otomatis."
+                  : "Gaji bersih mengikuti aturan tersimpan dan absensi yang disetujui."}
+              </p>
+              <PayrollExports
+                rows={rows}
+                month={month}
+                onError={setActionError}
+              />
+            </div>
+            <PayrollList rows={rows} onDetail={show} />
+          </>
+        )
+      )}
+      <Modal
+        open={policyOpen && !!data}
+        onClose={() => {
+          if (!busy) {
+            setPolicyOpen(false)
+            setActionError("")
+          }
+        }}
+        title={`Atur Payroll · ${month}`}
+        size="lg"
+      >
+        {data && (
+          <div className="space-y-4">
+            {actionError && (
+              <p className="ui-error p-3 rounded-xl" role="alert">
+                {actionError}
+              </p>
+            )}
+            <PolicyForm
+              key={month + data.revision}
+              policy={data.policy}
+              busy={busy}
+              onSave={(policy) => void save("policy", { policy })}
+            />
+          </div>
+        )}
+      </Modal>
+      <Modal
+        open={!!detail}
+        onClose={close}
+        title={`Detail Payroll${detail ? " · " + detail.person.full_name : ""}`}
+        size="lg"
+      >
+        {detail && (
+          <div className="space-y-5">
+            <PayrollDetails row={detail} />
+            {actionError && (
+              <p role="alert" className="ui-error p-3 rounded-xl">
+                {actionError}
+              </p>
+            )}
+            {detail.status === "DRAFT" && (
+              <details className={panel}>
+                <summary className="font-semibold text-sm cursor-pointer">
+                  Atur komponen gaji
+                </summary>
+                <div className="mt-4">
+                  <AdjustmentForm
+                    key={detail.key + data?.revision}
+                    row={detail}
+                    busy={busy}
+                    onSave={(adjustment) =>
+                      void save("adjustment", {
+                        crewId: detail.crewId,
+                        scopeKey: detail.scopeKey,
+                        adjustment,
+                      })
+                    }
+                  />
+                </div>
+              </details>
+            )}
+            {confirm ? (
+              <section className="rounded-xl border border-blue-200 p-4 space-y-3">
+                <p className="font-semibold text-sm">
+                  {confirm === "finalize"
+                    ? "Finalkan payroll ini?"
+                    : confirm === "paid"
+                      ? "Catat pembayaran payroll"
+                      : "Buka kembali payroll"}
+                </p>
+                {confirm === "finalize" ? (
+                  <p className="text-sm text-slate-600">
+                    Gaji bersih {money(detail.total)} beserta rincian ini akan
+                    disimpan sebagai slip final.
+                  </p>
+                ) : (
+                  <>
+                    {confirm === "paid" && (
+                      <label className="block text-sm">
+                        Tanggal pembayaran
+                        <input
+                          type="date"
+                          className={control + " mt-1"}
+                          value={paidDate}
+                          onChange={(e) => setPaidDate(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    <label className="block text-sm">
+                      {confirm === "paid"
+                        ? "Referensi transfer / bukti pembayaran"
+                        : "Alasan membuka kembali"}
+                      <input
+                        className={control + " mt-1"}
+                        maxLength={confirm === "paid" ? 200 : 1000}
+                        value={reference}
+                        onChange={(e) => setReference(e.target.value)}
+                      />
+                    </label>
+                    {confirm === "paid" && (
+                      <p className="text-xs text-slate-500">
+                        Mencatat pembayaran yang sudah kamu lakukan. Tombol ini
+                        tidak mengirim uang.
+                      </p>
+                    )}
+                  </>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className={primary}
+                    disabled={
+                      busy ||
+                      (confirm !== "finalize" &&
+                        reference.trim().length < (confirm === "paid" ? 3 : 5))
+                    }
+                    onClick={() =>
+                      void save(
+                        confirm,
+                        confirm === "finalize"
+                          ? { crewId: detail.crewId, scopeKey: detail.scopeKey }
+                          : {
+                              id: detail.slipId,
+                              ...(confirm === "paid"
+                                ? {
+                                    paid_date: paidDate,
+                                    payment_reference: reference,
+                                  }
+                                : { note: reference }),
+                            },
+                      )
+                    }
+                  >
+                    {busy
+                      ? "Menyimpan..."
+                      : confirm === "finalize"
+                        ? "Konfirmasi finalisasi"
+                        : confirm === "paid"
+                          ? "Simpan pembayaran"
+                          : "Buka kembali"}
+                  </button>
+                  <button
+                    className={button}
+                    disabled={busy}
+                    onClick={() => setConfirm("")}
+                  >
+                    Batal
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {detail.status === "DRAFT" && (
+                  <button
+                    className={primary}
+                    disabled={busy || !!detail.blockedReason}
+                    onClick={() => setConfirm("finalize")}
+                  >
+                    Finalkan payroll
+                  </button>
+                )}
+                {detail.status === "FINAL" && (
+                  <>
+                    <button
+                      className={primary}
+                      disabled={busy}
+                      onClick={() => setConfirm("paid")}
+                    >
+                      Catat pembayaran
+                    </button>
+                    <button
+                      className={button}
+                      disabled={busy}
+                      onClick={() => setConfirm("reopen")}
+                    >
+                      Buka kembali draft
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            <PayrollExports
+              rows={[detail]}
+              month={month}
+              onError={setActionError}
+            />
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
 }

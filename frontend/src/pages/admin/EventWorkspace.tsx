@@ -23,7 +23,7 @@ import {
 import { DataTable, EventBadge, Stat } from "./adminWidgets";
 import { downloadWorkbook } from "../../lib/xlsxExport";
 import { stamp, reviewLabel } from "./attendanceData";
-import { getPayrollRules } from "./payrollData";
+import EventPayrollPanel from "../payroll/EventPayrollPanel";
 import OpenStreetMapLocationPicker from "../../components/maps/OpenStreetMapLocationPicker";
 export interface ManagedEvent extends Event {
   start_time: string | null;
@@ -351,7 +351,7 @@ export default function EventWorkspace({
           eventHours(e),
           e.event_locations[0]?.address || "",
           e.pic?.user.full_name || "",
-          e.event_assignments.filter((a) => a.status === "ACTIVE").length,
+          new Set(e.event_assignments.filter((a) => e.status === "COMPLETED" || a.status === "ACTIVE").map(a => a.crew_id)).size,
           e.status,
         ]),
       ],
@@ -361,43 +361,6 @@ export default function EventWorkspace({
     [detail?.pic_crew_id === a.crew_id ? "PIC" : "", a.position]
       .filter(Boolean)
       .join(" • ") || "Crew";
-  const eventPayroll =
-    detail?.event_assignments.map((a) => {
-      const rules = getPayrollRules(),
-        logs = (detail.attendance || []).filter(
-          (x) =>
-            x.crew_id === a.crew_id &&
-            x.check_in &&
-            x.check_out &&
-            ["PRESENT", "LATE"].includes(x.status) &&
-            ["APPROVED", "NOT_REQUIRED"].includes(x.review_status),
-        );
-      const lateHours = logs.reduce(
-          (n, x) =>
-            n + Math.ceil(Math.max(0, Number(x.late_minutes) || 0) / 60),
-          0,
-        ),
-        overtimeHours = logs
-          .filter((x) => x.overtime_status === "APPROVED")
-          .reduce(
-            (n, x) =>
-              n + Math.floor(Math.max(0, Number(x.overtime_minutes) || 0) / 60),
-            0,
-          ),
-        base = Number(a.crew.base_salary) * logs.length,
-        deduction = lateHours * rules.lateRate,
-        bonus = overtimeHours * rules.overtimeRate;
-      return {
-        a,
-        logs: logs.length,
-        lateHours,
-        overtimeHours,
-        base,
-        deduction,
-        bonus,
-        total: base + bonus - deduction,
-      };
-    }) || [];
   async function exportPdf() {
     if (!detail) return;
     setBusy(true);
@@ -794,37 +757,14 @@ export default function EventWorkspace({
                   <div className="flex flex-wrap justify-between gap-3 items-center">
                     <p className="text-sm text-slate-600">
                       {translateUI(
-                        "Estimasi khusus event ini. Gaji Event dihitung per absensi lengkap yang sah; bonus hanya untuk lembur yang disetujui.",
+                        "Fee dan penyesuaian mengikuti payroll tersimpan untuk event ini.",
                       )}
                     </p>
                     <button className={button} onClick={onPayroll}>
                       {translateUI("Buka Payroll Semua Crew")}
                     </button>
                   </div>
-                  <DataTable
-                    headers={[
-                      "Crew",
-                      "Sebagai",
-                      "Kehadiran Sah",
-                      "Gaji Pokok",
-                      "Jam Telat",
-                      "Potongan",
-                      "Jam Lembur",
-                      "Bonus",
-                      "Estimasi",
-                    ]}
-                    rows={eventPayroll.map((r) => [
-                      r.a.crew.user.full_name,
-                      role(r.a),
-                      r.logs,
-                      money(r.base),
-                      r.lateHours,
-                      "-" + money(r.deduction),
-                      r.overtimeHours,
-                      "+" + money(r.bonus),
-                      <strong>{money(r.total)}</strong>,
-                    ])}
-                  />
+                  <EventPayrollPanel eventId={detail.id} month={detail.event_date.slice(0,7)} />
                 </>
               )}
               {["Inventory", "Operasional"].includes(tab) && (
@@ -925,7 +865,7 @@ export default function EventWorkspace({
                 eventHours(e),
                 e.event_locations[0]?.address || "Belum diisi",
                 e.pic?.user.full_name || "Belum ditetapkan",
-                e.event_assignments.filter((a) => a.status === "ACTIVE").length,
+                new Set(e.event_assignments.filter((a) => e.status === "COMPLETED" || a.status === "ACTIVE").map(a => a.crew_id)).size,
                 <EventBadge status={e.status} />,
                 <button
                   disabled={busy}

@@ -9,12 +9,15 @@ import { clearAuthSession, setAccessToken } from './authSession';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api';
 
 // Role di database pakai UPPER_SNAKE_CASE, frontend pakai lower_snake_case.
-export type FrontendRole = 'admin' | 'head_store' | 'crew_event' | 'crew_store' | 'guest_crew';
+export type FrontendRole = 'admin' | 'head_store' | 'head_office' | 'office_staff' | 'production_staff' | 'crew_event' | 'crew_store' | 'guest_crew';
 
 const ROLE_DB_TO_FRONTEND: Record<string, FrontendRole> = {
   SUPER_ADMIN: 'admin',
   ADMIN_STORE: 'head_store',
   HEAD_STORE: 'head_store',
+  HEAD_OFFICE: 'head_office',
+  OFFICE_STAFF: 'office_staff',
+  PRODUCTION_STAFF: 'production_staff',
   EVENT_MANAGER: 'admin',
   CREW_EVENT: 'crew_event',
   CREW_STORE: 'crew_store',
@@ -24,6 +27,7 @@ const ROLE_DB_TO_FRONTEND: Record<string, FrontendRole> = {
 export interface AuthUser {
   company_name?: string;
   job_title?: string;
+  division?: string;
   branch_name?: string;
   id: string;
   full_name: string;

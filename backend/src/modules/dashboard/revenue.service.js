@@ -13,11 +13,12 @@ function revenuePeriod(month) {
 
 async function loadRevenue(db, month) {
   const { months, from, until } = revenuePeriod(month);
+  const events = [];
   const byMonth = new Map(months.map(row => [row.month, row]));
   // One row per event, never per crew. Pagination prevents the API row limit truncating totals.
   for (let offset = 0; ; offset += 500) {
     const { data, error } = await db.from('events')
-      .select('id,event_date,status,workflow:event_workflows(data,max_reached)')
+      .select('id,event_name,event_date,status,workflow:event_workflows(data,max_reached)')
       .gte('event_date', from).lt('event_date', until)
       .not('status', 'in', '(DRAFT,CANCELLED)').order('id').range(offset, offset + 499);
     if (error || !Array.isArray(data)) throw fail('Omzet event belum dapat dimuat. Coba muat ulang.', 503);
@@ -36,13 +37,14 @@ async function loadRevenue(db, month) {
         if (!Number.isFinite(amount) || amount < 0) throw fail('Omzet event berisi angka tidak valid. Periksa data workflow.', 422);
         total += amount;
       }
+      events.push({id:event.id,name:event.event_name||event.id,date:event.event_date,revenue:total});
       bucket.revenue += total;
       bucket.recordedEvents++;
       if (Number(workflow.max_reached) < 15) bucket.unfinishedEvents++;
     }
     if (data.length < 500) break;
   }
-  return { month, months, current: months[5] };
+  return { month, months, current: months[5], events };
 }
 
 module.exports = { loadRevenue, revenuePeriod };

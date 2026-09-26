@@ -14,18 +14,13 @@ interface Account {
   head_store_scopes: { city_name: string }[]
   crew: {
     id: string
+    division?: string
     crew_type: string
     status: string
     deleted_at: string | null
   }[]
 }
-const roles: Record<string, string> = {
-  CREW_STORE: "Crew Store",
-  CREW_EVENT: "Crew Event",
-  HEAD_STORE: "Head Store",
-  EVENT_MANAGER: "Event Manager",
-  SUPER_ADMIN: "Super Admin",
-}
+import {accountRoles as roles, roleDivisions} from '../../lib/accountRoles'
 const roleOf = (a: Account) =>
   a.user_roles.map((r) => roles[r.role.code] || r.role.name).join(", ") ||
   "Belum ditetapkan"
@@ -44,6 +39,7 @@ export default function AccountsWorkspace() {
     [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null),
     [role, setRole] = useState("CREW_STORE"),
+    [division, setDivision] = useState(""),
     [branchId, setBranchId] = useState(""),
     [deleting, setDeleting] = useState<Account | null>(null),
     [confirmEmail, setConfirmEmail] = useState(""),
@@ -81,7 +77,7 @@ export default function AccountsWorkspace() {
     ).values(),
   ].sort((a, b) => a.city_name!.localeCompare(b.city_name!))
   const filtered = accounts.filter((a) =>
-    [a.full_name, a.email, roleOf(a), a.head_store_scopes?.[0]?.city_name]
+    [a.full_name, a.email, roleOf(a), a.crew[0]?.division, a.head_store_scopes?.[0]?.city_name]
       .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase()),
@@ -91,7 +87,7 @@ export default function AccountsWorkspace() {
     setBusy(true)
     setModalError("")
     try {
-      await api.patch(`/accounts/${selected.id}/role`, { role, branchId })
+      await api.patch(`/accounts/${selected.id}/role`, { role, branchId, division: roleDivisions(role).length ? division : '' })
       setSelected(null)
       setNotice(
         "Role tersimpan. Pengguna perlu masuk kembali untuk memperbarui menu.",
@@ -163,11 +159,12 @@ export default function AccountsWorkspace() {
         filename="Akun_Jawara"
         title="Akun & Hak Akses"
         subtitle="JAWARA"
-        headers={["Nama", "Email", "Role", "Kota", "Status"]}
+        headers={["Nama", "Email", "Role", "Divisi", "Kota", "Status"]}
         rows={filtered.map((a) => [
           a.full_name,
           a.email,
           roleOf(a),
+          a.crew[0]?.division || "",
           a.head_store_scopes?.[0]?.city_name || "",
           a.is_active ? "Aktif" : "Nonaktif",
         ])}
@@ -195,7 +192,7 @@ export default function AccountsWorkspace() {
                       {a.email}
                     </p>
                   </td>
-                  <td className="p-4">{roleOf(a)}</td>
+                  <td className="p-4">{roleOf(a)}{a.crew[0]?.division && <p className="text-xs text-slate-500 mt-1">{a.crew[0].division}</p>}</td>
                   <td className="p-4">
                     {a.head_store_scopes?.[0]?.city_name || "—"}
                   </td>
@@ -219,6 +216,7 @@ export default function AccountsWorkspace() {
                         }
                         onClick={() => {
                           setSelected(a)
+                          setDivision(a.crew[0]?.division || "")
                           setRole(
                             a.user_roles[0]?.role.code ||
                               a.crew[0]?.crew_type ||
@@ -282,8 +280,9 @@ export default function AccountsWorkspace() {
             {t("Role akun")}
             <select
               className={control}
+              aria-label="Role akun"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {setRole(e.target.value);if(!roleDivisions(e.target.value).includes(division))setDivision('')}}
             >
               {Object.entries(roles).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -292,6 +291,7 @@ export default function AccountsWorkspace() {
               ))}
             </select>
           </label>
+          {roleDivisions(role).length>0 && <label className="block text-sm">Divisi<select aria-label="Divisi" required className={control} value={division} onChange={e=>setDivision(e.target.value)}><option value="">Pilih divisi</option>{roleDivisions(role).map(d=><option key={d}>{d}</option>)}</select><span className="text-xs text-slate-500">Divisi ditampilkan pada profil.</span></label>}
           {role === "HEAD_STORE" && (
             <label className="block text-sm">
               {t("Kota cakupan")}

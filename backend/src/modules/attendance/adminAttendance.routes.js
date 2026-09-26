@@ -6,9 +6,9 @@ const { uuid, fail } = require('../crew/crew.validation');
 const { getSignedDownloadUrl } = require('../../utils/signedUrl');
 const { importGuest, upload } = require('./guestAttendance.routes');
 router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER));
-const selection = `*, crew:crew(company_name,job_title,employee_code,user:users(full_name,email,phone_number)),
+const selection = `*, crew:crew(company_name,job_title,division,employee_code,user:users(full_name,email,phone_number,user_roles(role:roles(code)))),
   store_assignment:store_assignments(store:stores(name,location_kind,branch:branches(name,city_name))),event_assignment:event_assignments(event:events(event_name,branch:branches(name,city_name))),
-  store_schedule:store_schedules(schedule_date,start_time,end_time,late_tolerance_minutes,overtime_preapproved),event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved)`;
+  store_schedule:store_schedules(schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved),event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved)`;
 function check(error) {
   if (error) throw fail(error.code?.startsWith('PGRST') || ['42703','42P01'].includes(error.code)
     ? 'Jalankan migrasi attendance_review_guest sebelum membuka absensi.' : error.message, 503);

@@ -8,7 +8,7 @@ router.get('/', async (req, res, next) => {
     const rows = [];
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db.from('users')
-        .select('id,full_name,email,is_active,user_roles(role:roles(code,name)),head_store_scopes(city_name),crew(id,crew_type,status,deleted_at)')
+        .select('id,full_name,email,is_active,user_roles(role:roles(code,name)),head_store_scopes(city_name),crew(id,crew_type,division,status,deleted_at)')
         .order('full_name').order('id').range(offset, offset + 499);
       if (error) throw fail('Daftar akun belum tersedia. Pastikan migrasi Head Store sudah dijalankan.', 503);
       rows.push(...data.map(row => ({...row, head_store_scopes: Array.isArray(row.head_store_scopes) ? row.head_store_scopes : row.head_store_scopes ? [row.head_store_scopes] : []})));
@@ -20,11 +20,14 @@ router.get('/', async (req, res, next) => {
 router.patch('/:id/role', async (req, res, next) => {
   try {
     uuid(req.params.id);
-    if (!['SUPER_ADMIN','HEAD_STORE','EVENT_MANAGER','CREW_STORE','CREW_EVENT'].includes(req.body?.role)) throw fail('Role tidak valid.');
+    if (!['SUPER_ADMIN','HEAD_STORE','EVENT_MANAGER','CREW_STORE','CREW_EVENT','HEAD_OFFICE','OFFICE_STAFF','PRODUCTION_STAFF'].includes(req.body?.role)) throw fail('Role tidak valid.');
     if (req.body.role === 'HEAD_STORE') uuid(req.body.branchId, 'Pilih kota cakupan.');
+    const divisions = ['HEAD_OFFICE','OFFICE_STAFF'].includes(req.body.role) ? ['Operational','Finance','Business Development','Marketing','Produksi','Teknisi'] : req.body.role === 'PRODUCTION_STAFF' ? ['Packing','Produksi'] : [];
+    if (divisions.length && !divisions.includes(req.body.division)) throw fail('Pilih divisi yang sesuai dengan role.');
     const { data, error } = await db.rpc('set_account_role', {
       p_actor: req.user.id, p_user: req.params.id, p_role: req.body.role,
       p_scope_branch: req.body.role === 'HEAD_STORE' ? req.body.branchId : null,
+      p_division: divisions.length ? req.body.division : '',
     });
     if (error) throw fail(error.message, error.code === '42501' ? 403 : 400);
     res.json(data);

@@ -7,6 +7,7 @@ const canManage = requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_
 
 // GET /crew
 router.get('/', canManage, controller.list);
+router.post('/:id/reveal-password', requireRole(ROLES.SUPER_ADMIN), require('../../security/http').createPasswordRevealLimits(), require('./passwordVault').reveal);
 router.get('/:id', canManage, controller.detail);
 router.delete('/:id', requireRole(ROLES.SUPER_ADMIN), require('./deleteCrew').deleteCrew);
 

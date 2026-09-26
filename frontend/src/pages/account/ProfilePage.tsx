@@ -59,7 +59,7 @@ export default function ProfilePage() {
   }
   return <div className="account-page">
     <div className="account-heading"><span className="ui-eyebrow">{translateUI("AKUN ANDA")}</span><h2>{translateUI("Profil Saya")}</h2><p>{translateUI("Kelola identitas dan foto yang ditampilkan di JAWARA.")}</p></div>
-    {!guest && <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 p-4"><p>{translateUI("Perusahaan:") + " "}{auth?.user.company_name || translateUI("Belum ditetapkan")}</p><p>{translateUI("Jabatan:") + " "}{auth?.user.job_title || translateUI("Belum ditetapkan")}</p><p className="text-xs text-slate-500 sm:col-span-2">{translateUI("Perubahan perusahaan dan jabatan dilakukan oleh admin.")}</p></div>}
+    {!guest && <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 p-4"><p>{translateUI("Perusahaan:") + " "}{auth?.user.company_name || translateUI("Belum ditetapkan")}</p><p>{translateUI("Jabatan:") + " "}{auth?.user.job_title || translateUI("Belum ditetapkan")}</p><p>Divisi: {auth?.user.division || "—"}</p><p className="text-xs text-slate-500 sm:col-span-2">{translateUI("Perubahan perusahaan, jabatan, dan divisi dilakukan oleh admin.")}</p></div>}
     {guest && <p className="ui-info">{translateUI("Mode Guest Crew. Nama, email kontak, dan foto hanya berlaku selama sesi ini. Data ini tidak membuat akun login baru.")}</p>}
     {loading && <p role="status">{translateUI("Memuat profil akun…")}</p>}
     {error && <p className="ui-error" role="alert">{translateUI(error)}</p>}

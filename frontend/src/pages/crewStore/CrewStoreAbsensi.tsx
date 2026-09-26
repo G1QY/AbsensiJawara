@@ -9,6 +9,8 @@ type Step = 'loading' | 'no-schedule' | 'menu' | 'clockin-camera' | 'submitting-
 
 interface TodayContext {
   type: 'STORE' | 'EVENT';
+  shiftNumber?: number;
+  scheduleDate?: string;
   storeAssignmentId: string | null;
   storeScheduleId: string | null;
   eventAssignmentId: string | null;
@@ -155,7 +157,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
       <div className="p-6 space-y-5 max-w-lg mx-auto">
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
           <h3 className="font-semibold text-slate-900 text-sm mb-1">{translateUI("Jadwal Kerja Hari Ini")}</h3>
-          <p className="text-xs text-slate-400 mb-4">{ctx?.locationName}</p>
+          <p className="text-xs text-slate-400 mb-4">{ctx?.locationName}{ctx?.shiftNumber?` · Shift ${ctx.shiftNumber}`:""}</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-xs text-slate-400 font-medium">{translateUI("Jam Masuk")}</p>
@@ -163,7 +165,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-xs text-slate-400 font-medium">{translateUI("Jam Pulang")}</p>
-              <p className="text-2xl font-bold text-slate-900 font-mono mt-1">{ctx?.scheduledEnd?.slice(0, 5)}</p>
+              <p className="text-2xl font-bold text-slate-900 font-mono mt-1">{ctx?.scheduledEnd?.slice(0, 5)}{ctx&&ctx.scheduledEnd<ctx.scheduledStart?<span className="block text-xs font-normal text-blue-700">Pulang hari berikutnya</span>:null}</p>
             </div>
           </div>
         </div>
@@ -176,7 +178,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{" " + translateUI("Clock In Sekarang") + " "}</button>
 
-        <p className="text-center text-xs text-slate-400">{translateUI("Clock-in lebih awal pada tanggal jadwal diperbolehkan dan dihitung tepat waktu. Lokasi serta timestamp diambil dari GPS dan server.")}</p>
+        <p className="text-center text-xs text-slate-400">{translateUI("Gunakan kamera dan lokasi perangkat untuk absen.")}</p>
 
         {showCalendar ? <AttendanceCalendar /> : null}
       </div>
@@ -239,7 +241,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
             )}
           </div>
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800"><strong>{translateUI("Persetujuan absensi:")}</strong> {approvalText(lastResult.review_status)}</div>
-          <p className="text-xs text-slate-500 text-center">{translateUI("Waktu & lokasi tercatat otomatis dari server — tidak dapat diubah.")}</p>
+          <p className="text-xs text-slate-500 text-center">{translateUI("Waktu tercatat dari server, lokasi dari GPS perangkat.")}</p>
         </div>
 
         <button onClick={() => loadToday()} className={`w-full py-3 rounded-xl text-white font-bold ${isLate ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>{" " + translateUI("Lanjut Bekerja →") + " "}</button>
@@ -267,7 +269,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           </div>
           <div className="bg-slate-50 rounded-xl p-3">
             <p className="text-xs text-slate-400">{translateUI("Jadwal Pulang")}</p>
-            <p className="font-bold text-slate-900 font-mono">{ctx?.scheduledEnd?.slice(0, 5)}</p>
+            <p className="font-bold text-slate-900 font-mono">{ctx?.scheduledEnd?.slice(0, 5)}{ctx&&ctx.scheduledEnd<ctx.scheduledStart?<span className="block text-xs font-normal text-blue-700">Pulang hari berikutnya</span>:null}</p>
           </div>
         </div>
 
@@ -310,7 +312,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white rounded-xl p-3 text-center">
               <p className="text-xs text-slate-400">{translateUI("Jam Selesai Jadwal")}</p>
-              <p className="text-xl font-bold text-slate-900 font-mono">{ctx?.scheduledEnd?.slice(0, 5)}</p>
+              <p className="text-xl font-bold text-slate-900 font-mono">{ctx?.scheduledEnd?.slice(0, 5)}{ctx&&ctx.scheduledEnd<ctx.scheduledStart?<span className="block text-xs font-normal text-blue-700">Pulang hari berikutnya</span>:null}</p>
             </div>
             <div className={`${hasOvertime ? 'bg-amber-100' : 'bg-slate-100'} rounded-xl p-3 text-center`}>
               <p className={`text-xs ${hasOvertime ? 'text-amber-600' : 'text-slate-500'}`}>Clock Out</p>
@@ -320,7 +322,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
               <div className="col-span-2 bg-white rounded-xl p-3 text-center">
                 <p className="text-xs text-slate-400">{translateUI("Estimasi Lembur (dibulatkan per jam penuh)")}</p>
                 <p className="text-lg font-bold text-amber-600">{Math.floor(lastResult.overtime_minutes / 60)}{" " + translateUI("jam")}</p>
-                <p className="text-[11px] text-slate-500 mt-1">{overtimeApproved?`Bonus estimasi Rp${(Math.floor(lastResult.overtime_minutes/60)*10000).toLocaleString(getLocale())}`:translateUI("Belum menjadi bonus sampai disetujui admin")}</p>
+                <p className="text-[11px] text-slate-500 mt-1">{approvalText(lastResult.overtime_status)}</p>
               </div>
             )}
           </div>
@@ -338,19 +340,19 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <svg className="mx-auto h-10 w-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mt-4 mb-1">{translateUI("Absensi Hari Ini Selesai")}</h3>
-          <p className="text-slate-500 text-sm">{translateUI("Terima kasih atas kerja keras hari ini")}</p>
+          <h3 className="text-xl font-bold text-slate-900 mt-4 mb-1">{translateUI("Clock Out Tercatat")}</h3>
+          <p className="text-slate-500 text-sm">{translateUI("Lihat status tinjauan admin di bawah.")}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 text-left">
           <div className="bg-slate-50 rounded-xl p-3">
             <p className="text-xs text-slate-400">Clock In</p>
             <p className="font-bold text-sm text-slate-900 mt-0.5">{jam(att?.check_in ?? null)}</p>
-            {(att?.late_minutes ?? 0) > 0 && <p className="text-xs text-red-500 mt-0.5">{translateUI("Telat") + " "}{att?.late_minutes}{" " + translateUI("menit • potongan estimasi Rp")}{(Math.ceil((att?.late_minutes??0)/60)*10000).toLocaleString(getLocale())}</p>}
+            {(att?.late_minutes ?? 0) > 0 && <p className="text-xs text-red-500 mt-0.5">{translateUI("Telat") + " "}{att?.late_minutes}{" " + translateUI("menit")}</p>}
           </div>
           <div className="bg-slate-50 rounded-xl p-3">
             <p className="text-xs text-slate-400">Clock Out</p>
             <p className="font-bold text-sm text-slate-900 mt-0.5">{jam(att?.check_out ?? null)}</p>
-            {(att?.overtime_minutes ?? 0) > 0 && <p className="text-xs text-amber-600 mt-0.5">{translateUI("Lembur") + " "}{Math.floor((att?.overtime_minutes ?? 0) / 60)}{" " + translateUI("jam •") + " "}{att?.overtime_status==='APPROVED'?`disetujui, bonus estimasi Rp${(Math.floor((att?.overtime_minutes??0)/60)*10000).toLocaleString(getLocale())}`:att?.overtime_status==='REJECTED'?translateUI("ditolak, tanpa bonus"):translateUI("menunggu admin, belum menjadi bonus")}</p>}
+            {(att?.overtime_minutes ?? 0) > 0 && <p className="text-xs text-amber-600 mt-0.5">{translateUI("Lembur") + " "}{Math.floor((att?.overtime_minutes ?? 0) / 60)}{" " + translateUI("jam •") + " "}{approvalText(att?.overtime_status)}</p>}
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

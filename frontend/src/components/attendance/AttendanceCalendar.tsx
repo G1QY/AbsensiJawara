@@ -16,6 +16,8 @@ interface CalendarDay {
   lateMinutes: number;
   overtimeMinutes: number;
   overtimeStatus: string;
+  reviewStatus?: string;
+  shiftNumber?: number;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -165,12 +167,13 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
               {STATUS_LABEL[selected.status] || selected.status}
             </span>
           </div>
+          {selected.checkIn && <p className="text-xs text-blue-700">Tinjauan admin: {({PENDING:"Menunggu tinjauan",APPROVED:"Disetujui",REJECTED:"Ditolak",NOT_REQUIRED:"Belum ditinjau manual"} as Record<string,string>)[selected.reviewStatus||"PENDING"]}</p>}
           {selected.holidayName && selected.type !== 'HOLIDAY' && <p className="text-xs text-amber-700">{selected.holidayName}{translateUI(". Anda tetap memiliki jadwal kerja pada tanggal ini.")}</p>}
-          <p className="text-xs text-slate-500">{selected.type === 'NONE' ? translateUI("Keterangan") : selected.type === 'HOLIDAY' ? translateUI("Keterangan") : selected.type === 'STORE' ? translateUI("Toko") : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
+          <p className="text-xs text-slate-500">{selected.type === 'NONE' ? translateUI("Keterangan") : selected.type === 'HOLIDAY' ? translateUI("Keterangan") : selected.type === 'STORE' ? translateUI("Lokasi kerja") : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
           {selected.type !== 'HOLIDAY' && selected.type !== 'NONE' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
-              <p className="text-slate-400">{translateUI("Jadwal")}</p>
-              <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}</p>
+              <p className="text-slate-400">{selected.shiftNumber?`Shift ${selected.shiftNumber}`:translateUI("Jadwal")}</p>
+              <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}{selected.endTime&&selected.startTime&&selected.endTime<selected.startTime?" (+1 hari)":""}</p>
             </div>
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">Clock In / Out</p>

@@ -39,5 +39,6 @@ function installSecurity(app,{production=process.env.NODE_ENV==='production',ori
 function userLimits(req,res,next){const middleware=userLimits.instance||(userLimits.instance=limiter('user',240,60000,req=>req.user.id));return middleware(req,res,next);}
 function uploadLimits(req,res,next){if(!req.is('multipart/form-data'))return next();const middleware=uploadLimits.instance||(uploadLimits.instance=limiter('upload',30,60000,req=>req.user.id));return middleware(req,res,next);}
 function createLocationLimits(){return limiter('location',120,60000);}
+function createPasswordRevealLimits(){return limiter("password-reveal",10,60000,req=>req.user.id);}
 const getSecurityStore=()=>redis;
-module.exports={getSecurityStore,createLocationLimits,installSecurity,validateEnvironment,connectSecurityStore,userLimits,uploadLimits,inputGuard};
+module.exports={createPasswordRevealLimits,getSecurityStore,createLocationLimits,installSecurity,validateEnvironment,connectSecurityStore,userLimits,uploadLimits,inputGuard};

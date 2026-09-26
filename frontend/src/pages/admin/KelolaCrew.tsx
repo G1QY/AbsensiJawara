@@ -1,7 +1,9 @@
+import {accountRoles} from '../../lib/accountRoles';
 import {t as translateUI} from '../../lib/i18n';
 import { branchLabel } from '../../lib/locationLabel';
 import ExportButtons from '../../components/ui/ExportButtons';
 import { useAuth } from '../../lib/AuthContext';
+import CrewAccountControls from "./CrewAccountControls"
 import CrewCsvImport from "./CrewCsvImport"
 import { useState, useEffect, type FormEvent } from "react"
 import { StatusBadge } from "../../components/ui/Badge"
@@ -149,14 +151,15 @@ export default function KelolaCrew() {
         assignTo: form.crewType === "CREW_STORE" ? form.assignTo || null : null,
         ...(!editing ? { email, password } : {}),
       }
+      let passwordNotice = ""
       if (editing) await api.patch(`/crew/${editing.id}`, body)
-      else await api.post("/crew", body)
+      else { const result = await api.post<{passwordNotice?:string}>("/crew", body); passwordNotice = result.passwordNotice || "" }
       setShowForm(false)
       setForm({ ...empty })
       setNotice(
         editing
           ? "Perubahan crew tersimpan."
-          : "Akun crew berhasil dibuat. Email dan password awal dapat dipakai untuk login.",
+          : "Akun crew berhasil dibuat. Email dan password awal dapat dipakai untuk login. " + passwordNotice,
       )
       try {
         await reload()
@@ -192,13 +195,13 @@ export default function KelolaCrew() {
     setFormError("")
     try {
       if (action === "password") {
-        await api.patch(`/crew/${detail.id}/reset-password`, {
+        const result = await api.patch<{passwordNotice?:string}>(`/crew/${detail.id}/reset-password`, {
           newPassword: password,
         })
         setPassword("")
         setAction(null)
         setNotice(
-          "Password baru tersimpan. Sampaikan kepada pemilik akun melalui jalur pribadi.",
+          "Password baru tersimpan. Sampaikan kepada pemilik akun melalui jalur pribadi. " + (result.passwordNotice || ""),
         )
       } else {
         if (action === "delete") await api.delete(`/crew/${detail.id}`, {confirm:true, email:confirmEmail})
@@ -229,7 +232,7 @@ export default function KelolaCrew() {
   }
   const filtered = crew.filter(
     (c) =>
-      (!kind || c.crew_type === kind) &&
+      (!kind || (c.user.user_roles?.[0]?.role.code || c.crew_type) === kind) &&
       (!status || c.status === status) &&
       (!branch || c.branch_id === branch) &&
       [
@@ -237,6 +240,8 @@ export default function KelolaCrew() {
         c.user.email,
         c.company_name,
         c.job_title,
+        c.division,
+        crewKind(c),
         c.user.phone_number,
         branchLabel(c.branch),
         ...sources(c),
@@ -298,7 +303,7 @@ export default function KelolaCrew() {
           onClick={() => openForm()}
         >{" " + translateUI("+ Tambah Crew") + " "}</button>
       </div>
-      {!loading && !error && <ExportButtons filename="Daftar-Crew" title={translateUI("Daftar Crew")} subtitle={translateUI("Mengikuti pencarian dan filter Kelola Crew")} headers={['Nama','HP','Email','Perusahaan','Jabatan','Cabang','Penempatan','Jenis Penugasan','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'Belum diisi',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
+      {!loading && !error && <ExportButtons filename="Daftar-Crew" title={translateUI("Daftar Crew")} subtitle={translateUI("Mengikuti pencarian dan filter Kelola Crew")} headers={['Nama','HP','Email','Perusahaan','Jabatan','Divisi','Cabang','Penempatan','Role','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'',c.division||'',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
       {showImport && <CrewCsvImport onClose={()=>setShowImport(false)} onSaved={reload} existingEmails={crew.map(c=>c.user.email)} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <select
@@ -307,9 +312,8 @@ export default function KelolaCrew() {
           value={kind}
           onChange={(e) => setKind(e.target.value)}
         >
-          <option value="">{translateUI("Semua jenis crew")}</option>
-          <option value="CREW_STORE">{translateUI("Crew Store")}</option>
-          <option value="CREW_EVENT">{translateUI("Crew Event")}</option>
+          <option value="">{translateUI("Semua role")}</option>
+          {Object.entries(accountRoles).map(([code,label])=><option key={code} value={code}>{label}</option>)}
         </select>
         <select
           aria-label={translateUI("Filter cabang")}
@@ -337,14 +341,14 @@ export default function KelolaCrew() {
       </div>
       <div className="flex flex-wrap gap-2">
         {[
-          ["Total Crew", crew.length],
+          ["Total Personel", crew.length],
           [
             "Crew Event",
-            crew.filter((c) => c.crew_type === "CREW_EVENT").length,
+            crew.filter((c) => (c.user.user_roles?.[0]?.role.code || c.crew_type) === "CREW_EVENT").length,
           ],
           [
             "Crew Store",
-            crew.filter((c) => c.crew_type === "CREW_STORE").length,
+            crew.filter((c) => (c.user.user_roles?.[0]?.role.code || c.crew_type) === "CREW_STORE").length,
           ],
           ["Non-Aktif", crew.filter((c) => c.status === "INACTIVE").length],
         ].map(([label, n]) => (
@@ -363,7 +367,7 @@ export default function KelolaCrew() {
               <tr>
                 {[
                   "Nama & Kontak", "Perusahaan", "Jabatan", "Cabang",
-                  "Penempatan", "Jenis Penugasan", "Status", "Aksi",
+                  "Penempatan", "Role", "Status", "Aksi",
                 ].map((h) => (
                   <th
                     key={h}
@@ -395,7 +399,7 @@ export default function KelolaCrew() {
                     </div>
                   </td>
                   <td className="p-4 text-slate-700">{c.company_name || translateUI("Belum ditetapkan")}</td>
-                  <td className="p-4 text-slate-700">{c.job_title || translateUI("Belum ditetapkan")}</td>
+                  <td className="p-4 text-slate-700">{[c.job_title,c.division].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="p-4 text-slate-700">{branchLabel(c.branch) || translateUI("Belum ditetapkan")}</td>
                   <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || translateUI("Belum ditugaskan")}</td>
                   <td className="p-4 whitespace-nowrap text-blue-700">
@@ -521,6 +525,7 @@ export default function KelolaCrew() {
             <label className="text-sm text-slate-700">{" " + translateUI("Jenis Penugasan") + " "}<select
                 aria-label={translateUI("Jenis Crew")}
                 className={control}
+                disabled={!!editing?.user.user_roles?.some(r=>!['CREW_STORE','CREW_EVENT'].includes(r.role.code))}
                 value={form.crewType}
                 onChange={(e) =>
                   changeCodeInputs({ crewType: e.target.value, assignTo: "" })
@@ -632,7 +637,8 @@ export default function KelolaCrew() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                ["Jenis", crewKind(detail)],
+                ["Role", crewKind(detail)],
+                ["Divisi", detail.division || "—"],
                 ["Status", detail.status === "ACTIVE" ? translateUI("Aktif") : translateUI("Non-Aktif")],
                 ["Nomor HP", detail.user.phone_number || translateUI("HP belum diisi")],
                 ["Perusahaan", detail.company_name || translateUI("Belum ditetapkan")],
@@ -655,6 +661,7 @@ export default function KelolaCrew() {
                 {sources(detail).join(", ") || translateUI("Belum ditugaskan")}
               </p>
             </div>
+            {auth?.role === 'SUPER_ADMIN' && !action && <CrewAccountControls key={detail.id} crew={detail} directory={directory} onSaved={async()=>{await reload();setDetail(await api.get<Crew>(`/crew/${detail.id}`))}} />}
             <details className="text-sm text-slate-600">
               <summary className="cursor-pointer">{translateUI("Riwayat penugasan")}</summary>
               <ul className="mt-2 space-y-2">
@@ -682,7 +689,7 @@ export default function KelolaCrew() {
                     disabled={busy}
                     className={primary}
                     onClick={() => { setScheduleCrew(detail); setDetail(null) }}
-                  >{" " + translateUI("Atur Jadwal Store") + " "}</button>
+                  >{" " + translateUI("Atur Jadwal Kerja") + " "}</button>
                 )}
                 <button
                   disabled={busy}
@@ -728,7 +735,7 @@ export default function KelolaCrew() {
                             ? "menonaktifkan akses login"
                             : "mengaktifkan kembali akun"
                         } ${detail.user.full_name}?`
-                      : translateUI("Password lama tidak dapat ditampilkan. Isi password baru untuk akun ini.")}
+                      : translateUI("Isi password baru. Password sebelumnya langsung tidak berlaku setelah disimpan.")}
                 </p>
                 {action === "delete" && <label className="block text-sm">{translateUI('Ketik email akun untuk konfirmasi')}<input required type="email" className={control} value={confirmEmail} onChange={e=>setConfirmEmail(e.target.value)} /></label>}
                 {action === "password" && (
@@ -771,7 +778,7 @@ export default function KelolaCrew() {
       <Modal
         open={!!scheduleCrew}
         onClose={() => setScheduleCrew(null)}
-        title={"Jadwal Crew Store" + (scheduleCrew ? " • " + scheduleCrew.user.full_name : "")}
+        title={"Jadwal Kerja" + (scheduleCrew ? " • " + scheduleCrew.user.full_name : "")}
         size="lg"
       >
         {scheduleCrew && <StoreScheduleManager crewId={scheduleCrew.id} crewName={scheduleCrew.user.full_name} />}
@@ -790,7 +797,7 @@ export default function KelolaCrew() {
         title={translateUI("Jadwal Massal Crew Store")}
         size="lg"
       >
-        <BulkStoreScheduleManager stores={directory.stores} />
+        <BulkStoreScheduleManager stores={directory.stores} crew={crew} />
       </Modal>
     </div>
   )
