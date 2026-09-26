@@ -15,7 +15,7 @@ const approval: Record<string, string> = { NONE: 'Tidak ada', PENDING: 'Menunggu
 interface AttendanceApiRow {
   id: string; attendance_date: string; check_in: string | null; check_out: string | null;
   status: string; review_status: string; late_minutes: number; overtime_minutes: number; overtime_status: string;
-  store_schedule?: { start_time: string; end_time: string; overtime_preapproved: boolean } | null;
+  store_schedule?: { shift_number?:number; start_time: string; end_time: string; overtime_preapproved: boolean } | null;
   event_schedule?: { start_time: string; end_time: string; overtime_preapproved: boolean } | null;
   store_assignment?: { store: { name: string } | null } | null;
   event_assignment?: { event: { event_name: string } | null } | null;
@@ -31,19 +31,19 @@ function mapRow(a: AttendanceApiRow): HistoryRow {
   const schedule = a.store_schedule || a.event_schedule;
   const lateHours = Math.ceil(Math.max(0, Number(a.late_minutes) || 0) / 60);
   const overtimeHours = Math.floor(Math.max(0, Number(a.overtime_minutes) || 0) / 60);
-  const acceptedAttendance = a.review_status !== 'REJECTED' && ['PRESENT', 'LATE'].includes(a.status);
+  const acceptedAttendance = ['APPROVED','NOT_REQUIRED'].includes(a.review_status) && ['PRESENT', 'LATE'].includes(a.status);
   return {
     id: a.id,
     source: a.store_assignment?.store?.name || a.event_assignment?.event?.event_name || 'Lokasi kerja',
     date: new Date(`${a.attendance_date}T00:00:00+07:00`).toLocaleDateString(getLocale(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' }),
-    schedule: schedule ? `${schedule.start_time.slice(0, 5)}–${schedule.end_time.slice(0, 5)}` : 'Belum ada jadwal',
+    schedule: schedule ? `${a.store_schedule?.shift_number?`Shift ${a.store_schedule.shift_number} · `:""}${schedule.start_time.slice(0, 5)}–${schedule.end_time.slice(0, 5)}${schedule.end_time<schedule.start_time?" (+1 hari)":""}` : 'Belum ada jadwal',
     checkIn: clock(a.check_in), checkOut: clock(a.check_out),
     attendanceStatus: a.review_status === 'REJECTED' ? 'Ditolak' : a.status === 'LATE' ? 'Telat' : a.status === 'PRESENT' ? 'Tepat waktu' : 'Perlu tinjau',
     attendanceApproval: approval[a.review_status] || (a.review_status==='NOT_REQUIRED'?'Tidak perlu ditinjau':a.review_status),
     lateHours, overtimeHours, overtimeStatus: approval[a.overtime_status] || a.overtime_status,
     preapproved: !!schedule?.overtime_preapproved,
-    deduction: acceptedAttendance ? lateHours * LATE_RATE : 0,
-    bonus: acceptedAttendance && a.overtime_status === 'APPROVED' ? overtimeHours * OVERTIME_RATE : 0,
+    deduction: acceptedAttendance && !a.event_assignment ? lateHours * LATE_RATE : 0,
+    bonus: acceptedAttendance && !a.event_assignment && a.overtime_status === 'APPROVED' ? overtimeHours * OVERTIME_RATE : 0,
   };
 }
 

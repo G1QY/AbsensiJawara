@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),ts=require('typescript');
-function load(file){const ctx={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src',file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,ctx);return ctx.exports;}
+function load(file){const ctx={exports:{},require:name=>{assert.equal(name,'../../lib/accountRoles');const roles={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/lib/accountRoles.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,roles);return roles.exports;}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src',file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,ctx);return ctx.exports;}
 const {readDeviceLocation}=load('lib/deviceLocation.ts');
 const {gpsPoint,gpsLink,fromGuest,fromRegistered,recap}=load('pages/admin/attendanceData.ts');
 test('each attendance measurement requests fresh high accuracy GPS, including zero coordinates',async()=>{

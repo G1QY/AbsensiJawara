@@ -43,12 +43,21 @@ jobs:
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/accounts"
           node tests/head-store-accounts-browser.cjs
+          node tests/crew-password-browser.cjs
       - name: Verify attendance success dialog
         working-directory: frontend
         run: |
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
           export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/attendance"
           node tests/guest-submission-browser.cjs
+      - name: Verify staff, shifts, reviews and persisted payroll
+        working-directory: frontend
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/jawara-qa-tools/node_modules/playwright"
+          export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/v13"
+          node tests/staff-v13-browser.cjs
+          export QA_OUTPUT_DIR="$RUNNER_TEMP/jawara-qa/payroll"
+          node tests/payroll-persisted-browser.cjs
       - name: Verify dashboard, maps and language
         working-directory: frontend
         run: |

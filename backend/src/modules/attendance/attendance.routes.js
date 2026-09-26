@@ -2,13 +2,14 @@ const router = require('express').Router();
 const multer = require('multer');
 const controller = require('./attendance.controller');
 
+const personalAttendance = require('../../middlewares/requireRole')('CREW_STORE','CREW_EVENT','HEAD_STORE','ADMIN_STORE','EVENT_MANAGER','HEAD_OFFICE','OFFICE_STAFF','PRODUCTION_STAFF');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 30, fieldSize: 10000, parts: 31 } });
 
 // POST /attendance/check-in
-router.post('/check-in', upload.single('photo'), controller.checkIn);
+router.post('/check-in', personalAttendance, upload.single('photo'), controller.checkIn);
 
 // POST /attendance/{id}/check-out
-router.post('/:id/check-out', upload.single('photo'), controller.checkOut);
+router.post('/:id/check-out', personalAttendance, upload.single('photo'), controller.checkOut);
 
 // GET /attendance/today — WAJIB sebelum /:id
 router.get('/today', controller.today);

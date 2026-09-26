@@ -1,3 +1,5 @@
+const dbPath=require.resolve('../../backend/src/config/supabaseClient');require.cache[dbPath]={id:dbPath,filename:dbPath,loaded:true,exports:{}};
+const {calculate:calculatePayroll,DEFAULT_POLICY}=require('../../backend/src/modules/payroll/payroll.service');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve('dist'),out=process.env.QA_OUTPUT_DIR||'/tmp/jawara-dashboard-qa';fs.mkdirSync(out,{recursive:true});
@@ -18,6 +20,7 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://local
    else if(url.pathname==='/api/admin-directory')data={branches:[],stores:[],events:[]};
    else if(url.pathname==='/api/crew')data=[crew];
    else if(url.pathname==='/api/admin-attendance')data={registered:[{id:'a',crew_id:crew.id,attendance_date:today,check_in:today+'T01:00:00Z',check_out:today+'T10:00:00Z',status:'PRESENT',review_status:'APPROVED',overtime_status:'NONE',late_minutes:0,overtime_minutes:0}],guest:[]};
+   else if(url.pathname==='/api/payroll')data={month,revision:'a'.repeat(32),configured:true,policy:DEFAULT_POLICY,rows:calculatePayroll({policy:DEFAULT_POLICY,people:[{...crew,crew_type:'CREW_STORE',full_name:'Crew Uji',role:'CREW_STORE',join_date:'2020-01-01',user_id:'user'}]},month)};
    else if(url.pathname==='/api/admin-store-schedules/payroll-context')data={schedules:[],permissions:[]};
    else if(url.pathname==='/api/dashboard/revenue'){
     if(failed)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Omzet event belum dapat dimuat.'})});
@@ -29,10 +32,10 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://local
   await page.locator('aside').getByRole('button',{name:'Dashboard',exact:true}).click();
   const card=label=>page.getByText(label,{exact:true}).locator('..');
   await card('Omzet Event Bulan Ini').getByText('Rp900.000',{exact:true}).waitFor();
-  assert.ok((await card('Estimasi Payroll Bulan Ini').innerText()).includes('Rp100.000'));
-  await page.getByRole('img',{name:/Omzet Event per Bulan:.*900.000/}).waitFor();
+  assert.ok((await card('Payroll Bulan Ini').innerText()).includes('Rp100.000'));
+  await page.getByRole('button',{name:/Omzet Event per Bulan,.*900.000/}).click();await page.getByRole('status').filter({hasText:'1 event mencatat omzet'}).waitFor();
   assert.equal(await page.getByText('Payroll Final',{exact:true}).count(),0);
-  await page.locator('aside').getByRole('button',{name:'Payroll',exact:true}).click();await card('Total Estimasi Payroll').getByText('Rp100.000',{exact:true}).waitFor();
+  await page.locator('aside').getByRole('button',{name:'Payroll',exact:true}).click();await card('Gaji Bersih').getByText('Rp100.000',{exact:true}).waitFor();
   await page.locator('aside').getByRole('button',{name:'Dashboard',exact:true}).click();await card('Omzet Event Bulan Ini').getByText('Rp900.000',{exact:true}).waitFor();
   amount=1250000;await page.getByRole('button',{name:'Muat ulang',exact:true}).click();await card('Omzet Event Bulan Ini').getByText('Rp1.250.000',{exact:true}).waitFor();
   await page.screenshot({path:out+'/dashboard-desktop.png',fullPage:true});await page.setViewportSize({width:375,height:812});await page.screenshot({path:out+'/dashboard-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));

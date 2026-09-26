@@ -1,3 +1,4 @@
+import {accountRoles} from '../../lib/accountRoles'
 export interface Branch {
   city_name?: string
   company_name?: string
@@ -38,6 +39,7 @@ export interface Directory {
 export interface Crew {
   company_name?: string
   job_title?: string
+  division?: string
   id: string
   employee_code: string
   crew_type: "CREW_EVENT" | "CREW_STORE"
@@ -46,7 +48,7 @@ export interface Crew {
   branch_id: string | null
   branch: { id: string; name: string; city_name?: string } | null
   avatarUrl?: string
-  user: { id: string; full_name: string; email: string; phone_number: string }
+  user: { id: string; full_name: string; email: string; phone_number: string; user_roles?: {role:{code:string;name:string}}[]; head_store_scopes?: {city_name:string} | {city_name:string}[] }
   store_assignments: {
     id: string
     status: string
@@ -63,7 +65,7 @@ export interface Crew {
 }
 export const money = (n: number) => "Rp" + Number(n).toLocaleString("id-ID")
 export const crewKind = (c: Crew) =>
-  c.crew_type === "CREW_STORE" ? "Crew Store" : "Crew Event"
+  accountRoles[c.user.user_roles?.[0]?.role.code || c.crew_type] || c.crew_type
 export const eventCount = (c: Crew) =>
   new Set((c.event_assignments || []).map((a) => a.event?.id).filter(Boolean))
     .size

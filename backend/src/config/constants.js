@@ -4,6 +4,9 @@ module.exports = {
   ROLES: {
     SUPER_ADMIN: 'SUPER_ADMIN',
     HEAD_STORE: 'HEAD_STORE',
+    HEAD_OFFICE: 'HEAD_OFFICE',
+    OFFICE_STAFF: 'OFFICE_STAFF',
+    PRODUCTION_STAFF: 'PRODUCTION_STAFF',
     ADMIN_STORE: 'ADMIN_STORE', // Legacy accounts are also subject to the city boundary.
     CREW_STORE: 'CREW_STORE',
     EVENT_MANAGER: 'EVENT_MANAGER',

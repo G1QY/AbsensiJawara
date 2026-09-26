@@ -1,4 +1,5 @@
 const db = require("../../config/supabaseClient")
+const passwordVault = require("./passwordVault")
 const { logAudit } = require("../../utils/auditLogger")
 const {
   validateCrew,
@@ -8,7 +9,7 @@ const {
 } = require("./crew.validation")
 const { avatarPattern } = require("../profile/profile.service")
 const { getSignedDownloadUrl } = require("../../utils/signedUrl")
-const selection = `*, user:users(id,full_name,email,phone_number), branch:branches(id,name,city_name),
+const selection = `*, user:users(id,full_name,email,phone_number,user_roles(role:roles(code,name)),head_store_scopes(city_name)), branch:branches(id,name,city_name),
   store_assignments(id,status,start_date,end_date,store:stores(id,name,branch_id)),
   event_assignments(id,status,position,event:events(id,event_code,event_name,event_date,status,branch_id))`
 function check(error) {
@@ -151,7 +152,8 @@ async function create(req, res, next) {
     createdId = data.user.id
     const id = await mutate(req, "create", createdId, fields)
     committed = true
-    res.status(201).json({ id })
+    const passwordNotice = await passwordVault.remember(req.user.id, data.user, req.body.password)
+    res.status(201).json({ id, passwordNotice })
   } catch (error) {
     if (createdId && !committed) {
       const rollback = await db.auth.admin
@@ -219,13 +221,15 @@ async function resetPassword(req, res, next) {
     check(roleError)
     if (
       crew.user_id === req.user.id ||
-      roles.some((r) => !["CREW_EVENT", "CREW_STORE"].includes(r.role?.code))
+      !roles?.length || roles.some((r) => r.role?.code === "SUPER_ADMIN" ||
+        (!["CREW_EVENT", "CREW_STORE"].includes(r.role?.code) && req.role !== "SUPER_ADMIN"))
     )
       throw fail("Akun admin tidak boleh diubah lewat Kelola Crew.", 403)
-    const { error } = await db.auth.admin.updateUserById(crew.user_id, {
+    const { data: updatedAuth, error } = await db.auth.admin.updateUserById(crew.user_id, {
       password: req.body.newPassword,
     })
     check(error)
+    const passwordNotice = await passwordVault.remember(req.user.id, updatedAuth?.user, req.body.newPassword)
     await logAudit({
       actorUserId: req.user.id,
       action: "CREW_PASSWORD_RESET",
@@ -233,6 +237,7 @@ async function resetPassword(req, res, next) {
       entityId: crew.id,
     })
     res.json({
+      passwordNotice,
       message:
         "Password baru tersimpan. Sampaikan langsung kepada pemilik akun.",
     })
@@ -248,7 +253,7 @@ async function updateEmail(req,res,next) {
     const crew=await fetchCrew(req.params.id)
     const {data:roles,error:roleError}=await db.from('user_roles').select('role:roles(code)').eq('user_id',crew.user_id)
     check(roleError)
-    if(crew.user_id===req.user.id||!roles?.length||roles.some(r=>!['CREW_EVENT','CREW_STORE'].includes(r.role?.code)))throw fail('Hanya email akun crew yang dapat diubah di sini.',403)
+    if(crew.user_id===req.user.id||!roles?.length||roles.some(r=>r.role?.code==='SUPER_ADMIN'||(!['CREW_EVENT','CREW_STORE'].includes(r.role?.code)&&req.role!=='SUPER_ADMIN')))throw fail('Hanya email akun crew yang dapat diubah di sini.',403)
     const {data:auth,error:authError}=await db.auth.admin.getUserById(crew.user_id)
     check(authError)
     const previous=auth.user.email

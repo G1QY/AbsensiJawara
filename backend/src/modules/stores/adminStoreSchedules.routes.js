@@ -1,3 +1,4 @@
+const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
 const router = require('express').Router();
 const db = require('../../config/supabaseClient');
 const requireRole = require('../../middlewares/requireRole');
@@ -7,7 +8,7 @@ const { syncHolidayYear, ensureHolidayYears } = require('../../services/national
 
 async function readAll(makeQuery){const rows=[];for(let offset=0;;offset+=500){const result=await makeQuery().range(offset,offset+499);if(result.error)return result;rows.push(...(result.data||[]));if((result.data||[]).length<500)return {data:rows,error:null};}}
 
-router.use(requireRole('SUPER_ADMIN', 'ADMIN_STORE'));
+router.use((req,res,next) => requireRole(...(req.method === 'GET' && req.path === '/payroll-context' ? ['SUPER_ADMIN','EVENT_MANAGER'] : ['SUPER_ADMIN']))(req,res,next));
 
 function date(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '') || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) throw fail('Tanggal jadwal tidak valid.');
@@ -18,6 +19,8 @@ function time(value) {
   return value;
 }
 function check(error, fallback = 'Jadwal Store tidak dapat diproses.') {
+  if (error?.code==='23P01') throw fail(error.message,409);
+  if (error?.code==='23505') throw fail('Jadwal pada tanggal ini sudah ada. Muat ulang.',409);
   if (error) throw fail(error.code === '42501' ? 'Anda tidak memiliki akses untuk mengatur jadwal Store.' : fallback, error.code === '42501' ? 403 : 422);
 }
 async function assignmentFor(crewId, scheduleDate) {
@@ -52,11 +55,12 @@ function datesBetween(startDate, endDate) {
   return result;
 }
 
-async function createRange({ crewIds, storeId, startDate, endDate, startTime, endTime, lateToleranceMinutes, overtimePreapproved, workDays }, actorUserId) {
+async function createRange({ crewIds, storeId, startDate, endDate, startTime, endTime, shiftNumber: shift, lateToleranceMinutes, overtimePreapproved, workDays }, actorUserId) {
   const dates = datesBetween(startDate, endDate);
   const start = dates[0], end = dates[dates.length - 1];
   const startClock = time(startTime), endClock = time(endTime);
-  if (startClock >= endClock) throw fail('Jam pulang harus setelah jam masuk pada hari yang sama.');
+  if (startClock === endClock) throw fail('Jam masuk dan pulang tidak boleh sama.');
+  const selectedShift=shiftNumber(shift);
   const tolerance = Number(lateToleranceMinutes ?? 0);
   if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 240) throw fail('Toleransi keterlambatan harus 0 sampai 240 menit.');
   if (typeof overtimePreapproved !== 'boolean') throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
@@ -87,7 +91,7 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
 
   const [holidayResult, existingResult, eventAssignmentResult] = await Promise.all([
     readAll(()=>db.from('national_holidays').select('holiday_date,name,kind').gte('holiday_date', `${calendarYears[0]}-01-01`).lte('holiday_date', `${calendarYears.at(-1)}-12-31`).order('holiday_date')),
-    readAll(()=>db.from('store_schedules').select('id,store_assignment_id,schedule_date').in('store_assignment_id', assignmentIds).gte('schedule_date', start).lte('schedule_date', end).order('id')),
+    readAll(()=>db.from('store_schedules').select('id,store_assignment_id,schedule_date,start_time,end_time,store_assignment:store_assignments!inner(crew_id,status,start_date,end_date)').in('store_assignment.crew_id', selectedCrewIds).gte('schedule_date', adjacentDate(start,-1)).lte('schedule_date', adjacentDate(end,1)).order('id')),
     readAll(()=>db.from('event_assignments').select('id,crew_id').in('crew_id', selectedCrewIds).eq('status', 'ACTIVE').order('id')),
   ]);
   check(holidayResult.error, 'Kalender libur nasional belum siap. Jalankan migrasi kalender kerja.');
@@ -96,7 +100,7 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   const eventAssignments = eventAssignmentResult.data || [];
   let eventSchedules = [];
   if (eventAssignments.length) {
-    const result = await readAll(()=>db.from('event_schedules').select('event_assignment_id,schedule_date').in('event_assignment_id', eventAssignments.map(row => row.id)).gte('schedule_date', start).lte('schedule_date', end).eq('status', 'ACTIVE').order('id'));
+    const result = await readAll(()=>db.from('event_schedules').select('event_assignment_id,schedule_date,start_time,end_time').in('event_assignment_id', eventAssignments.map(row => row.id)).gte('schedule_date', adjacentDate(start,-1)).lte('schedule_date', adjacentDate(end,1)).eq('status', 'ACTIVE').order('id'));
     check(result.error, 'Benturan jadwal Event tidak dapat diperiksa.');
     eventSchedules = result.data || [];
   }
@@ -105,7 +109,7 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   const holidays = new Set((holidayResult.data || []).map(row => row.holiday_date));
   const existing = new Set((existingResult.data || []).map(row => `${row.store_assignment_id}:${row.schedule_date}`));
   const payload = [];
-  let skippedHoliday = 0, skippedExisting = 0, skippedEvent = 0, skippedDay = 0;
+  let skippedHoliday = 0, skippedExisting = 0, skippedEvent = 0, skippedDay = 0, skippedOverlap = 0;
   for (const assignment of assignments) {
     for (const scheduleDate of dates) {
       if (scheduleDate < assignment.start_date || (assignment.end_date && scheduleDate > assignment.end_date)) continue;
@@ -114,7 +118,10 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
       if (!selectedDays.includes(day)) { skippedDay += 1; continue; }
       if (existing.has(`${assignment.id}:${scheduleDate}`)) { skippedExisting += 1; continue; }
       if (eventConflicts.has(`${assignment.crew_id}:${scheduleDate}`)) { skippedEvent += 1; continue; }
-      payload.push({ store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
+      const candidate={schedule_date:scheduleDate,start_time:startClock,end_time:endClock};
+      if ((existingResult.data||[]).some(row=>row.store_assignment?.crew_id===assignment.crew_id&&row.store_assignment?.status==='ACTIVE'&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
+      if (eventSchedules.some(row=>eventCrewByAssignment.get(row.event_assignment_id)===assignment.crew_id&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
+      payload.push({ shift_number:selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
 
     }
   }
@@ -122,13 +129,13 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   if (payload.length) {
     for(let offset=0;offset<payload.length;offset+=500){
     const batch=payload.slice(offset,offset+500);
-    const result = await db.from('store_schedules').upsert(batch,{onConflict:'store_assignment_id,schedule_date',ignoreDuplicates:true}).select('id,store_assignment_id,schedule_date,start_time,end_time,late_tolerance_minutes,overtime_preapproved');
+    const result = await db.from('store_schedules').upsert(batch,{onConflict:'store_assignment_id,schedule_date',ignoreDuplicates:true}).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved');
     check(result.error);
     saved.push(...(result.data || []));
     }
-    await logAudit({ actorUserId, action: 'STORE_SCHEDULE_RANGE_CREATED', entityType: 'store_schedules', entityId: saved[0]?.id || null, oldData: null, newData: { startDate: start, endDate: end, crewCount: selectedCrewIds.length, created: saved.length } });
+    await logAudit({ actorUserId, action: 'STORE_SCHEDULE_RANGE_CREATED', entityType: 'store_schedules', entityId: saved[0]?.id || null, oldData: null, newData: { startDate: start, endDate: end, crewCount: selectedCrewIds.length, created: saved.length, shiftNumber:selectedShift } });
   }
-  return { warnings, created: saved.length, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, schedules: saved };
+  return { warnings, created: saved.length, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, skippedOverlap, schedules: saved };
 }
 
 router.get('/holidays', async (req, res, next) => {
@@ -154,8 +161,8 @@ router.get('/payroll-context', async (req, res, next) => {
   try {
     const { start, end } = monthBounds(req.query.month);
     const [scheduleResult, permissionResult] = await Promise.all([
-      db.from('store_schedules').select('schedule_date,store_assignment:store_assignments!inner(crew_id)').gte('schedule_date', start).lte('schedule_date', end),
-      db.from('permissions').select('crew_id,start_date,end_date,type,status').eq('status', 'APPROVED').lte('start_date', end).gte('end_date', start),
+      readAll(()=>db.from('store_schedules').select('schedule_date,store_assignment:store_assignments!inner(crew_id)').gte('schedule_date', start).lte('schedule_date', end).order('id')),
+      readAll(()=>db.from('permissions').select('crew_id,start_date,end_date,type,status').eq('status', 'APPROVED').lte('start_date', end).gte('end_date', start).order('id')),
     ]);
     check(scheduleResult.error, 'Jadwal payroll tidak dapat dimuat.');
     check(permissionResult.error, 'Izin crew tidak dapat dimuat.');
@@ -190,7 +197,7 @@ router.get('/crew/:crewId', async (req, res, next) => {
     check(assignmentError, 'Penugasan Store crew tidak dapat dibaca.');
     const assignment = (assignments || []).find(a => a.start_date <= end && (!a.end_date || a.end_date >= start)) || null;
     if (!assignment) return res.json({ assignment: null, schedules: [] });
-    const { data: schedules, error } = await db.from('store_schedules').select('id,schedule_date,start_time,end_time,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).gte('schedule_date', start).lte('schedule_date', end).order('schedule_date');
+    const { data: schedules, error } = await db.from('store_schedules').select('id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).gte('schedule_date', start).lte('schedule_date', end).order('schedule_date');
     check(error, 'Jadwal Store tidak dapat dibaca.');
     res.json({ assignment, schedules: schedules || [] });
   } catch (error) { next(error); }
@@ -202,7 +209,8 @@ router.post('/', async (req, res, next) => {
     const scheduleDate = date(req.body.scheduleDate);
     const startTime = time(req.body.startTime);
     const endTime = time(req.body.endTime);
-    if (startTime >= endTime) throw fail('Jam pulang harus setelah jam masuk pada hari yang sama.');
+    if (startTime === endTime) throw fail('Jam masuk dan pulang tidak boleh sama.');
+    const selectedShift=shiftNumber(req.body.shiftNumber);
     const tolerance = Number(req.body.lateToleranceMinutes ?? 0);
     if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 240) throw fail('Toleransi keterlambatan harus 0 sampai 240 menit.');
     if (typeof req.body.overtimePreapproved !== 'boolean') throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
@@ -212,10 +220,10 @@ router.post('/', async (req, res, next) => {
     check(conflictError, 'Benturan jadwal Event tidak dapat diperiksa.');
     if (conflict?.length) throw fail('Crew sudah memiliki jadwal Event aktif pada tanggal ini.', 409);
 
-    const { data: existing, error: existingError } = await db.from('store_schedules').select('id,start_time,end_time,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).eq('schedule_date', scheduleDate).limit(2);
+    const { data: existing, error: existingError } = await db.from('store_schedules').select('id,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).eq('schedule_date', scheduleDate).limit(2);
     check(existingError);
     if ((existing || []).length > 1) throw fail('Terdapat jadwal Store ganda pada tanggal ini. Hubungi pengelola database.', 409);
-    const payload = { store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
+    const payload = { shift_number:selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
     let saved;
     if (existing?.[0]) {
       const { data: attendance, error: attendanceError } = await db.from('attendance_logs').select('id').eq('store_schedule_id', existing[0].id).limit(1);
@@ -223,7 +231,7 @@ router.post('/', async (req, res, next) => {
       if (attendance?.length) throw fail('Jadwal sudah dipakai untuk absensi dan tidak dapat diubah.', 409);
       const { data, error } = await db.from('store_schedules').update(payload).eq('id', existing[0].id).select().single(); check(error); saved = data;
     } else {
-      const { data, error } = await db.from('store_schedules').upsert(batch,{onConflict:'store_assignment_id,schedule_date',ignoreDuplicates:true}).select().single(); check(error); saved = data;
+      const { data, error } = await db.from('store_schedules').insert(payload).select().single(); check(error); saved = data;
     }
     await logAudit({ actorUserId: req.user.id, action: existing?.[0] ? 'STORE_SCHEDULE_UPDATED' : 'STORE_SCHEDULE_CREATED', entityType: 'store_schedules', entityId: saved.id, oldData: existing?.[0] || null, newData: saved });
     res.status(existing?.[0] ? 200 : 201).json(saved);

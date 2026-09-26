@@ -15,6 +15,7 @@ const { compressAttendancePhoto } = require('../../utils/imageCompression');
 const { uploadPrivateObject, buildAttendanceKey } = require('../../utils/signedUrl');
 const { DEFAULT_GEOFENCE_RADIUS_METERS, ROLES } = require('../../config/constants');
 
+const {adjacentDate,canClockIn}=require('../../utils/workShift');
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER];
 const { wibDate, combineDateTime, scheduledEnd, overtimeMinutes: calculateOvertime, lateMinutes: calculateLate } = require('../../utils/attendanceTime');
 const { uuid } = require('../crew/crew.validation');
@@ -26,7 +27,6 @@ function attendanceNote(body) {
 }
 
 async function resolveCrewId(req, requestedCrewId) {
-  if (ADMIN_ROLES.includes(req.role) && requestedCrewId) return requestedCrewId;
   const { data, error } = await supabase.from('crew').select('id').eq('user_id', req.user.id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { status: 503 });
   if (!data) throw Object.assign(new Error('Profil crew tidak ditemukan untuk akun ini.'), { status: 404 });
@@ -81,10 +81,6 @@ async function checkIn(req, res, next) {
         .single();
       if (assignmentError) throw Object.assign(new Error('Penugasan toko tidak ditemukan atau tidak dapat dibaca.'), { status: 422 });
       if (data?.crew_id !== effectiveCrewId) throw Object.assign(new Error('Penugasan toko tidak dimiliki crew ini.'), { status: 403 });
-      const workingDate = wibDate(new Date());
-      if (data.status !== 'ACTIVE' || data.store?.status !== 'ACTIVE' || data.start_date > workingDate || (data.end_date && data.end_date < workingDate)) {
-        throw Object.assign(new Error('Penugasan atau store tidak aktif pada tanggal ini.'), { status: 422 });
-      }
       refLocation = data?.store;
 
       if (storeScheduleId) {
@@ -96,6 +92,10 @@ async function checkIn(req, res, next) {
           .single();
         if (scheduleError) throw Object.assign(new Error('Jadwal Store tidak sesuai dengan penugasan crew.'), { status: 422 });
         schedule = sch;
+      }
+      const workingDate = schedule?.schedule_date || wibDate(new Date());
+      if (data.status !== 'ACTIVE' || data.store?.status !== 'ACTIVE' || data.start_date > workingDate || (data.end_date && data.end_date < workingDate)) {
+        throw Object.assign(new Error('Penugasan atau lokasi kerja tidak aktif pada tanggal jadwal.'), { status: 422 });
       }
     } else {
       const { data, error: assignmentError } = await supabase
@@ -129,10 +129,13 @@ async function checkIn(req, res, next) {
     }
 
     const checkInTime = new Date();
-    if (schedule?.schedule_date !== wibDate(checkInTime)) {
-      throw Object.assign(new Error('Clock-in hanya dapat dilakukan pada tanggal jadwal kerja dalam WIB.'), { status: 422 });
+    if (!schedule || !canClockIn(schedule,checkInTime)) {
+      throw Object.assign(new Error('Clock-in hanya dapat dilakukan pada tanggal mulai jadwal atau selama shift malam masih berlangsung.'), { status: 422 });
     }
 
+    const {data:open,error:openError}=await supabase.from('attendance_logs').select('id').eq('crew_id',effectiveCrewId).not('check_in','is',null).is('check_out',null).limit(1).maybeSingle();
+    if(openError)throw Object.assign(new Error('Absensi terbuka tidak dapat diperiksa.'),{status:503});
+    if(open)throw Object.assign(new Error('Selesaikan clock-out shift sebelumnya terlebih dahulu.'),{status:409});
     const { data: previous, error: previousError } = await supabase
       .from('attendance_logs')
       .select('id, check_in')
@@ -200,7 +203,7 @@ async function checkIn(req, res, next) {
         status,
         late_minutes: lateMinutes,
         check_in_note: note,
-        review_status: status === 'PENDING' ? 'PENDING' : 'NOT_REQUIRED',
+        review_status: 'PENDING',
       })
       .select()
       .single();
@@ -224,7 +227,7 @@ async function checkOut(req, res, next) {
     uuid(id);
     const { latitude, longitude } = req.body;
     const { lat, lng } = validateCoordinates(latitude, longitude);
-    const ownCrewId = ADMIN_ROLES.includes(req.role) ? null : await resolveCrewId(req);
+    const ownCrewId = await resolveCrewId(req);
 
     const { data: existing } = await supabase
       .from('attendance_logs')
@@ -233,7 +236,7 @@ async function checkOut(req, res, next) {
       .maybeSingle();
 
     if (!existing) return res.status(404).json({ message: 'Data absensi tidak ditemukan.' });
-    if (!ADMIN_ROLES.includes(req.role) && existing.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
+    if (existing.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
     if (!existing.check_in) return res.status(422).json({ message: 'Check-out tidak dapat dilakukan sebelum check-in.' });
     if (existing.check_out) return res.status(422).json({ message: 'Sudah melakukan check-out sebelumnya.' });
     if (!req.file) return res.status(422).json({ message: 'Foto live-capture wajib disertakan.' });
@@ -339,12 +342,12 @@ async function list(req, res, next) {
   try {
     const { crewId, from, to } = req.query;
     let query = supabase.from('attendance_logs').select(`*, crew:crew(company_name,job_title,employee_code, user:users(full_name)),
-      store_schedule:store_schedules(schedule_date,start_time,end_time,overtime_preapproved),
+      store_schedule:store_schedules(schedule_date,start_time,end_time,shift_number,overtime_preapproved),
       event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved),
       store_assignment:store_assignments(store:stores(name)),
       event_assignment:event_assignments(event:events(event_name))`);
 
-    const effectiveCrewId = ADMIN_ROLES.includes(req.role) ? crewId : await resolveCrewId(req, crewId);
+    const effectiveCrewId = req.role === ROLES.SUPER_ADMIN ? crewId : await resolveCrewId(req, crewId);
     if (effectiveCrewId) query = query.eq('crew_id', effectiveCrewId);
     if (from) query = query.gte('attendance_date', from);
     if (to) query = query.lte('attendance_date', to);
@@ -370,7 +373,7 @@ async function getOne(req, res, next) {
 
     if (error) throw Object.assign(new Error(error.message), { status: 400 });
     if (!data) return res.status(404).json({ message: 'Data tidak ditemukan.' });
-    if (!ADMIN_ROLES.includes(req.role)) {
+    if (req.role !== ROLES.SUPER_ADMIN) {
       const ownCrewId = await resolveCrewId(req);
       if (data.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
     }
@@ -407,12 +410,7 @@ async function calendar(req, res, next) {
       return res.status(422).json({ message: 'Parameter month wajib format YYYY-MM.' });
     }
 
-    let crewId = req.query.crewId;
-    if (!crewId || !ADMIN_ROLES.includes(req.role)) {
-      const { data: ownCrew } = await supabase.from('crew').select('id').eq('user_id', req.user.id).maybeSingle();
-      if (!ownCrew) return res.status(404).json({ message: 'Profil crew tidak ditemukan untuk akun ini.' });
-      crewId = ownCrew.id;
-    }
+    const crewId = req.role === ROLES.SUPER_ADMIN && req.query.crewId ? req.query.crewId : await resolveCrewId(req, req.query.crewId);
 
     const monthStart = `${month}-01`;
     const monthEndDate = new Date(`${month}-01T00:00:00`);
@@ -422,7 +420,7 @@ async function calendar(req, res, next) {
     // Jadwal Store: lewat store_assignments crew ini
     const { data: storeSchedules } = await supabase
       .from('store_schedules')
-      .select('id, schedule_date, start_time, end_time, overtime_preapproved, store_assignment:store_assignments!inner(crew_id,status,start_date,end_date,store:stores(name))')
+      .select('id, schedule_date, start_time, end_time, shift_number, overtime_preapproved, store_assignment:store_assignments!inner(crew_id,status,start_date,end_date,store:stores(name))')
       .eq('store_assignment.crew_id', crewId)
       .gte('schedule_date', monthStart)
       .lt('schedule_date', monthEnd);
@@ -462,7 +460,7 @@ async function calendar(req, res, next) {
 
     const today = wibDate(new Date());
 
-    const buildDay = (scheduleDate, startTime, endTime, sourceType, sourceName, overtimePreapproved, scheduleId) => {
+    const buildDay = (scheduleDate, startTime, endTime, sourceType, sourceName, overtimePreapproved, scheduleId, shiftNumber=null) => {
       const attendance = attendanceRows?.find(a => sourceType==='STORE'?a.store_schedule_id===scheduleId:a.event_schedule_id===scheduleId);
       const permission = approvedPermissions?.find(p => scheduleDate >= p.start_date && scheduleDate <= p.end_date);
 
@@ -473,6 +471,7 @@ async function calendar(req, res, next) {
       else status = 'PENDING';
 
       return {
+        shiftNumber,
         date: scheduleDate,
         type: sourceType,
         source: sourceName,
@@ -483,13 +482,14 @@ async function calendar(req, res, next) {
         checkOut: attendance?.check_out ?? null,
         lateMinutes: attendance?.late_minutes ?? 0,
         overtimeMinutes: attendance?.overtime_minutes ?? 0,
+        reviewStatus: attendance?.review_status ?? 'PENDING',
         overtimeStatus: attendance?.overtime_status ?? 'NONE',
         overtimePreapproved: !!overtimePreapproved,
       };
     };
 
     const scheduledDays = [
-      ...(storeSchedules || []).filter(s=>attendanceRows?.some(a=>a.store_schedule_id===s.id)||(s.schedule_date<today)||(s.store_assignment?.status==='ACTIVE'&&s.store_assignment.start_date<=s.schedule_date&&(!s.store_assignment.end_date||s.store_assignment.end_date>=s.schedule_date))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'STORE', s.store_assignment?.store?.name, s.overtime_preapproved,s.id)),
+      ...(storeSchedules || []).filter(s=>attendanceRows?.some(a=>a.store_schedule_id===s.id)||(s.schedule_date<today)||(s.store_assignment?.status==='ACTIVE'&&s.store_assignment.start_date<=s.schedule_date&&(!s.store_assignment.end_date||s.store_assignment.end_date>=s.schedule_date))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'STORE', s.store_assignment?.store?.name, s.overtime_preapproved,s.id,s.shift_number)),
       ...(eventSchedules || []).filter(s=>attendanceRows?.some(a=>a.event_schedule_id===s.id)||(s.schedule_date<today)||(s.status==='ACTIVE'&&s.event_assignment?.status==='ACTIVE'&&['SCHEDULED','ONGOING'].includes(s.event_assignment?.event?.status))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'EVENT', s.event_assignment?.event?.event_name, s.overtime_preapproved,s.id)),
     ];
     const dayByDate = new Map(scheduledDays.map(day => [day.date, day]));
@@ -540,36 +540,47 @@ async function today(req, res, next) {
     const todayStr = wibDate(new Date());
 
     const {data:open,error:openError}=await supabase.from('attendance_logs')
-      .select('id,check_in,check_out,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
+      .select('id,check_in,check_out,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,shift_number,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
       .eq('crew_id',crew.id).not('check_in','is',null).is('check_out',null).order('check_in',{ascending:false}).limit(1).maybeSingle();
     if(openError)throw Object.assign(new Error('Absensi yang belum clock out tidak dapat dibaca.'),{status:503});
     if(open){
       const isStore=!!open.store_assignment_id,sch=isStore?open.store_schedule:open.event_schedule;
       if(!sch)throw Object.assign(new Error('Jadwal absensi terbuka tidak ditemukan. Hubungi admin.'),{status:422});
-      return res.json({crewId:crew.id,date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
+      return res.json({crewId:crew.id,date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,shiftNumber:sch.shift_number||null,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
     }
 
     let storeSchedule = null;
     if (crew.crew_type === 'CREW_STORE') {
-      const { data, error } = await supabase
-        .from('store_schedules')
-        .select('id, schedule_date, start_time, end_time, overtime_preapproved, store_assignment:store_assignments!inner(id, crew_id, status, start_date, end_date, store:stores(name,status))')
-        .eq('store_assignment.crew_id', crew.id)
-        .eq('store_assignment.status','ACTIVE')
-        .lte('store_assignment.start_date',todayStr)
-        .or(`end_date.is.null,end_date.gte.${todayStr}`,{referencedTable:'store_assignment'})
-        .eq('schedule_date', todayStr)
-        .maybeSingle();
-      if (error) throw Object.assign(new Error('Jadwal Store hari ini tidak dapat dimuat. Pastikan hanya ada satu jadwal aktif.'), { status: 422 });
-      const assignment = data?.store_assignment;
-      storeSchedule = data && assignment?.status === 'ACTIVE' && assignment?.store?.status === 'ACTIVE'
-        && assignment.start_date <= todayStr && (!assignment.end_date || assignment.end_date >= todayStr) ? data : null;
+      const now=new Date();
+      const {data,error}=await supabase.from('store_schedules')
+        .select('id,schedule_date,start_time,end_time,shift_number,overtime_preapproved,store_assignment:store_assignments!inner(id,crew_id,status,start_date,end_date,store:stores(name,status))')
+        .eq('store_assignment.crew_id',crew.id).eq('store_assignment.status','ACTIVE')
+        .gte('schedule_date',adjacentDate(todayStr,-1)).lte('schedule_date',todayStr).order('schedule_date');
+      if(error)throw Object.assign(new Error('Jadwal kerja tidak dapat dimuat.'),{status:503});
+      const candidates=(data||[]).filter(row=>{
+        const a=row.store_assignment;
+        return a?.status==='ACTIVE'&&a.store?.status==='ACTIVE'&&a.start_date<=row.schedule_date&&(!a.end_date||a.end_date>=row.schedule_date)&&canClockIn(row,now);
+      });
+      // An unfinished night shift comes first, even after the working date changes.
+      const carry=candidates.find(row=>row.schedule_date<todayStr);
+      if(carry){
+        const {data:finished,error:finishedError}=await supabase.from('attendance_logs').select('check_out').eq('crew_id',crew.id).eq('store_schedule_id',carry.id).maybeSingle();
+        if(finishedError)throw Object.assign(new Error('Status shift malam tidak dapat diperiksa.'),{status:503});
+        if(!finished?.check_out)storeSchedule=carry;
+      }
+      if(!storeSchedule){
+        const sameDay=candidates.filter(row=>row.schedule_date===todayStr);
+        if(sameDay.length>1)throw Object.assign(new Error('Terdapat lebih dari satu jadwal aktif. Hubungi admin.'),{status:409});
+        storeSchedule=sameDay[0]||null;
+      }
     }
 
     let context = null;
     if (storeSchedule) {
       context = {
         type: 'STORE',
+        shiftNumber: storeSchedule.shift_number || 1,
+        scheduleDate: storeSchedule.schedule_date,
         storeAssignmentId: storeSchedule.store_assignment.id,
         storeScheduleId: storeSchedule.id,
         eventAssignmentId: null,

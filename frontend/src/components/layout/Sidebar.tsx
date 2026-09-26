@@ -3,7 +3,8 @@ import { useAuth } from '../../lib/AuthContext';
 import { useState } from 'react';
 import fotoSnapsLogo from '../../assets/landscape.jpg';
 
-type Role = 'admin' | 'head_store' | 'crew_event' | 'crew_store' | 'guest_crew';
+import type { FrontendRole as Role } from '../../lib/AuthContext';
+import {accountRoles} from '../../lib/accountRoles';
 type Page = string;
 
 interface NavItem {
@@ -80,9 +81,11 @@ const guestCrewNav: NavItem[] = [
   { id: 'guest-help', label: 'Pusat Bantuan', icon: ic.cog },
 ];
 
+const staffNav: NavItem[] = [{id:'staff-dashboard',label:'Dashboard',icon:ic.dashboard},{id:'staff-absensi',label:'Absensi Saya',icon:ic.absensi},{id:'staff-riwayat',label:'Riwayat Saya',icon:ic.riwayat},{id:'staff-payroll',label:'Payroll Saya',icon:ic.payroll}];
 const navMap: Record<Role, NavItem[]> = {
-  admin: adminNav,
-  head_store: [{ id: 'hs-dashboard', label: 'Monitoring Kota', icon: ic.dashboard }, { id: 'hs-crew', label: 'Crew per Cabang', icon: ic.crew }, { id: 'hs-attendance', label: 'Absensi Kota', icon: ic.absensi }],
+  admin: [...adminNav, {id:'admin-my-attendance',label:'Absensi Saya',icon:ic.absensi}, {id:'admin-my-history',label:'Riwayat Saya',icon:ic.riwayat},{id:'admin-my-payroll',label:'Payroll Saya',icon:ic.payroll}],
+  head_office: staffNav, office_staff: staffNav, production_staff: staffNav,
+  head_store: [{ id: 'hs-dashboard', label: 'Monitoring Kota', icon: ic.dashboard }, { id: 'hs-crew', label: 'Crew per Cabang', icon: ic.crew }, { id: 'hs-attendance', label: 'Absensi Kota', icon: ic.absensi }, {id:'hs-my-attendance',label:'Absensi Saya',icon:ic.absensi},{id:'hs-my-history',label:'Riwayat Saya',icon:ic.riwayat},{id:'hs-my-payroll',label:'Payroll Saya',icon:ic.payroll}],
   crew_event: crewEventNav,
   crew_store: crewStoreNav,
   guest_crew: guestCrewNav,
@@ -90,6 +93,7 @@ const navMap: Record<Role, NavItem[]> = {
 
 const roleLabel: Record<Role, string> = {
   admin: 'Administrator',
+  head_office:'Head Office',office_staff:'Staff Kantor',production_staff:'Staff Produksi',
   head_store: 'Head Store',
   crew_event: 'Crew Event',
   crew_store: 'Crew Store',
@@ -98,6 +102,7 @@ const roleLabel: Record<Role, string> = {
 
 const roleBadge: Record<Role, string> = {
   admin: 'bg-purple-100 text-purple-800',
+  head_office:'bg-indigo-100 text-indigo-800',office_staff:'bg-cyan-100 text-cyan-800',production_staff:'bg-orange-100 text-orange-800',
   head_store: 'bg-blue-100 text-blue-800',
   crew_event: 'bg-blue-100 text-blue-800',
   crew_store: 'bg-emerald-100 text-emerald-800',
@@ -187,7 +192,7 @@ function NavItemRow({
 
 export default function Sidebar({ role, currentPage, onNavigate, collapsed, onToggle, mobileOpen = false, onCloseMobile, userName = 'Pengguna', avatarUrl }: SidebarProps) {
   const { auth } = useAuth();
-  const nav = navMap[role].filter(item => item.id !== 'admin-accounts' || auth?.role === 'SUPER_ADMIN');
+  const nav = navMap[role].filter(item => (!['admin-accounts','admin-payroll'].includes(item.id) || auth?.role === 'SUPER_ADMIN') && (!item.id.startsWith('admin-my-') || auth?.role === 'EVENT_MANAGER'));
 
   const handleNavigate = (page: string) => {
     onNavigate(page);
@@ -221,7 +226,7 @@ export default function Sidebar({ role, currentPage, onNavigate, collapsed, onTo
         {!isCollapsed && (
           <div className={`flex-shrink-0 ${role === 'guest_crew' ? 'px-3 py-2' : 'px-4 py-3'}`}>
             <span className={`inline-flex items-center font-semibold ${role === 'guest_crew' ? 'px-2 py-0.5 rounded-full text-[12px]' : 'px-3 py-1 rounded-lg text-xs'} ${roleBadge[role]}`}>
-              {translateUI(roleLabel[role])}
+              {translateUI(accountRoles[auth?.role || ''] || roleLabel[role])}
             </span>
           </div>
         )}

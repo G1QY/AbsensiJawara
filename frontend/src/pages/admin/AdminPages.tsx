@@ -1,4 +1,5 @@
 import {t as translateUI,getLocale} from '../../lib/i18n';
+import {reviewLabel} from './attendanceData';
 import { arrivalLabel, overtimeLabel } from '../../lib/attendanceLabels';
 import ExportButtons from '../../components/ui/ExportButtons';
 import { branchLabel } from '../../lib/locationLabel';
@@ -16,10 +17,11 @@ import {
   message,
 } from "./adminData"
 interface Attendance {
+  review_status?: string
   late_minutes?: number
   overtime_minutes?: number
   overtime_status?: string
-  store_schedule?: {start_time:string;end_time:string;late_tolerance_minutes?:number}|null
+  store_schedule?: {shift_number?:number;start_time:string;end_time:string;late_tolerance_minutes?:number}|null
   event_schedule?: {start_time:string;end_time:string}|null
   id: string
   attendance_date: string
@@ -133,10 +135,10 @@ export default function AdminPages({
     s
       ? new Date(s).toLocaleString(getLocale(), { timeZone: "Asia/Jakarta" })
       : "Belum ada"
-  const reportHeaders = ['Tanggal','Crew','Perusahaan','Jabatan','Jadwal (WIB)','Toleransi (menit)','Check-in (WIB)','Check-out (WIB)','Status masuk','Telat (menit)','Status lembur'];
+  const reportHeaders = ['Tanggal','Crew','Perusahaan','Jabatan','Jadwal (WIB)','Toleransi (menit)','Check-in (WIB)','Check-out (WIB)','Status masuk','Telat (menit)','Status lembur','Tinjauan admin'];
   const reportRows = attendance.map(a => {
     const schedule = a.store_schedule || a.event_schedule;
-    return [a.attendance_date,a.crew?.user?.full_name || 'Crew',a.crew?.company_name || 'Belum diisi',a.crew?.job_title || 'Belum diisi',schedule ? `${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}` : translateUI('Tanpa jadwal'),a.store_schedule?.late_tolerance_minutes || 0,time(a.check_in),time(a.check_out),arrivalLabel(a),a.late_minutes ?? 0,overtimeLabel(a)];
+    return [a.attendance_date,a.crew?.user?.full_name || 'Crew',a.crew?.company_name || 'Belum diisi',a.crew?.job_title || 'Belum diisi',schedule ? `${a.store_schedule?.shift_number?`Shift ${a.store_schedule.shift_number} · `:""}${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}${schedule.end_time<schedule.start_time?" (+1 hari)":""}` : translateUI('Tanpa jadwal'),a.store_schedule?.late_tolerance_minutes || 0,time(a.check_in),time(a.check_out),arrivalLabel(a),a.late_minutes ?? 0,overtimeLabel(a),reviewLabel(a.review_status||'NOT_REQUIRED')];
   });
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -260,7 +262,7 @@ export default function AdminPages({
                 const schedule = a.store_schedule || a.event_schedule;
                 return [a.attendance_date,
                   <div><strong>{a.crew?.user?.full_name || 'Crew'}</strong><p className="text-xs text-slate-500 mt-1">{[a.crew?.company_name,a.crew?.job_title].filter(Boolean).join(' · ')}</p></div>,
-                  <div>{schedule ? `${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}` : translateUI('Tanpa jadwal')}<p className="text-xs text-slate-500 mt-1">{translateUI('Toleransi')}: {a.store_schedule?.late_tolerance_minutes || 0} {translateUI('menit')}</p></div>,
+                  <div>{schedule ? `${a.store_schedule?.shift_number?`Shift ${a.store_schedule.shift_number} · `:""}${schedule.start_time.slice(0,5)} - ${schedule.end_time.slice(0,5)}${schedule.end_time<schedule.start_time?" (+1 hari)":""}` : translateUI('Tanpa jadwal')}<p className="text-xs text-slate-500 mt-1">{translateUI('Toleransi')}: {a.store_schedule?.late_tolerance_minutes || 0} {translateUI('menit')}</p></div>,
                   <div>{time(a.check_in)}<p className={`text-xs font-semibold mt-1 ${a.status === 'LATE' ? 'text-amber-700' : 'text-emerald-700'}`}>{arrivalLabel(a)}{a.late_minutes ? ` · ${a.late_minutes} ${translateUI('menit')}` : ''}</p></div>,
                   time(a.check_out),overtimeLabel(a)];
               })} />
