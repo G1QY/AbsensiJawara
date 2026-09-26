@@ -24,6 +24,10 @@ async function all(table, archived = false) {
 }
 router.get("/", async (req, res, next) => {
   try {
+    if (req.role === 'EVENT_MANAGER') {
+      const [branches, events] = await Promise.all([all('branches'), all('events')])
+      return res.json({branches, events, stores: [], archivedStores: []})
+    }
     const [branches, stores, events] = await Promise.all(
       ["branches", "stores", "events"].map(table => all(table)),
     )

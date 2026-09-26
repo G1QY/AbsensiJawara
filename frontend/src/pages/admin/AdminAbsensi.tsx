@@ -14,7 +14,7 @@ function ApprovalBadge({value}:{value:string}) {
   const label=reviewLabel(value),tone=value==='APPROVED'?'bg-emerald-50 text-emerald-700 border-emerald-200':value==='REJECTED'?'bg-red-50 text-red-700 border-red-200':['PENDING','NOT_REQUIRED'].includes(value)?'bg-amber-50 text-amber-700 border-amber-200':'bg-slate-50 text-slate-600 border-slate-200';
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${tone}`}>{translateUI(label)}</span>;
 }
-export default function AdminAbsensi() {
+export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
   const [deleting,setDeleting]=useState<AttendanceRow|null>(null);
   const [deleteReason,setDeleteReason]=useState('');
   const [rows,setRows]=useState<AttendanceRow[]>([]);
@@ -28,7 +28,7 @@ export default function AdminAbsensi() {
     setLoading(true);setError('');
     try {
       const data=await api.get<{registered:RegisteredAttendance[];guest:ServerGuest[]}>('/admin-attendance');
-      const legacy=getGuestAttendances().filter(g=>!g.serverId&&!data.guest.some(s=>s.id===g.serverId||(s.legacy_id===g.id&&s.phone===g.hp&&s.full_name===g.nama)));
+      const legacy=(eventOnly?[]:getGuestAttendances()).filter(g=>!g.serverId&&!data.guest.some(s=>s.id===g.serverId||(s.legacy_id===g.id&&s.phone===g.hp&&s.full_name===g.nama)));
       setRows([...data.registered.map(fromRegistered),...data.guest.map(fromGuest),...legacy.map(fromLocal)].sort((a,b)=>(b.clockIn||b.clockOut||'').localeCompare(a.clockIn||a.clockOut||'')));
     }catch(e){setError(message(e));}finally{setLoading(false);}
   }
@@ -111,7 +111,7 @@ export default function AdminAbsensi() {
   }
 
   return <div className="p-4 sm:p-6 space-y-5">
-    <div className="flex flex-wrap justify-between gap-3 items-center"><div><h2 className="font-bold text-lg text-slate-900">{translateUI("Rekap Absensi")}</h2><p className="text-sm text-slate-600">{translateUI("Kehadiran, catatan crew, dan persetujuan lembur.")}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={loading||busy} onClick={()=>void load()}>{translateUI("Muat ulang")}</button><ExportButtons filename="Rekap-Absensi" title={translateUI("Rekap Absensi")} subtitle={translateUI("Sesuai filter aktif, waktu WIB")} headers={recap(filtered)[0] as string[]} rows={recap(filtered).slice(1)} /></div></div>
+    <div className="flex flex-wrap justify-between gap-3 items-center"><div><h2 className="font-bold text-lg text-slate-900">{translateUI(eventOnly?"Absensi Event":"Rekap Absensi")}</h2><p className="text-sm text-slate-600">{translateUI(eventOnly?"Tinjau kehadiran crew dan guest pada penugasan event.":"Kehadiran, catatan crew, dan persetujuan lembur.")}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={loading||busy} onClick={()=>void load()}>{translateUI("Muat ulang")}</button><ExportButtons filename="Rekap-Absensi" title={translateUI(eventOnly?"Absensi Event":"Rekap Absensi")} subtitle={translateUI("Sesuai filter aktif, waktu WIB")} headers={recap(filtered)[0] as string[]} rows={recap(filtered).slice(1)} /></div></div>
     {error&&<p role="alert" className="text-sm bg-red-50 text-red-700 rounded-xl p-4">{translateUI(error)}{" " + translateUI("Data belum lengkap. Muat ulang sebelum mengekspor.")}</p>}
     {notice&&<p role="status" className="text-sm bg-emerald-50 text-emerald-700 rounded-xl p-4">{translateUI(notice)}</p>}
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{metrics.map(([label,n])=><div key={label} className="rounded-xl p-4 bg-blue-50 text-blue-700"><p className="text-2xl font-bold">{loading?'...':n}</p><p className="text-xs mt-1">{translateUI(label)}</p></div>)}</div>
@@ -122,7 +122,7 @@ export default function AdminAbsensi() {
       <label className="text-xs text-slate-600">{translateUI("Jenis")}<select aria-label={translateUI("Jenis crew")} className={control} value={filters.kind} onChange={e=>filter('kind',e.target.value)}><option value="">{translateUI("Semua jenis")}</option>{[...new Set(rows.map(a=>a.kind))].sort().map(kind=><option key={kind}>{kind}</option>)}</select></label>
       <label className="text-xs text-slate-600">{translateUI("Status kehadiran")}<select aria-label={translateUI("Status kehadiran")} className={control} value={filters.status} onChange={e=>filter('status',e.target.value)}><option value="">{translateUI("Semua status")}</option>{[...new Set(rows.map(a=>a.status))].sort().map(s=><option key={s} value={s}>{s}</option>)}</select></label>
       <label className="text-xs text-slate-600">{translateUI("Persetujuan absensi")}<select aria-label={translateUI("Persetujuan absensi")} className={control} value={filters.review} onChange={e=>filter('review',e.target.value)}><option value="">{translateUI("Semua keputusan")}</option>{['PENDING','APPROVED','REJECTED','NOT_REQUIRED'].map(s=><option key={s} value={s}>{reviewLabel(s)}</option>)}</select></label>
-      <label className="text-xs text-slate-600">{translateUI("Sumber akun")}<select aria-label={translateUI("Sumber akun")} className={control} value={filters.source} onChange={e=>filter('source',e.target.value)}><option value="">{translateUI("Semua termasuk Guest")}</option><option value="registered">{translateUI("Crew terdaftar")}</option><option value="guest">{translateUI("Guest server")}</option><option value="local">{translateUI("Guest lokal")}</option></select></label>
+      <label className="text-xs text-slate-600">{translateUI("Sumber akun")}<select aria-label={translateUI("Sumber akun")} className={control} value={filters.source} onChange={e=>filter('source',e.target.value)}><option value="">{translateUI("Semua termasuk Guest")}</option><option value="registered">{translateUI("Crew terdaftar")}</option><option value="guest">{translateUI("Guest server")}</option>{!eventOnly&&<option value="local">{translateUI("Guest lokal")}</option>}</select></label>
       <label className="text-xs text-slate-600">{translateUI("Urutkan")}<select aria-label={translateUI("Urutkan absensi")} className={control} value={filters.sort} onChange={e=>filter('sort',e.target.value)}><option value="newest">{translateUI("Terbaru")}</option><option value="oldest">{translateUI("Terlama")}</option><option value="name">{translateUI("Nama A–Z")}</option><option value="status">{translateUI("Status A–Z")}</option></select></label>
     </div>
     <div className="flex gap-3 items-center text-xs text-slate-600"><button className={button} onClick={()=>filter('date',wibDate())}>{translateUI("Hari ini")}</button><button className={button} onClick={()=>setFilters({...emptyFilters})}>{translateUI("Reset filter")}</button><span>{filters.date||translateUI("Semua tanggal")} • {filtered.length}{" " + translateUI("catatan")}</span></div>

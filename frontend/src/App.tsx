@@ -1,6 +1,7 @@
 import {t as translateUI, useLanguage} from './lib/i18n';
 import LanguageSelect from './components/ui/LanguageSelect';
 import { useCallback, useEffect, useState } from 'react';
+import EventManagerWorkspace from './pages/eventManager/EventManagerWorkspace';
 import StaffWorkspace from './pages/staff/StaffWorkspace';
 import type {FrontendRole as Role} from './lib/AuthContext';
 import {accountRoles} from './lib/accountRoles';
@@ -35,6 +36,11 @@ import CrewStorePayroll from './pages/crewStore/CrewStorePayroll';
 type Toast = { id: string; message: string; type: 'success' | 'error' | 'warning' | 'info' };
 
 const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
+  'em-dashboard': {breadcrumbs:['JAWARA','Event Manager'],title:'Dashboard Event'},
+  'em-events': {breadcrumbs:['JAWARA','Event Manager'],title:'Kelola Event'},
+  'em-crew': {breadcrumbs:['JAWARA','Event Manager'],title:'Crew Event'},
+  'em-attendance': {breadcrumbs:['JAWARA','Event Manager'],title:'Absensi Event'},
+  'em-reports': {breadcrumbs:['JAWARA','Event Manager'],title:'Rekap Event'},
   'admin-accounts': { breadcrumbs: ['JAWARA', 'Super Admin'], title: 'Akun & Hak Akses' },
   'hs-dashboard': { breadcrumbs: ['JAWARA', 'Head Store'], title: 'Monitoring Kota' },
   'hs-crew': { breadcrumbs: ['JAWARA', 'Head Store'], title: 'Crew per Cabang' },
@@ -66,6 +72,7 @@ const pageMeta: Record<string, { breadcrumbs: string[]; title: string }> = {
 function defaultPage(role: Role): string {
   if (role === 'guest_crew') return 'guest-portal';
   if (['head_office','office_staff','production_staff'].includes(role)) return 'staff-dashboard';
+  if (role === 'event_manager') return 'em-dashboard';
   if (role === 'head_store') return 'hs-dashboard';
   if (role === 'admin') return 'admin-crew';
   if (role === 'crew_event') return 'ce-dashboard';
@@ -104,11 +111,11 @@ export default function App() {
 
   const role = frontendRole as Role;
   // Do not briefly mount an admin screen while the role-change effect runs.
-  const prefix = role === 'guest_crew' ? 'guest-' : role === 'head_store' ? 'hs-' : ['head_office','office_staff','production_staff'].includes(role) ? 'staff-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
+  const prefix = role === 'guest_crew' ? 'guest-' : role === 'event_manager' ? 'em-' : role === 'head_store' ? 'hs-' : ['head_office','office_staff','production_staff'].includes(role) ? 'staff-' : role === 'admin' ? 'admin-' : role === 'crew_event' ? 'ce-' : 'cs-';
   const activePage = ['account-profile', 'account-settings'].includes(currentPage) || currentPage.startsWith(prefix) ? currentPage : defaultPage(role);
-  const personalPayroll = ['admin-my-payroll','hs-my-payroll','staff-payroll'].includes(activePage);
-  const personalPage = ['admin-my-attendance','hs-my-attendance','staff-absensi'].includes(activePage);
-  const personalHistory = ['admin-my-history','hs-my-history','staff-riwayat'].includes(activePage);
+  const personalPayroll = ['em-my-payroll','admin-my-payroll','hs-my-payroll','staff-payroll'].includes(activePage);
+  const personalPage = ['em-my-attendance','admin-my-attendance','hs-my-attendance','staff-absensi'].includes(activePage);
+  const personalHistory = ['em-my-history','admin-my-history','hs-my-history','staff-riwayat'].includes(activePage);
   const meta = (personalPayroll || personalPage || personalHistory || activePage==='staff-dashboard') ? {breadcrumbs:['JAWARA',accountRoles[auth.role]||auth.role],title:personalPayroll?'Payroll Saya':personalPage?'Absensi Saya':personalHistory?'Riwayat Saya':'Dashboard'} : activePage.startsWith('account-') ? { breadcrumbs: ['JAWARA', role === 'guest_crew' ? 'Guest Mode' : 'Akun'], title: activePage === 'account-profile' ? 'Profil Saya' : 'Pengaturan' } : pageMeta[activePage] || pageMeta[defaultPage(role)];
   const navigate = (page: string) => {
     setCurrentPage(page);
@@ -123,12 +130,17 @@ export default function App() {
     if (personalPage && auth.role!=='SUPER_ADMIN') return <CrewAttendance />;
     if (personalHistory && auth.role!=='SUPER_ADMIN') return <AttendanceHistory showAttendance={false} />;
     if (['head_office','office_staff','production_staff'].includes(role)) return <StaffWorkspace onAttendance={()=>navigate('staff-absensi')} onHistory={()=>navigate('staff-riwayat')} />;
+    if (role === 'event_manager') {
+      if (activePage === 'em-events') return <EventWorkspace onAttendance={()=>navigate('em-attendance')} />;
+      if (activePage === 'em-attendance') return <AdminAbsensi eventOnly />;
+      return <EventManagerWorkspace page={activePage} onNavigate={navigate} />;
+    }
     if (role === 'head_store') return <HeadStoreWorkspace page={activePage} />;
     switch (activePage) {
       case 'admin-accounts': return <AccountsWorkspace />;
       case 'admin-dashboard': return <DashboardWorkspace />;
       case 'admin-event': return <EventWorkspace onAttendance={() => navigate('admin-absensi')} onPayroll={() => navigate('admin-payroll')} />;
-      case 'admin-payroll': return auth.role==='SUPER_ADMIN'?<PayrollWorkspace />:<PersonalPayroll />;
+      case 'admin-payroll': return auth.role==='SUPER_ADMIN'?<PayrollWorkspace onAttendance={()=>navigate('admin-absensi')} />:<PersonalPayroll />;
       case 'admin-laporan':
       case 'admin-audit': return <AdminPages key={activePage} page={activePage} onNavigate={navigate} />;
       case 'admin-crew': return <KelolaCrew />;

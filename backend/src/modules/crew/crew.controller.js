@@ -40,6 +40,10 @@ async function fetchCrew(id) {
   if (!data) throw fail("Crew tidak ditemukan.", 404)
   return data
 }
+function eventCrew(c) {
+  const {id,crew_type,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments} = c
+  return {id,crew_type,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments,store_assignments: []}
+}
 async function list(req, res, next) {
   try {
     const rows = []
@@ -55,7 +59,7 @@ async function list(req, res, next) {
       rows.push(...data)
       if (data.length < 500) break
     }
-    res.json(rows)
+    res.json(req.role === "EVENT_MANAGER" ? rows.filter(c => c.crew_type === "CREW_EVENT").map(eventCrew) : rows)
   } catch (error) {
     next(error)
   }
@@ -64,6 +68,10 @@ async function detail(req, res, next) {
   try {
     uuid(req.params.id)
     const crew = await fetchCrew(req.params.id)
+    if (req.role === "EVENT_MANAGER") {
+      if (crew.crew_type !== "CREW_EVENT") throw fail("Crew berada di luar cakupan event.", 403)
+      return res.json(eventCrew(crew))
+    }
     const { data, error } = await db.auth.admin.getUserById(crew.user_id)
     if (error) throw fail("Akun crew belum dapat dimuat.", 503)
     const key = data.user?.user_metadata?.avatar_key

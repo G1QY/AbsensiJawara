@@ -15,7 +15,11 @@ import {
   PolicyForm,
   AdjustmentForm,
 } from "../payroll/PayrollComponents"
-export default function PayrollWorkspace() {
+export default function PayrollWorkspace({
+  onAttendance,
+}: {
+  onAttendance?: () => void
+}) {
   const [month, setMonth] = useState(currentMonth),
     [kind, setKind] = useState("MONTHLY"),
     [placementKind, setPlacementKind] = useState(""),
@@ -80,11 +84,17 @@ export default function PayrollWorkspace() {
       setPolicyOpen(false)
       setConfirm("")
       setReference("")
-      setNotice(
-        action === "paid"
-          ? "Pembayaran berhasil dicatat."
-          : "Payroll berhasil disimpan.",
-      )
+      const notices: Record<string, string> = {
+        policy:
+          "Aturan periode " + month + " tersimpan. Draft mengikuti aturan ini.",
+        adjustment: "Penyesuaian karyawan tersimpan. Status slip tetap Draft.",
+        finalize:
+          "Slip berhasil difinalkan. Setelah membayar karyawan, pilih Catat pembayaran.",
+        paid: "Pembayaran berhasil dicatat. Status slip sekarang Dibayar.",
+        reopen:
+          "Slip dibuka kembali menjadi Draft. Periksa perhitungan sebelum finalisasi ulang.",
+      }
+      setNotice(notices[action])
     } catch (e) {
       setActionError(message(e))
     } finally {
@@ -93,7 +103,7 @@ export default function PayrollWorkspace() {
   }
   function show(r: PayrollEntry) {
     setDetailKey(r.key)
-    setConfirm("")
+    setConfirm(r.status === "FINAL" ? "paid" : "")
     setActionError("")
     setReference("")
   }
@@ -110,7 +120,8 @@ export default function PayrollWorkspace() {
         <div>
           <h1 className="text-lg font-bold text-slate-900">Payroll Karyawan</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Aturan gaji, penyesuaian, dan pencatatan pembayaran.
+            Dikelola Super Admin. Siapkan draft, finalkan slip, lalu catat
+            pembayaran.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -129,7 +140,7 @@ export default function PayrollWorkspace() {
               setPolicyOpen(true)
             }}
           >
-            Atur payroll
+            Atur aturan periode
           </button>
         </div>
       </header>
@@ -248,12 +259,97 @@ export default function PayrollWorkspace() {
       ) : (
         data && (
           <>
-            {!data.configured && (
-              <p className="bg-amber-50 rounded-xl p-4 text-sm text-amber-800">
-                Aturan periode ini belum disimpan. Potongan dan tambahan
-                otomatis belum aktif.
+            <section
+              className={panel + " space-y-4"}
+              aria-label="Tahapan payroll"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold">Mulai dari aturan periode</h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {data.configured
+                      ? "Aturan " +
+                        month +
+                        " sudah tersimpan. Periksa draft karyawan sebelum finalisasi."
+                      : "Aturan " +
+                        month +
+                        " belum disimpan. Menyimpan penyesuaian karyawan tidak menyimpan aturan periode."}
+                  </p>
+                </div>
+                <button
+                  className={data.configured ? button : primary}
+                  onClick={() => {
+                    setActionError("")
+                    setPolicyOpen(true)
+                  }}
+                >
+                  {data.configured
+                    ? "Lihat aturan periode"
+                    : "Atur periode sekarang"}
+                </button>
+              </div>
+              <div className="grid md:grid-cols-3 gap-3">
+                {[
+                  {
+                    key: "DRAFT",
+                    title: "1. Periksa Draft",
+                    text: "Gaji masih dapat berubah. Periksa absensi, potongan, dan tambahan.",
+                  },
+                  {
+                    key: "FINAL",
+                    title: "2. Finalkan Slip",
+                    text: "Nominal dikunci setelah kamu menekan Finalkan payroll. Siap dibayarkan.",
+                  },
+                  {
+                    key: "PAID",
+                    title: "3. Catat Pembayaran",
+                    text: "Setelah transfer atau bayar tunai, isi tanggal dan referensi pembayaran.",
+                  },
+                ].map((step) => (
+                  <button
+                    key={step.key}
+                    className={`text-left rounded-xl border p-4 ${
+                      status === step.key
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                    onClick={() =>
+                      setStatus(status === step.key ? "" : step.key)
+                    }
+                  >
+                    <p className="font-semibold text-sm">{step.title}</p>
+                    <p className="text-xs text-slate-600 mt-2">{step.text}</p>
+                    <p className="text-sm font-semibold mt-3">
+                      {
+                        base.filter(
+                          (r) =>
+                            r.status === step.key &&
+                            (!placement ||
+                              r.placements.some((p) => p.id === placement)) &&
+                            [
+                              r.person.full_name,
+                              r.person.email,
+                              r.person.employee_code,
+                              r.person.company_name,
+                              r.person.division,
+                            ]
+                              .join(" ")
+                              .toLowerCase()
+                              .includes(search.trim().toLowerCase()),
+                        ).length
+                      }{" "}
+                      slip
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-600">
+                {kind === "MONTHLY"
+                  ? "Payroll bulanan dapat difinalkan setelah periode dan shift terakhir selesai serta tinjauan absensi tuntas."
+                  : "Fee event dapat difinalkan setelah event selesai dan tinjauan absensi tuntas."}{" "}
+                Aplikasi mencatat pembayaran, tidak mentransfer uang.
               </p>
-            )}
+            </section>
             <PayrollTotals rows={rows} />
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <p className="text-sm text-slate-500">
@@ -267,7 +363,7 @@ export default function PayrollWorkspace() {
                 onError={setActionError}
               />
             </div>
-            <PayrollList rows={rows} onDetail={show} />
+            <PayrollList rows={rows} onDetail={show} management />
           </>
         )
       )}
@@ -279,7 +375,7 @@ export default function PayrollWorkspace() {
             setActionError("")
           }
         }}
-        title={`Atur Payroll · ${month}`}
+        title={`Aturan Periode · ${month}`}
         size="lg"
       >
         {data && (
@@ -289,6 +385,10 @@ export default function PayrollWorkspace() {
                 {actionError}
               </p>
             )}
+            <p className="text-sm text-slate-600">
+              Berlaku untuk seluruh draft pada periode {month}. Pengaturan ini
+              terpisah dari penyesuaian per karyawan.
+            </p>
             <PolicyForm
               key={month + data.revision}
               policy={data.policy}
@@ -299,40 +399,66 @@ export default function PayrollWorkspace() {
         )}
       </Modal>
       <Modal
-        open={!!detail}
+        open={!!detail && !policyOpen}
         onClose={close}
         title={`Detail Payroll${detail ? " · " + detail.person.full_name : ""}`}
         size="lg"
       >
         {detail && (
           <div className="space-y-5">
-            <PayrollDetails row={detail} />
-            {actionError && (
-              <p role="alert" className="ui-error p-3 rounded-xl">
-                {actionError}
+            <section
+              className="rounded-xl bg-slate-50 p-4 space-y-2"
+              aria-label="Langkah slip payroll"
+            >
+              <p className="font-semibold">
+                {detail.status === "DRAFT"
+                  ? "Draft · Periksa sebelum finalisasi"
+                  : detail.status === "FINAL"
+                    ? "Final · Menunggu pembayaran"
+                    : "Dibayar · Pembayaran sudah tercatat"}
               </p>
-            )}
-            {detail.status === "DRAFT" && (
-              <details className={panel}>
-                <summary className="font-semibold text-sm cursor-pointer">
-                  Atur komponen gaji
-                </summary>
-                <div className="mt-4">
-                  <AdjustmentForm
-                    key={detail.key + data?.revision}
-                    row={detail}
-                    busy={busy}
-                    onSave={(adjustment) =>
-                      void save("adjustment", {
-                        crewId: detail.crewId,
-                        scopeKey: detail.scopeKey,
-                        adjustment,
-                      })
-                    }
-                  />
+              <p className="text-sm text-slate-600">
+                {detail.status === "DRAFT"
+                  ? "Menyimpan penyesuaian tidak mengubah status. Tekan Finalkan payroll setelah semua syarat terpenuhi."
+                  : detail.status === "FINAL"
+                    ? "Bayarkan nominal final kepada karyawan, lalu catat tanggal dan referensinya di sini."
+                    : "Tanggal dan referensi pembayaran tersimpan pada slip ini."}
+              </p>
+              {detail.status === "DRAFT" && detail.blockedReason && (
+                <div className="rounded-xl bg-amber-50 p-3 space-y-2">
+                  <p className="font-semibold text-sm text-amber-900">
+                    Belum bisa difinalkan
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    {detail.blockedReason}
+                  </p>
+                  {!data?.configured ? (
+                    <button
+                      className={button}
+                      onClick={() => {
+                        setActionError("")
+                        setPolicyOpen(true)
+                      }}
+                    >
+                      Atur periode sekarang
+                    </button>
+                  ) : (
+                    onAttendance &&
+                    !!(detail.pendingCount || detail.pendingOvertime) && (
+                      <button className={button} onClick={onAttendance}>
+                        Buka tinjauan absensi
+                      </button>
+                    )
+                  )}
                 </div>
-              </details>
-            )}
+              )}
+              {detail.status === "DRAFT" && detail.baseRate === 0 && (
+                <p className="text-sm text-amber-800">
+                  Gaji atau tarif masih Rp0. Periksa profil karyawan atau isi
+                  penyesuaian slip jika perlu.
+                </p>
+              )}
+            </section>
             {confirm ? (
               <section className="rounded-xl border border-blue-200 p-4 space-y-3">
                 <p className="font-semibold text-sm">
@@ -349,6 +475,11 @@ export default function PayrollWorkspace() {
                   </p>
                 ) : (
                   <>
+                    {confirm === "paid" && (
+                      <p className="text-sm font-semibold">
+                        Nominal yang dicatat: {money(detail.total)}
+                      </p>
+                    )}
                     {confirm === "paid" && (
                       <label className="block text-sm">
                         Tanggal pembayaran
@@ -451,6 +582,33 @@ export default function PayrollWorkspace() {
                   </>
                 )}
               </div>
+            )}
+            <PayrollDetails row={detail} />
+            {actionError && (
+              <p role="alert" className="ui-error p-3 rounded-xl">
+                {actionError}
+              </p>
+            )}
+            {detail.status === "DRAFT" && (
+              <details className={panel}>
+                <summary className="font-semibold text-sm cursor-pointer">
+                  Atur komponen gaji
+                </summary>
+                <div className="mt-4">
+                  <AdjustmentForm
+                    key={detail.key + data?.revision}
+                    row={detail}
+                    busy={busy}
+                    onSave={(adjustment) =>
+                      void save("adjustment", {
+                        crewId: detail.crewId,
+                        scopeKey: detail.scopeKey,
+                        adjustment,
+                      })
+                    }
+                  />
+                </div>
+              </details>
             )}
             <PayrollExports
               rows={[detail]}

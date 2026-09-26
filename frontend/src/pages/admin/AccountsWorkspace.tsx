@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "../../lib/AuthContext"
 import { api } from "../../lib/apiClient"
 import { t } from "../../lib/i18n"
+import AccountPasswordControls from "./AccountPasswordControls"
 import Modal from "../../components/ui/Modal"
 import ExportButtons from "../../components/ui/ExportButtons"
 import { button, control, primary, message, type Directory } from "./adminData"
@@ -20,7 +21,7 @@ interface Account {
     deleted_at: string | null
   }[]
 }
-import {accountRoles as roles, roleDivisions} from '../../lib/accountRoles'
+import { accountRoles as roles, roleDivisions } from "../../lib/accountRoles"
 const roleOf = (a: Account) =>
   a.user_roles.map((r) => roles[r.role.code] || r.role.name).join(", ") ||
   "Belum ditetapkan"
@@ -37,6 +38,7 @@ export default function AccountsWorkspace() {
     [notice, setNotice] = useState(""),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false)
+  const [passwordAccount, setPasswordAccount] = useState<Account | null>(null)
   const [selected, setSelected] = useState<Account | null>(null),
     [role, setRole] = useState("CREW_STORE"),
     [division, setDivision] = useState(""),
@@ -77,7 +79,13 @@ export default function AccountsWorkspace() {
     ).values(),
   ].sort((a, b) => a.city_name!.localeCompare(b.city_name!))
   const filtered = accounts.filter((a) =>
-    [a.full_name, a.email, roleOf(a), a.crew[0]?.division, a.head_store_scopes?.[0]?.city_name]
+    [
+      a.full_name,
+      a.email,
+      roleOf(a),
+      a.crew[0]?.division,
+      a.head_store_scopes?.[0]?.city_name,
+    ]
       .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase()),
@@ -87,7 +95,11 @@ export default function AccountsWorkspace() {
     setBusy(true)
     setModalError("")
     try {
-      await api.patch(`/accounts/${selected.id}/role`, { role, branchId, division: roleDivisions(role).length ? division : '' })
+      await api.patch(`/accounts/${selected.id}/role`, {
+        role,
+        branchId,
+        division: roleDivisions(role).length ? division : "",
+      })
       setSelected(null)
       setNotice(
         "Role tersimpan. Pengguna perlu masuk kembali untuk memperbarui menu.",
@@ -119,6 +131,58 @@ export default function AccountsWorkspace() {
       setBusy(false)
     }
   }
+  function actions(a: Account) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          className={button}
+          disabled={
+            a.id === auth?.user.id || !a.is_active || !!a.crew[0]?.deleted_at
+          }
+          onClick={() => {
+            setSelected(a)
+            setDivision(a.crew[0]?.division || "")
+            setRole(
+              a.user_roles[0]?.role.code ||
+                a.crew[0]?.crew_type ||
+                "CREW_STORE",
+            )
+            setBranchId(
+              cities.find(
+                (b) =>
+                  b.city_name?.toLowerCase() ===
+                  a.head_store_scopes?.[0]?.city_name.toLowerCase(),
+              )?.id || "",
+            )
+            setModalError("")
+          }}
+        >
+          {t("Ubah role")}
+        </button>
+        {a.crew[0] &&
+          !a.crew[0].deleted_at &&
+          !a.user_roles.some((r) => r.role.code === "SUPER_ADMIN") && (
+            <button className={button} onClick={() => setPasswordAccount(a)}>
+              Password akun
+            </button>
+          )}
+        {a.crew[0] &&
+          a.id !== auth?.user.id &&
+          !a.user_roles.some((r) => r.role.code === "SUPER_ADMIN") && (
+            <button
+              className={button + " text-red-700"}
+              onClick={() => {
+                setDeleting(a)
+                setConfirmEmail("")
+                setModalError("")
+              }}
+            >
+              {t("Hapus permanen")}
+            </button>
+          )}
+      </div>
+    )
+  }
   return (
     <div className="p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -126,7 +190,7 @@ export default function AccountsWorkspace() {
           <h2 className="text-lg font-semibold">{t("Akun & Hak Akses")}</h2>
           <p className="text-sm text-slate-600 mt-1">
             {t(
-              "Akun baru mengikuti jenis Crew Store atau Crew Event. Atur promosi dan kota cakupan di sini.",
+              "Atur role, divisi, kota cakupan, dan password akun karyawan di sini.",
             )}
           </p>
         </div>
@@ -172,7 +236,7 @@ export default function AccountsWorkspace() {
       {loading ? (
         <p>{t("Memuat data...")}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
@@ -192,7 +256,14 @@ export default function AccountsWorkspace() {
                       {a.email}
                     </p>
                   </td>
-                  <td className="p-4">{roleOf(a)}{a.crew[0]?.division && <p className="text-xs text-slate-500 mt-1">{a.crew[0].division}</p>}</td>
+                  <td className="p-4">
+                    {roleOf(a)}
+                    {a.crew[0]?.division && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        {a.crew[0].division}
+                      </p>
+                    )}
+                  </td>
                   <td className="p-4">
                     {a.head_store_scopes?.[0]?.city_name || "—"}
                   </td>
@@ -205,53 +276,7 @@ export default function AccountsWorkspace() {
                           : "Nonaktif",
                     )}
                   </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        className={button}
-                        disabled={
-                          a.id === auth.user.id ||
-                          !a.is_active ||
-                          !!a.crew[0]?.deleted_at
-                        }
-                        onClick={() => {
-                          setSelected(a)
-                          setDivision(a.crew[0]?.division || "")
-                          setRole(
-                            a.user_roles[0]?.role.code ||
-                              a.crew[0]?.crew_type ||
-                              "CREW_STORE",
-                          )
-                          setBranchId(
-                            cities.find(
-                              (b) =>
-                                b.city_name?.toLowerCase() ===
-                                a.head_store_scopes?.[0]?.city_name.toLowerCase(),
-                            )?.id || "",
-                          )
-                          setModalError("")
-                        }}
-                      >
-                        {t("Ubah role")}
-                      </button>
-                      {a.crew[0] &&
-                        a.id !== auth.user.id &&
-                        !a.user_roles.some(
-                          (r) => r.role.code === "SUPER_ADMIN",
-                        ) && (
-                          <button
-                            className={button + " text-red-700"}
-                            onClick={() => {
-                              setDeleting(a)
-                              setConfirmEmail("")
-                              setModalError("")
-                            }}
-                          >
-                            {t("Hapus permanen")}
-                          </button>
-                        )}
-                    </div>
-                  </td>
+                  <td className="p-4">{actions(a)}</td>
                 </tr>
               ))}
             </tbody>
@@ -261,6 +286,51 @@ export default function AccountsWorkspace() {
           )}
         </div>
       )}
+      {!loading && (
+        <div className="grid gap-3 lg:hidden">
+          {filtered.map((a) => (
+            <article
+              className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+              key={a.id}
+            >
+              <div className="flex justify-between gap-3">
+                <strong className="break-words">{a.full_name}</strong>
+                <span className="text-xs text-slate-500">
+                  {a.is_active ? "Aktif" : "Nonaktif"}
+                </span>
+              </div>
+              <p className="text-sm text-slate-600 break-all">{a.email}</p>
+              <p className="text-sm">
+                {roleOf(a)}
+                {a.crew[0]?.division ? " · " + a.crew[0].division : ""}
+              </p>
+              {a.head_store_scopes?.[0]?.city_name && (
+                <p className="text-xs text-slate-500">
+                  Kota: {a.head_store_scopes[0].city_name}
+                </p>
+              )}
+              {actions(a)}
+            </article>
+          ))}
+        </div>
+      )}
+      {!loading && !filtered.length && (
+        <p className="text-sm text-slate-500">
+          Tidak ada akun sesuai pencarian.
+        </p>
+      )}
+      <Modal
+        open={!!passwordAccount}
+        onClose={() => setPasswordAccount(null)}
+        title={`Password akun · ${passwordAccount?.full_name || ""}`}
+      >
+        {passwordAccount && (
+          <AccountPasswordControls
+            key={passwordAccount.id}
+            crewId={passwordAccount.crew[0].id}
+          />
+        )}
+      </Modal>
       <Modal
         open={!!selected}
         onClose={() => {
@@ -282,7 +352,11 @@ export default function AccountsWorkspace() {
               className={control}
               aria-label="Role akun"
               value={role}
-              onChange={(e) => {setRole(e.target.value);if(!roleDivisions(e.target.value).includes(division))setDivision('')}}
+              onChange={(e) => {
+                setRole(e.target.value)
+                if (!roleDivisions(e.target.value).includes(division))
+                  setDivision("")
+              }}
             >
               {Object.entries(roles).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -291,7 +365,26 @@ export default function AccountsWorkspace() {
               ))}
             </select>
           </label>
-          {roleDivisions(role).length>0 && <label className="block text-sm">Divisi<select aria-label="Divisi" required className={control} value={division} onChange={e=>setDivision(e.target.value)}><option value="">Pilih divisi</option>{roleDivisions(role).map(d=><option key={d}>{d}</option>)}</select><span className="text-xs text-slate-500">Divisi ditampilkan pada profil.</span></label>}
+          {roleDivisions(role).length > 0 && (
+            <label className="block text-sm">
+              Divisi
+              <select
+                aria-label="Divisi"
+                required
+                className={control}
+                value={division}
+                onChange={(e) => setDivision(e.target.value)}
+              >
+                <option value="">Pilih divisi</option>
+                {roleDivisions(role).map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500">
+                Divisi ditampilkan pada profil.
+              </span>
+            </label>
+          )}
           {role === "HEAD_STORE" && (
             <label className="block text-sm">
               {t("Kota cakupan")}

@@ -112,8 +112,10 @@ export function PayrollExports({
 export function PayrollList({
   rows,
   onDetail,
+  management = false,
 }: {
   rows: PayrollEntry[]
+  management?: boolean
   onDetail: (r: PayrollEntry) => void
 }) {
   return (
@@ -145,7 +147,14 @@ export function PayrollList({
               +{money(r.allowance + r.overtimeBonus)}
             </span>,
             <strong>{money(r.total)}</strong>,
-            <Status value={r.status} />,
+            <div>
+              <Status value={r.status} />
+              {management && r.status === "DRAFT" && (
+                <p className="text-xs text-slate-500 mt-2 max-w-48">
+                  {r.blockedReason || "Siap difinalkan"}
+                </p>
+              )}
+            </div>,
             <button
               className={button}
               aria-label={`Detail payroll ${r.person.full_name}${
@@ -153,7 +162,13 @@ export function PayrollList({
               }`}
               onClick={() => onDetail(r)}
             >
-              Detail
+              {management
+                ? r.status === "DRAFT"
+                  ? "Periksa draft"
+                  : r.status === "FINAL"
+                    ? "Catat pembayaran"
+                    : "Lihat slip"
+                : "Detail"}
             </button>,
           ])}
         />
@@ -189,6 +204,11 @@ export function PayrollList({
                 </p>
               </div>
             </div>
+            {management && r.status === "DRAFT" && (
+              <p className="text-xs text-slate-600 mb-3">
+                {r.blockedReason || "Siap difinalkan"}
+              </p>
+            )}
             <div className="border-t border-slate-100 pt-3 flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs text-slate-500">Gaji bersih</p>
@@ -203,7 +223,13 @@ export function PayrollList({
                 }`}
                 onClick={() => onDetail(r)}
               >
-                Detail
+                {management
+                  ? r.status === "DRAFT"
+                    ? "Periksa draft"
+                    : r.status === "FINAL"
+                      ? "Catat pembayaran"
+                      : "Lihat slip"
+                  : "Detail"}
               </button>
             </div>
           </article>
@@ -418,7 +444,7 @@ export function PolicyForm({
             <select
               className={control + " mt-1"}
               aria-label="Dasar gaji Store & Kantor"
-                value={p.monthly_basis}
+              value={p.monthly_basis}
               onChange={(e) =>
                 setP({
                   ...p,
@@ -436,7 +462,7 @@ export function PolicyForm({
             <select
               className={control + " mt-1"}
               aria-label="Dasar fee Crew Event"
-                value={p.event_basis}
+              value={p.event_basis}
               onChange={(e) =>
                 setP({
                   ...p,
@@ -458,7 +484,7 @@ export function PolicyForm({
             <select
               className={control + " mt-1"}
               aria-label="Perhitungan telat"
-                value={p.late_rounding}
+              value={p.late_rounding}
               onChange={(e) =>
                 setP({
                   ...p,
@@ -481,7 +507,7 @@ export function PolicyForm({
             <select
               className={control + " mt-1"}
               aria-label="Potongan tanpa kehadiran"
-                value={p.absence_mode}
+              value={p.absence_mode}
               onChange={(e) =>
                 setP({
                   ...p,
@@ -547,6 +573,9 @@ export function AdjustmentForm({
       }}
     >
       <fieldset disabled={busy} className="space-y-3">
+        <p className="text-xs text-slate-500">
+          Masukkan nominal rupiah penuh. Contoh: 2500000 untuk Rp2.500.000.
+        </p>
         <RupiahInput
           label={
             row.kind === "EVENT"

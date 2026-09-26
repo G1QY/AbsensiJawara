@@ -36,6 +36,7 @@ api.use(authenticate, attachRole, userLimits, uploadLimits);
 api.use((req,res,next)=>{res.on('finish',()=>{if(!['GET','HEAD','OPTIONS'].includes(req.method))console.log(JSON.stringify({event:'authenticated_mutation',requestId:req.requestId,userId:req.user.id,role:req.role,method:req.method,route:req.route?.path,status:res.statusCode}));});next();});
 
 api.use(require('./security/headStore').headStoreBoundary);
+api.use(require('./security/eventManager').eventManagerBoundary);
 api.use('/head-store', require('./modules/accounts/headStore.routes'));
 api.use('/accounts', require('./modules/accounts/accounts.routes'));
 

@@ -113,7 +113,7 @@ export default function EventWorkspace({
   onPayroll,
 }: {
   onAttendance: () => void;
-  onPayroll: () => void;
+  onPayroll?: () => void;
 }) {
   const [events, setEvents] = useState<ManagedEvent[]>([]),
     [crew, setCrew] = useState<Crew[]>([]),
@@ -760,9 +760,9 @@ export default function EventWorkspace({
                         "Fee dan penyesuaian mengikuti payroll tersimpan untuk event ini.",
                       )}
                     </p>
-                    <button className={button} onClick={onPayroll}>
+                    {onPayroll && <button className={button} onClick={onPayroll}>
                       {translateUI("Buka Payroll Semua Crew")}
-                    </button>
+                    </button>}
                   </div>
                   <EventPayrollPanel eventId={detail.id} month={detail.event_date.slice(0,7)} />
                 </>
