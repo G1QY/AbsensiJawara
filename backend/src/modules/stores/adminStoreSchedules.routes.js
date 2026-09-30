@@ -1,4 +1,4 @@
-﻿const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
+const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
 const router = require('express').Router();
 const db = require('../../config/supabaseClient');
 const requireRole = require('../../middlewares/requireRole');
@@ -236,17 +236,17 @@ router.post('/', async (req, res, next) => {
       if (byId.schedule_date !== scheduleDate) throw fail('Tanggal jadwal tidak sesuai.', 422);
       existing = byId;
     } else {
-      // Mode buat baru: cari assignment aktif crew pada tanggal tersebut
-      const assignment = await assignmentFor(req.body.crewId, scheduleDate);
-      const { data: rows, error: existingError } = await db.from('store_schedules')
-        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved')
-        .eq('store_assignment_id', assignment.id)
+      const { data: byCrew, error: byCrewError } = await db.from('store_schedules')
+        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
+        .eq('store_assignment.crew_id', req.body.crewId)
         .eq('schedule_date', scheduleDate)
         .limit(2);
-      check(existingError);
-      if ((rows || []).length > 1) throw fail('Terdapat jadwal Store ganda pada tanggal ini. Hubungi pengelola database.', 409);
-      existing = rows?.[0] || null;
-      if (!existing) {
+      check(byCrewError);
+      if ((byCrew || []).length > 1) throw fail('Terdapat jadwal Store ganda pada tanggal ini. Hubungi pengelola database.', 409);
+      if (byCrew?.length === 1) {
+        existing = byCrew[0];
+      } else {
+        const assignment = await assignmentFor(req.body.crewId, scheduleDate);
         const payload = { shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
         const { data, error } = await db.from('store_schedules').insert(payload).select().single();
         check(error);

@@ -471,6 +471,7 @@ async function calendar(req, res, next) {
       else status = 'PENDING';
 
       return {
+        scheduleId: sourceType === 'STORE' ? scheduleId : null,
         shiftNumber,
         date: scheduleDate,
         type: sourceType,

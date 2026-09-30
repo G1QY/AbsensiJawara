@@ -2,7 +2,8 @@ import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
 
-interface CalendarDay {
+export interface CalendarDay {
+  scheduleId?: string | null;
   holidayName?: string;
   holidayKind?: string;
   date: string;
@@ -18,6 +19,14 @@ interface CalendarDay {
   overtimeStatus: string;
   reviewStatus?: string;
   shiftNumber?: number;
+}
+
+export interface AttendanceCalendarProps {
+  crewId?: string;
+  month?: string;
+  onMonthChange?: (month: string) => void;
+  onEditSchedule?: (day: CalendarDay) => void;
+  refreshTrigger?: number;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -39,11 +48,16 @@ const STATUS_LABEL: Record<string, string> = {
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
 /** Kalender kerja — dipakai di halaman Absensi Crew Store & Crew Event. */
-export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
+export default function AttendanceCalendar({ crewId, month: controlledMonth, onMonthChange, onEditSchedule, refreshTrigger }: AttendanceCalendarProps = {}) {
   const todayWib = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
   const now = new Date(todayWib + 'T12:00:00');
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [internalYear, setInternalYear] = useState(now.getFullYear());
+  const [internalMonth, setInternalMonth] = useState(now.getMonth() + 1); // 1-12
+
+  const year = controlledMonth ? Number(controlledMonth.slice(0, 4)) : internalYear;
+  const month = controlledMonth ? Number(controlledMonth.slice(5, 7)) : internalMonth;
+  const monthStr = controlledMonth || `${year}-${String(month).padStart(2, '0')}`;
+
   const [days, setDays] = useState<CalendarDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,8 +65,6 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
   const [holidays, setHolidays] = useState<{holiday_date:string;name:string;kind:string}[]>([]);
   const [holidayDataAvailable, setHolidayDataAvailable] = useState(false);
   const [selected, setSelected] = useState<CalendarDay | null>(null);
-
-  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -64,14 +76,20 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
       .catch(err => { if (!cancelled) setError(err instanceof ApiError ? err.message : 'Gagal memuat kalender.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [monthStr, crewId]);
+  }, [monthStr, crewId, refreshTrigger]);
 
   const changeMonth = (delta: number) => {
     let m = month + delta;
     let y = year;
     if (m > 12) { m = 1; y += 1; }
     if (m < 1) { m = 12; y -= 1; }
-    setMonth(m); setYear(y);
+    const nextStr = `${y}-${String(m).padStart(2, '0')}`;
+    if (onMonthChange) {
+      onMonthChange(nextStr);
+    } else {
+      setInternalMonth(m);
+      setInternalYear(y);
+    }
   };
 
   // Bangun grid 7-kolom (Minggu-Sabtu) untuk bulan ini
@@ -196,6 +214,17 @@ export default function AttendanceCalendar({ crewId }: { crewId?: string }) {
               </div>
             )}
           </div> : null}
+          {onEditSchedule && selected.type === 'STORE' && !selected.checkIn ? (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onEditSchedule(selected)}
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition flex items-center justify-center gap-2"
+              >
+                {translateUI("Ubah Shift Tanggal Ini")} ({selected.shiftNumber ? `Shift ${selected.shiftNumber}` : 'Shift 1'} • {selected.startTime?.slice(0, 5)}–{selected.endTime?.slice(0, 5)})
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>
