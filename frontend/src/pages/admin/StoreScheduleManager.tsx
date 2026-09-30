@@ -9,7 +9,7 @@ import Modal from '../../components/ui/Modal';
 
 interface Schedule {shift_number?:number;id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 interface Response {assignment:{id:string;start_date:string;end_date:string|null;store:{name:string}}|null;schedules:Schedule[]}
-interface RangeResult {warnings?:string[];created:number;skippedOverlap?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number}
+interface RangeResult {warnings?:string[];created:number;inserted?:number;updated?:number;lockedByAttendance?:number;skippedOverlap?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number}
 interface EditScheduleTarget {id?:string|null;schedule_date:string;shift_number:number;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 
 const currentMonth=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).format(new Date()).slice(0,7);
@@ -49,7 +49,8 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     setNotice('');
     try{
       const result=await submitScheduleRange(body=>api.post<RangeResult>('/admin-store-schedules/range',body),{crewId,...rangeForm,lateToleranceMinutes:Number(rangeForm.lateToleranceMinutes)},setNotice);
-      setNotice(`${result.created} jadwal dibuat. ${result.skippedHoliday} tanggal libur, ${result.skippedExisting} jadwal lama, dan ${result.skippedEvent} benturan event dan ${result.skippedOverlap||0} shift bertumpuk dilewati. ${(result.warnings||[]).join(' ')}`);
+      const parts=[`${result.inserted||0} jadwal baru dibuat.`,result.updated?`${result.updated} jadwal lama diperbarui ke shift baru.`:'',result.lockedByAttendance?`${result.lockedByAttendance} jadwal dikunci karena sudah ada absensi.`:'',result.skippedHoliday?`${result.skippedHoliday} hari libur dilewati.`:'',result.skippedEvent?`${result.skippedEvent} benturan event dilewati.`:'',result.skippedOverlap?`${result.skippedOverlap} shift bertumpuk dilewati.`:'',result.skippedDay?`${result.skippedDay} hari non-kerja dilewati.`:'',...(result.warnings||[])].filter(Boolean);
+      setNotice(parts.join(' '));
       setRangeForm(emptyForm);
       await load();
       setCalendarRefresh(prev=>prev+1);

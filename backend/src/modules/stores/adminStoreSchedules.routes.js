@@ -107,8 +107,10 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   const eventCrewByAssignment = new Map(eventAssignments.map(row => [row.id, row.crew_id]));
   const eventConflicts = new Set(eventSchedules.map(row => `${eventCrewByAssignment.get(row.event_assignment_id)}:${row.schedule_date}`));
   const holidays = new Set((holidayResult.data || []).map(row => row.holiday_date));
-  const existing = new Set((existingResult.data || []).map(row => `${row.store_assignment_id}:${row.schedule_date}`));
-  const payload = [];
+  // Map existing schedules by "store_assignment_id:schedule_date" -> row (for update path)
+  const existingMap = new Map((existingResult.data || []).map(row => [`${row.store_assignment_id}:${row.schedule_date}`, row]));
+  const toInsert = [];
+  const toUpdate = []; // { existingId, payload }
   let skippedHoliday = 0, skippedExisting = 0, skippedEvent = 0, skippedDay = 0, skippedOverlap = 0;
   for (const assignment of assignments) {
     for (const scheduleDate of dates) {
@@ -116,26 +118,54 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
       const day = new Date(`${scheduleDate}T00:00:00Z`).getUTCDay();
       if (holidays.has(scheduleDate)) { skippedHoliday += 1; continue; }
       if (!selectedDays.includes(day)) { skippedDay += 1; continue; }
-      if (existing.has(`${assignment.id}:${scheduleDate}`)) { skippedExisting += 1; continue; }
       if (eventConflicts.has(`${assignment.crew_id}:${scheduleDate}`)) { skippedEvent += 1; continue; }
-      const candidate={schedule_date:scheduleDate,start_time:startClock,end_time:endClock};
-      if ((existingResult.data||[]).some(row=>row.store_assignment?.crew_id===assignment.crew_id&&row.store_assignment?.status==='ACTIVE'&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
-      if (eventSchedules.some(row=>eventCrewByAssignment.get(row.event_assignment_id)===assignment.crew_id&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
-      payload.push({ shift_number:selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
-
+      const candidate = { schedule_date: scheduleDate, start_time: startClock, end_time: endClock };
+      const existingRow = existingMap.get(`${assignment.id}:${scheduleDate}`);
+      if (existingRow) {
+        // Sudah ada jadwal — masukkan ke antrian update (attendance dicek saat eksekusi)
+        toUpdate.push({ existingId: existingRow.id, payload: { shift_number: selectedShift, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved } });
+      } else {
+        // Periksa tumpang tindih hanya untuk jadwal baru
+        if ((existingResult.data||[]).some(row=>row.store_assignment?.crew_id===assignment.crew_id&&row.store_assignment?.status==='ACTIVE'&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
+        if (eventSchedules.some(row=>eventCrewByAssignment.get(row.event_assignment_id)===assignment.crew_id&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
+        toInsert.push({ shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
+      }
     }
   }
   let saved = [];
-  if (payload.length) {
-    for(let offset=0;offset<payload.length;offset+=500){
-    const batch=payload.slice(offset,offset+500);
-    const result = await db.from('store_schedules').upsert(batch,{onConflict:'store_assignment_id,schedule_date',ignoreDuplicates:true}).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved');
-    check(result.error);
-    saved.push(...(result.data || []));
+  // Insert jadwal baru (batch)
+  if (toInsert.length) {
+    for (let offset = 0; offset < toInsert.length; offset += 500) {
+      const batch = toInsert.slice(offset, offset + 500);
+      const result = await db.from('store_schedules').insert(batch).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved');
+      check(result.error);
+      saved.push(...(result.data || []));
     }
-    await logAudit({ actorUserId, action: 'STORE_SCHEDULE_RANGE_CREATED', entityType: 'store_schedules', entityId: saved[0]?.id || null, oldData: null, newData: { startDate: start, endDate: end, crewCount: selectedCrewIds.length, created: saved.length, shiftNumber:selectedShift } });
   }
-  return { warnings, created: saved.length, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, skippedOverlap, schedules: saved };
+  // Update jadwal yang sudah ada — lewati yang sudah ada absensinya
+  let updatedCount = 0, lockedByAttendance = 0;
+  if (toUpdate.length) {
+    // Ambil semua ID yang ada di attendance_logs sekaligus
+    const allExistingIds = toUpdate.map(item => item.existingId);
+    const attendedSet = new Set();
+    for (let offset = 0; offset < allExistingIds.length; offset += 500) {
+      const chunk = allExistingIds.slice(offset, offset + 500);
+      const { data: attended, error: attendedError } = await db.from('attendance_logs').select('store_schedule_id').in('store_schedule_id', chunk);
+      check(attendedError, 'Pemakaian jadwal tidak dapat diperiksa.');
+      (attended || []).forEach(row => attendedSet.add(row.store_schedule_id));
+    }
+    for (const item of toUpdate) {
+      if (attendedSet.has(item.existingId)) { lockedByAttendance += 1; continue; }
+      const { data: updatedRow, error: updateError } = await db.from('store_schedules').update(item.payload).eq('id', item.existingId).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').single();
+      check(updateError);
+      saved.push(updatedRow);
+      updatedCount += 1;
+    }
+  }
+  if (saved.length) {
+    await logAudit({ actorUserId, action: 'STORE_SCHEDULE_RANGE_CREATED', entityType: 'store_schedules', entityId: saved[0]?.id || null, oldData: null, newData: { startDate: start, endDate: end, crewCount: selectedCrewIds.length, inserted: toInsert.length, updated: updatedCount, lockedByAttendance, shiftNumber: selectedShift } });
+  }
+  return { warnings, created: saved.length, inserted: toInsert.length, updated: updatedCount, lockedByAttendance, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, skippedOverlap, schedules: saved };
 }
 
 router.get('/holidays', async (req, res, next) => {
