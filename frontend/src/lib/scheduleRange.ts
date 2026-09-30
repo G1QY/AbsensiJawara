@@ -4,14 +4,17 @@ export function* scheduleMonths(startDate:string,endDate:string){
  let start=startDate;
  while(start<=endDate){const next=new Date(`${start}T00:00:00Z`);next.setUTCDate(1);next.setUTCMonth(next.getUTCMonth()+1);const last=new Date(next.getTime()-86400000).toISOString().slice(0,10);yield {startDate:start,endDate:last<endDate?last:endDate};start=next.toISOString().slice(0,10);}
 }
-export interface ScheduleResult {created:number;skippedOverlap?:number;crewCount?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number;warnings?:string[]}
+export interface ScheduleResult {created:number;inserted?:number;updated?:number;lockedByAttendance?:number;skippedOverlap?:number;crewCount?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number;warnings?:string[]}
 export async function submitScheduleRange(post:(body:Record<string,unknown>)=>Promise<ScheduleResult>,body:Record<string,unknown>&{startDate:string;endDate:string},progress:(value:string)=>void){
- const total:ScheduleResult={created:0,skippedOverlap:0,crewCount:0,skippedHoliday:0,skippedExisting:0,skippedEvent:0,skippedDay:0,warnings:[]};
+ const total:ScheduleResult={created:0,inserted:0,updated:0,lockedByAttendance:0,skippedOverlap:0,crewCount:0,skippedHoliday:0,skippedExisting:0,skippedEvent:0,skippedDay:0,warnings:[]};
  for(const range of scheduleMonths(body.startDate,body.endDate)){
   progress(`Memproses ${range.startDate} – ${range.endDate}. ${total.created} jadwal telah dibuat. Tetap buka halaman ini.`);
   let result:ScheduleResult;
   try{result=await post({...body,...range});}catch(error){throw new Error(`${total.created} jadwal telah dibuat. Proses berhenti pada ${range.startDate}. ${error instanceof Error?error.message:'Gagal menyimpan.'} Kirim ulang rentang yang sama untuk melanjutkan; jadwal yang sudah ada dilewati.`);}
   for(const key of ['created','skippedHoliday','skippedExisting','skippedEvent','skippedDay'] as const)total[key]+=result[key];
+  total.inserted=(total.inserted||0)+(result.inserted||0);
+  total.updated=(total.updated||0)+(result.updated||0);
+  total.lockedByAttendance=(total.lockedByAttendance||0)+(result.lockedByAttendance||0);
   total.skippedOverlap=(total.skippedOverlap||0)+(result.skippedOverlap||0);
   total.crewCount=Math.max(total.crewCount||0,result.crewCount||0);total.warnings=[...new Set([...(total.warnings||[]),...(result.warnings||[])])];
  }
