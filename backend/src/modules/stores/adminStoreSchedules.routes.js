@@ -1,4 +1,4 @@
-const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
+﻿const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
 const router = require('express').Router();
 const db = require('../../config/supabaseClient');
 const requireRole = require('../../middlewares/requireRole');
@@ -210,31 +210,60 @@ router.post('/', async (req, res, next) => {
     const startTime = time(req.body.startTime);
     const endTime = time(req.body.endTime);
     if (startTime === endTime) throw fail('Jam masuk dan pulang tidak boleh sama.');
-    const selectedShift=shiftNumber(req.body.shiftNumber);
+    const selectedShift = shiftNumber(req.body.shiftNumber);
     const tolerance = Number(req.body.lateToleranceMinutes ?? 0);
     if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 240) throw fail('Toleransi keterlambatan harus 0 sampai 240 menit.');
     if (typeof req.body.overtimePreapproved !== 'boolean') throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
-    const assignment = await assignmentFor(req.body.crewId, scheduleDate);
 
     const { data: conflict, error: conflictError } = await db.from('event_schedules').select('id,event_assignment:event_assignments!inner(crew_id,status)').eq('event_assignment.crew_id', req.body.crewId).eq('event_assignment.status', 'ACTIVE').eq('schedule_date', scheduleDate).eq('status', 'ACTIVE').limit(1);
     check(conflictError, 'Benturan jadwal Event tidak dapat diperiksa.');
     if (conflict?.length) throw fail('Crew sudah memiliki jadwal Event aktif pada tanggal ini.', 409);
 
-    const { data: existing, error: existingError } = await db.from('store_schedules').select('id,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).eq('schedule_date', scheduleDate).limit(2);
-    check(existingError);
-    if ((existing || []).length > 1) throw fail('Terdapat jadwal Store ganda pada tanggal ini. Hubungi pengelola database.', 409);
-    const payload = { shift_number:selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
-    let saved;
-    if (existing?.[0]) {
-      const { data: attendance, error: attendanceError } = await db.from('attendance_logs').select('id').eq('store_schedule_id', existing[0].id).limit(1);
-      check(attendanceError, 'Pemakaian jadwal tidak dapat diperiksa.');
-      if (attendance?.length) throw fail('Jadwal sudah dipakai untuk absensi dan tidak dapat diubah.', 409);
-      const { data, error } = await db.from('store_schedules').update(payload).eq('id', existing[0].id).select().single(); check(error); saved = data;
+    // Jika scheduleId dikirim (mode edit), fetch langsung by ID
+    // tanpa assignmentFor() yang bisa menemukan assignment berbeda dari jadwal asli.
+    const scheduleId = req.body.scheduleId || null;
+    let existing = null;
+
+    if (scheduleId) {
+      uuid(scheduleId);
+      const { data: byId, error: byIdError } = await db.from('store_schedules')
+        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
+        .eq('id', scheduleId)
+        .single();
+      check(byIdError, 'Jadwal tidak ditemukan.');
+      if (!byId) throw fail('Jadwal tidak ditemukan.', 404);
+      if (byId.store_assignment?.crew_id !== req.body.crewId) throw fail('Jadwal ini bukan milik crew yang dipilih.', 403);
+      if (byId.schedule_date !== scheduleDate) throw fail('Tanggal jadwal tidak sesuai.', 422);
+      existing = byId;
     } else {
-      const { data, error } = await db.from('store_schedules').insert(payload).select().single(); check(error); saved = data;
+      // Mode buat baru: cari assignment aktif crew pada tanggal tersebut
+      const assignment = await assignmentFor(req.body.crewId, scheduleDate);
+      const { data: rows, error: existingError } = await db.from('store_schedules')
+        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved')
+        .eq('store_assignment_id', assignment.id)
+        .eq('schedule_date', scheduleDate)
+        .limit(2);
+      check(existingError);
+      if ((rows || []).length > 1) throw fail('Terdapat jadwal Store ganda pada tanggal ini. Hubungi pengelola database.', 409);
+      existing = rows?.[0] || null;
+      if (!existing) {
+        const payload = { shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
+        const { data, error } = await db.from('store_schedules').insert(payload).select().single();
+        check(error);
+        await logAudit({ actorUserId: req.user.id, action: 'STORE_SCHEDULE_CREATED', entityType: 'store_schedules', entityId: data.id, oldData: null, newData: data });
+        return res.status(201).json(data);
+      }
     }
-    await logAudit({ actorUserId: req.user.id, action: existing?.[0] ? 'STORE_SCHEDULE_UPDATED' : 'STORE_SCHEDULE_CREATED', entityType: 'store_schedules', entityId: saved.id, oldData: existing?.[0] || null, newData: saved });
-    res.status(existing?.[0] ? 200 : 201).json(saved);
+
+    // Update jadwal yang ditemukan
+    const { data: attendance, error: attendanceError } = await db.from('attendance_logs').select('id').eq('store_schedule_id', existing.id).limit(1);
+    check(attendanceError, 'Pemakaian jadwal tidak dapat diperiksa.');
+    if (attendance?.length) throw fail('Jadwal sudah dipakai untuk absensi dan tidak dapat diubah.', 409);
+    const updatePayload = { shift_number: selectedShift, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
+    const { data: saved, error: updateError } = await db.from('store_schedules').update(updatePayload).eq('id', existing.id).select().single();
+    check(updateError);
+    await logAudit({ actorUserId: req.user.id, action: 'STORE_SCHEDULE_UPDATED', entityType: 'store_schedules', entityId: saved.id, oldData: existing, newData: saved });
+    res.status(200).json(saved);
   } catch (error) { next(error); }
 });
 
