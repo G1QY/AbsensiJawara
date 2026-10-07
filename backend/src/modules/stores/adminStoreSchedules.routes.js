@@ -11,7 +11,7 @@ async function readAll(makeQuery){const rows=[];for(let offset=0;;offset+=500){c
 router.use((req,res,next) => requireRole(...(req.method === 'GET' && req.path === '/payroll-context' ? ['SUPER_ADMIN','EVENT_MANAGER'] : ['SUPER_ADMIN']))(req,res,next));
 
 function date(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '') || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) throw fail('Tanggal jadwal tidak valid.');
+  if (typeof value!=='string' || !/^20\d{2}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00Z`)) || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) throw fail('Tanggal jadwal tidak valid.');
   return value;
 }
 function time(value) {
@@ -89,12 +89,12 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   const calendarResults = await ensureHolidayYears(calendarYears);
   const warnings = calendarResults.filter(row=>row.warning).map(row=>row.warning);
 
-  const [holidayResult, existingResult, eventAssignmentResult] = await Promise.all([
-    readAll(()=>db.from('national_holidays').select('holiday_date,name,kind').gte('holiday_date', `${calendarYears[0]}-01-01`).lte('holiday_date', `${calendarYears.at(-1)}-12-31`).order('holiday_date')),
+  const [permissionResult, existingResult, eventAssignmentResult] = await Promise.all([
+    readAll(()=>db.from('permissions').select('crew_id,start_date,end_date,type').in('crew_id', selectedCrewIds).eq('status','APPROVED').lte('start_date',end).gte('end_date',start).order('id')),
     readAll(()=>db.from('store_schedules').select('id,store_assignment_id,schedule_date,start_time,end_time,store_assignment:store_assignments!inner(crew_id,status,start_date,end_date)').in('store_assignment.crew_id', selectedCrewIds).gte('schedule_date', adjacentDate(start,-1)).lte('schedule_date', adjacentDate(end,1)).order('id')),
     readAll(()=>db.from('event_assignments').select('id,crew_id').in('crew_id', selectedCrewIds).eq('status', 'ACTIVE').order('id')),
   ]);
-  check(holidayResult.error, 'Kalender libur nasional belum siap. Jalankan migrasi kalender kerja.');
+  check(permissionResult.error, 'Libur dan izin crew tidak dapat diperiksa.');
   check(existingResult.error);
   check(eventAssignmentResult.error, 'Benturan jadwal Event tidak dapat diperiksa.');
   const eventAssignments = eventAssignmentResult.data || [];
@@ -106,18 +106,17 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   }
   const eventCrewByAssignment = new Map(eventAssignments.map(row => [row.id, row.crew_id]));
   const eventConflicts = new Set(eventSchedules.map(row => `${eventCrewByAssignment.get(row.event_assignment_id)}:${row.schedule_date}`));
-  const holidays = new Set((holidayResult.data || []).map(row => row.holiday_date));
   // Map existing schedules by "store_assignment_id:schedule_date" -> row (for update path)
   const existingMap = new Map((existingResult.data || []).map(row => [`${row.store_assignment_id}:${row.schedule_date}`, row]));
   const toInsert = [];
   const toUpdate = []; // { existingId, payload }
-  let skippedHoliday = 0, skippedExisting = 0, skippedEvent = 0, skippedDay = 0, skippedOverlap = 0;
+  let skippedHoliday = 0, skippedExisting = 0, skippedEvent = 0, skippedDay = 0, skippedOverlap = 0, skippedTimeOff = 0;
   for (const assignment of assignments) {
     for (const scheduleDate of dates) {
       if (scheduleDate < assignment.start_date || (assignment.end_date && scheduleDate > assignment.end_date)) continue;
       const day = new Date(`${scheduleDate}T00:00:00Z`).getUTCDay();
-      if (holidays.has(scheduleDate)) { skippedHoliday += 1; continue; }
       if (!selectedDays.includes(day)) { skippedDay += 1; continue; }
+      if ((permissionResult.data||[]).some(p=>p.crew_id===assignment.crew_id && scheduleDate>=p.start_date && scheduleDate<=p.end_date)) { skippedTimeOff++; continue; }
       if (eventConflicts.has(`${assignment.crew_id}:${scheduleDate}`)) { skippedEvent += 1; continue; }
       const candidate = { schedule_date: scheduleDate, start_time: startClock, end_time: endClock };
       const existingRow = existingMap.get(`${assignment.id}:${scheduleDate}`);
@@ -165,8 +164,20 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   if (saved.length) {
     await logAudit({ actorUserId, action: 'STORE_SCHEDULE_RANGE_CREATED', entityType: 'store_schedules', entityId: saved[0]?.id || null, oldData: null, newData: { startDate: start, endDate: end, crewCount: selectedCrewIds.length, inserted: toInsert.length, updated: updatedCount, lockedByAttendance, shiftNumber: selectedShift } });
   }
-  return { warnings, created: saved.length, inserted: toInsert.length, updated: updatedCount, lockedByAttendance, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, skippedOverlap, schedules: saved };
+  return { warnings, created: saved.length, inserted: toInsert.length, updated: updatedCount, lockedByAttendance, crewCount: selectedCrewIds.length, skippedHoliday, skippedExisting, skippedEvent, skippedDay, skippedOverlap, skippedTimeOff, schedules: saved };
 }
+
+router.post('/day-status', async (req,res,next)=>{
+  try {
+    const crewId=uuid(req.body.crewId), start=date(req.body.startDate), end=date(req.body.endDate);
+    if(start>end || (Date.parse(end)-Date.parse(start))/86400000>365) throw fail('Pilih rentang maksimal 366 hari.');
+    if(!['DAY_OFF','PERMIT','WORK'].includes(req.body.type)) throw fail('Status hari tidak valid.');
+    if(typeof req.body.reason!=='string' || req.body.reason.trim().length<3 || req.body.reason.length>1000) throw fail('Isi keterangan 3 sampai 1000 karakter.');
+    const {data,error}=await db.rpc('set_crew_day_status',{p_actor:req.user.id,p_crew:crewId,p_start:start,p_end:end,p_type:req.body.type,p_reason:req.body.reason.trim()});
+    if(error) throw fail(['40001','23P01'].includes(error.code)?error.message:error.code==='P0001'?error.message:'Status hari tidak dapat disimpan. Pastikan migrasi libur/izin sudah terpasang.', ['40001','23P01'].includes(error.code)?409:422);
+    res.json({updated:data});
+  } catch(error) {next(error);}
+});
 
 router.get('/holidays', async (req, res, next) => {
   try {
@@ -229,7 +240,9 @@ router.get('/crew/:crewId', async (req, res, next) => {
     if (!assignment) return res.json({ assignment: null, schedules: [] });
     const { data: schedules, error } = await db.from('store_schedules').select('id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).gte('schedule_date', start).lte('schedule_date', end).order('schedule_date');
     check(error, 'Jadwal Store tidak dapat dibaca.');
-    res.json({ assignment, schedules: schedules || [] });
+    const {data: permissions,error: permissionError}=await db.from('permissions').select('start_date,end_date,type,reason').eq('crew_id',req.params.crewId).eq('status','APPROVED').lte('start_date',end).gte('end_date',start);
+    check(permissionError,'Libur dan izin crew tidak dapat dibaca.');
+    res.json({ assignment, schedules: (schedules || []).map(s=>{const p=(permissions||[]).find(p=>s.schedule_date>=p.start_date&&s.schedule_date<=p.end_date);return {...s,day_status:p?.type||null,day_note:p?.reason||null}}) });
   } catch (error) { next(error); }
 });
 
@@ -237,6 +250,9 @@ router.post('/', async (req, res, next) => {
   try {
     uuid(req.body.crewId);
     const scheduleDate = date(req.body.scheduleDate);
+    const {data: timeOff,error:timeOffError}=await db.from('permissions').select('id').eq('crew_id',req.body.crewId).eq('status','APPROVED').lte('start_date',scheduleDate).gte('end_date',scheduleDate).limit(1);
+    check(timeOffError,'Libur dan izin crew tidak dapat diperiksa.');
+    if(timeOff?.length) throw fail('Tanggal ditetapkan libur atau izin. Aktifkan kembali hari kerja sebelum mengubah shift.',409);
     const startTime = time(req.body.startTime);
     const endTime = time(req.body.endTime);
     if (startTime === endTime) throw fail('Jam masuk dan pulang tidak boleh sama.');

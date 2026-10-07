@@ -48,6 +48,12 @@ function validateCoordinates(latitude, longitude) {
 function diffMinutes(later, earlier) {
   return Math.round((later.getTime() - earlier.getTime()) / 60000);
 }
+async function timeOffFor(crewId,date) {
+  const {data,error}=await supabase.from('permissions').select('type,reason,start_date,end_date')
+    .eq('crew_id',crewId).eq('status','APPROVED').lte('start_date',date).gte('end_date',date).limit(1).maybeSingle();
+  if(error) throw Object.assign(new Error('Libur dan izin tidak dapat diperiksa.'),{status:503});
+  return data;
+}
 
 // POST /attendance/check-in
 // body: { crewId, storeAssignmentId?, storeScheduleId?, eventAssignmentId?, eventScheduleId?, latitude, longitude }
@@ -132,6 +138,7 @@ async function checkIn(req, res, next) {
     if (!schedule || !canClockIn(schedule,checkInTime)) {
       throw Object.assign(new Error('Clock-in hanya dapat dilakukan pada tanggal mulai jadwal atau selama shift malam masih berlangsung.'), { status: 422 });
     }
+    if(await timeOffFor(effectiveCrewId,schedule.schedule_date)) throw Object.assign(new Error('Tanggal ini ditetapkan libur atau izin. Hubungi admin untuk mengaktifkan jadwal.'),{status:409});
 
     const {data:open,error:openError}=await supabase.from('attendance_logs').select('id').eq('crew_id',effectiveCrewId).not('check_in','is',null).is('check_out',null).limit(1).maybeSingle();
     if(openError)throw Object.assign(new Error('Absensi terbuka tidak dapat diperiksa.'),{status:503});
@@ -406,15 +413,15 @@ async function update(req, res, next) {
 async function calendar(req, res, next) {
   try {
     const { month } = req.query; // format 'YYYY-MM'
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) {
       return res.status(422).json({ message: 'Parameter month wajib format YYYY-MM.' });
     }
 
     const crewId = req.role === ROLES.SUPER_ADMIN && req.query.crewId ? req.query.crewId : await resolveCrewId(req, req.query.crewId);
 
     const monthStart = `${month}-01`;
-    const monthEndDate = new Date(`${month}-01T00:00:00`);
-    monthEndDate.setMonth(monthEndDate.getMonth() + 1);
+    const monthEndDate = new Date(`${month}-01T00:00:00Z`);
+    monthEndDate.setUTCMonth(monthEndDate.getUTCMonth() + 1);
     const monthEnd = monthEndDate.toISOString().slice(0, 10);
 
     // Jadwal Store: lewat store_assignments crew ini
@@ -442,13 +449,14 @@ async function calendar(req, res, next) {
       .lt('attendance_date', monthEnd);
 
     // Permission (SICK/PERMISSION) yang approved, overlap bulan ini
-    const { data: approvedPermissions } = await supabase
+    const { data: approvedPermissions, error:permissionError } = await supabase
       .from('permissions')
-      .select('start_date, end_date, type')
+      .select('start_date, end_date, type, reason, admin_managed')
       .eq('crew_id', crewId)
       .eq('status', 'APPROVED')
       .lte('start_date', monthEnd)
       .gte('end_date', monthStart);
+    if(permissionError) throw Object.assign(new Error('Libur dan izin tidak dapat dimuat.'),{status:503});
 
     const calendarResults=await ensureHolidayYears([monthStart.slice(0, 4)]);
     const { data: holidays, error: holidayError } = await supabase
@@ -465,9 +473,9 @@ async function calendar(req, res, next) {
       const permission = approvedPermissions?.find(p => scheduleDate >= p.start_date && scheduleDate <= p.end_date);
 
       let status;
-      if (permission) status = permission.type === 'SICK' ? 'SICK' : 'PERMISSION';
-      else if (attendance) status = attendance.status;
-      else if (scheduleDate < today) status = 'ABSENT';
+      if (attendance) status = attendance.status;
+      else if (permission) status = permission.type === 'DAY_OFF' ? 'DAY_OFF' : permission.type === 'SICK' ? 'SICK' : 'PERMISSION';
+      else if (scheduledEnd({schedule_date:scheduleDate,start_time:startTime,end_time:endTime}) <= new Date()) status = 'ABSENT';
       else status = 'PENDING';
 
       return {
@@ -479,6 +487,9 @@ async function calendar(req, res, next) {
         startTime,
         endTime,
         status,
+        dayStatus: permission?.type || null,
+        dayNote: permission?.reason || null,
+        adminManaged: !!permission?.admin_managed,
         checkIn: attendance?.check_in ?? null,
         checkOut: attendance?.check_out ?? null,
         lateMinutes: attendance?.late_minutes ?? 0,
@@ -498,6 +509,12 @@ async function calendar(req, res, next) {
     for (let value = new Date(`${monthStart}T00:00:00Z`); value < new Date(`${monthEnd}T00:00:00Z`); value.setUTCDate(value.getUTCDate() + 1)) {
       const dateValue = value.toISOString().slice(0, 10);
       const holiday = holidayByDate.get(dateValue);
+      const permission = approvedPermissions?.find(p=>dateValue>=p.start_date&&dateValue<=p.end_date);
+      if(permission && !dayByDate.has(dateValue)) dayByDate.set(dateValue,{
+        date:dateValue,type:'TIME_OFF',status:permission.type==='DAY_OFF'?'DAY_OFF':permission.type==='SICK'?'SICK':'PERMISSION',
+        source:permission.reason,dayStatus:permission.type,dayNote:permission.reason,adminManaged:!!permission.admin_managed,
+        startTime:null,endTime:null,checkIn:null,checkOut:null,lateMinutes:0,overtimeMinutes:0,overtimeStatus:'NONE',
+      });
       if (!holiday) continue;
       if (dayByDate.has(dateValue)) {
         Object.assign(dayByDate.get(dateValue), { holidayName: holiday.name, holidayKind: holiday.kind });
@@ -620,6 +637,8 @@ async function today(req, res, next) {
       }
     }
 
+    const timeOff = await timeOffFor(crew.id, context?.scheduleDate || todayStr);
+    if(timeOff) return res.json({crewId:crew.id,date:todayStr,hasSchedule:false,context:null,attendance:null,timeOff});
     let attendance = null;
     if (context) {
       const { data, error: attendanceError } = await supabase

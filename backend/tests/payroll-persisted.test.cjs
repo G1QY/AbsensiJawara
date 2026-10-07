@@ -92,7 +92,7 @@ test("night shift is not absent before its following-day end; month cannot final
     new Date("2026-09-30T22:59:00Z"),
   )
   assert.equal(r.absentDays, 0)
-  assert.match(r.blockedReason, /belum selesai/)
+  assert.match(r.blockedReason, /berakhir 2026-09-30/)
   const [done] = calculate(
     source({ schedules: [schedule(30, "22:00", "06:00")], attendance: [] }),
     "2026-09",
@@ -211,3 +211,17 @@ test("period validation rejects malformed and impossible months", () => {
   for (const value of ["2026-00", "2026-13", "2026-9", "2026-09-01", null, {}])
     assert.throws(() => period(value))
 })
+
+test("day off removes a work obligation; approved leave is paid for monthly staff",()=>{
+  const [r]=calculate(source({permissions:[
+    {crew_id:'crew',start_date:'2026-09-02',end_date:'2026-09-02',type:'DAY_OFF',status:'APPROVED'},
+    {crew_id:'crew',start_date:'2026-09-03',end_date:'2026-09-03',type:'PERMIT',status:'APPROVED'},
+  ]}), '2026-09',now);
+  assert.equal(r.scheduledDays,2);assert.equal(r.daysOff,1);assert.equal(r.permissionDays,1);
+  assert.equal(r.absentDays,0);assert.equal(r.absenceDeduction,0);assert.equal(r.total,3017000);
+});
+test("a day off is not in the scheduled-day divisor and rejected attendance cannot hold payroll for overtime",()=>{
+  const [r]=calculate(source({attendance:[log(1),log(3,{review_status:'REJECTED',overtime_status:'PENDING'})],permissions:[{crew_id:'crew',start_date:'2026-09-02',end_date:'2026-09-02',type:'DAY_OFF',status:'APPROVED'}]}),'2026-09',now);
+  assert.equal(r.absentDays,1);assert.equal(r.dailyRate,1500000);assert.equal(r.absenceDeduction,1500000);
+  assert.equal(r.pendingOvertime,0);assert.equal(r.blockedReason,null);
+});

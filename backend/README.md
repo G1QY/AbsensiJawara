@@ -1,71 +1,54 @@
-# Backend — FotoSnaps & Bujangan Food API
+# Backend JAWARA
 
-Express.js REST API sesuai **API Baseline** di Master PRD & ERD v2.0 (lihat `/docs`). Terhubung ke database PostgreSQL/Supabase yang skemanya ada di `../database`.
+Express API untuk absensi dan operasional. Panduan aktif, 5 Oktober 2026, berdasarkan baseline `805c40b`.
 
-## Struktur folder
+## Menjalankan
 
-```
-backend/
-├── src/
-│   ├── config/            # Koneksi Supabase, S3, konstanta bisnis (geofence, threshold, dll)
-│   ├── middlewares/        # authenticate (JWT), tenantContext (RLS scope), requireRole (RBAC), errorHandler
-│   ├── utils/               # geofence (Haversine), imageCompression, signedUrl (S3), auditLogger, crudFactory
-│   ├── modules/
-│   │   ├── auth/                # POST /auth/login, /logout, GET /auth/me
-│   │   ├── tenants/              # GET/POST/PATCH /tenants (SUPER_ADMIN)
-│   │   ├── users/                 # GET/POST/PATCH /users
-│   │   ├── crew/                   # GET/POST/PATCH /crew
-│   │   ├── stores/                  # /stores, /store-assignments, /store-schedules
-│   │   ├── events/                   # /events, /event-locations, /event-assignments, /event-schedules
-│   │   ├── attendance/                 # check-in/out (geofence+anti-fraud), /permissions, /attendance-corrections, /overtimes
-│   │   ├── inventory/                   # /inventory-items, /inventory-stocks (ROP alert), /stock-opname (approval >2%), /waste
-│   │   ├── equipment/                    # /equipment-assets, /event-asset-assignments, /event-checklists, /inspection-reports (Auto-PDF)
-│   │   ├── dashboard/                     # GET /dashboard/admin, /dashboard/crew
-│   │   ├── reports/                        # GET /reports/attendance, /inventory, /events
-│   │   ├── auditLogs/                       # GET /audit-logs (read-only)
-│   │   └── notifications/                    # GET /notifications, PATCH /notifications/:id/read
-│   ├── app.js               # Wiring seluruh route + middleware chain
-│   └── server.js            # Entry point
-├── package.json
-└── .env.example
-```
+Dari backend, setelah environment/database siap sesuai [SETUP](../docs/SETUP.md):
 
-## Alur request (middleware chain)
-
-```
-Request → helmet/cors/json → [/auth/* publik ATAU authenticate (JWT)] → tenantContext (validasi user_tenants + set RLS) → requireRole (jika endpoint butuh role tertentu) → controller → errorHandler
-```
-
-- **`authenticate`** — verifikasi JWT dari header `Authorization: Bearer <token>`.
-- **`tenantContext`** — wajib header `X-Tenant-Id`; memvalidasi keanggotaan lewat tabel `user_tenants` (bukan dipercaya mentah dari client), lalu men-set `req.tenantId`, `req.role`, dan session variable Postgres untuk RLS.
-- **`requireRole(...roles)`** — dipasang per-route sesuai RBAC di PRD Section 3.
-
-## Cara menjalankan
-
-```bash
-cd backend
-npm install
-cp .env.example .env   # lalu isi SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, S3_*, dan konfigurasi email
+```powershell
+npm ci
 npm run dev
 ```
 
-Pastikan database sudah di-migrate terlebih dahulu — lihat `../database/README.md`.
+`npm start` menjalankan `src/server.js` tanpa watcher. Server memvalidasi environment, menghubungkan Redis bila dikonfigurasi, memasang app dan menjalankan pemeriksaan auto-start event. Default host `127.0.0.1`, port 4000; deployment memakai `HOST=0.0.0.0` dan port platform.
 
-Kalender kerja memakai Google Calendar API. Isi `GOOGLE_CALENDAR_API_KEY` pada `backend/.env` dan aktifkan Google Calendar API di project Google Cloud. Kalender publik default adalah `id.indonesian#holiday@group.v.calendar.google.com`. Backend menyimpan hasil sinkronisasi di Supabase selama 30 hari agar jadwal tetap dapat dibaca saat Google sedang gagal. OAuth tidak diperlukan karena aplikasi hanya membaca kalender publik.
+`GET /health` memeriksa proses. Semua route bisnis memakai prefix `/api`.
 
-## Modul dengan business logic khusus (bukan CRUD polos)
+## Autentikasi dan akses
 
-| Modul | Logika khusus |
-|---|---|
-| `attendance` | Validasi geofence (Haversine, radius default 50m → HTTP 422 jika di luar radius), kompresi foto live-capture, `check_out` tidak bisa sebelum `check_in` |
-| `attendanceCorrections` | Approval wajib sebelum data `attendance_logs` diubah, tercatat ke `audit_logs` |
-| `stockOpname` | Auto-hitung `discrepancy_percent`, status otomatis `REQUIRES_ADMIN_APPROVAL` jika >2%, sinkron `inventory_stocks` saat disetujui |
-| `eventAssetAssignments` | Update status aset (`AVAILABLE` ⇄ `IN_USE` ⇄ `MAINTENANCE`) mengikuti siklus pinjam-kembali |
-| `inspectionReports` | Generate PDF in-memory (PDFKit) dari data checklist, upload ke private S3, target <3 detik (di-log jika melebihi) |
+Alur terlindungi: security HTTP → token Supabase/status akun → role database → pembatas workspace → router/controller/RPC → penanganan error.
 
-## Catatan keamanan (PRD Section 12)
+- Login, lupa sandi, verifikasi OTP, reset sandi dan pengajuan guest memiliki alur publik tersendiri.
+- Backend memakai service-role client. RLS tidak menggantikan pemeriksaan aktor, kepemilikan dan scope backend/RPC.
+- Head Store/ADMIN_STORE dibatasi workspace kota dan data pribadi; staff ke data pribadi; Event Manager ke operasi event dan data pribadi.
+- Tidak ada tenantContext atau header X-Tenant-Id.
+- Password login dikelola Auth; vault salinan terenkripsi adalah fitur terpisah.
 
-- Semua endpoint (kecuali `/auth/login`) butuh JWT valid.
-- Tenant scope **selalu** divalidasi ulang di `tenantContext` — tidak pernah dipercaya dari body/query/header tanpa verifikasi ke `user_tenants`.
-- Password di-hash dengan `bcrypt` sebelum disimpan (lihat kolom `password_hash`, bukan plaintext).
-- File foto/PDF tidak pernah diserve langsung — selalu lewat `getSignedDownloadUrl` (kedaluwarsa otomatis).
+## Kelompok route
+
+| Prefix setelah `/api` | Modul |
+| --- | --- |
+| `/auth`, `/users/me` | Login, pemulihan password dan profil. |
+| `/accounts`, `/head-store` | Akun/role dan monitoring kota. |
+| `/crew`, `/admin-directory`, `/locations` | Personel, direktori dan geocoding. |
+| `/admin-store-schedules`, `/crew-store/workspace` | Jadwal dan workspace personel. |
+| `/admin-events`, `/crew-event`, `/event-workflows` | Event/workflow. |
+| `/attendance`, `/admin-attendance`, `/guest-attendance` | Absensi, review dan guest. |
+| `/permissions`, `/attendance-corrections`, `/overtimes` | Izin, koreksi dan lembur. |
+| `/payroll` | Perhitungan, aturan, penyesuaian dan slip. |
+| `/dashboard`, `/reports`, `/audit-logs`, `/notifications` | Ringkasan, laporan, audit/notifikasi. |
+
+Route direktori lama, assignment/schedule dan equipment/checklist/inspection juga terpasang pada [app.js](src/app.js). Sebagian mutasi CRUD lama dinonaktifkan. Keberadaan router bukan izin untuk semua operasi; lihat method dan otorisasi masing-masing.
+
+Modul inventory Bujangan Food tidak di-mount.
+
+## Perintah dan tes
+
+- `npm run bootstrap-admin`: admin pertama; lihat [panduan akun](../docs/ADMIN_CREW_ACCOUNTS.md).
+- `npm run check-email`: baca script untuk cakupan pemeriksaannya; bukan bukti otomatis email telah diterima.
+- `npm test`: `*.test.cjs` dan security, belum `*.test.js`.
+- `npm run test:security`: subset tes keamanan.
+- [Checklist rilis](../docs/RELEASE_CHECKLIST.md) menjelaskan tes lengkap. PGlite membutuhkan `PGLITE_MODULE`; tanpa itu tes SQL tertentu skip.
+
+Sumber integrasi: [HTTP/security](src/security/http.js), [Supabase](src/config/supabaseClient.js), [storage](src/config/s3Client.js), [OTP](src/utils/otpEmail.js).

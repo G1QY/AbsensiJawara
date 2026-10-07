@@ -36,6 +36,7 @@ interface AttendanceState {
 interface TodayResponse {
   crewId: string;
   hasSchedule: boolean;
+  timeOff?: {type:string;reason:string};
   context: TodayContext | null;
   attendance: AttendanceState | null;
 }
@@ -142,8 +143,8 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
             <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
           </div>
-          <h3 className="font-semibold text-slate-900">{translateUI("Tidak Ada Jadwal Hari Ini")}</h3>
-          <p className="text-sm text-slate-400 mt-1">{errorMsg || 'Kamu tidak memiliki jadwal kerja untuk hari ini.'}</p>
+          <h3 className="font-semibold text-slate-900">{today?.timeOff ? (today.timeOff.type === "DAY_OFF" ? "Hari Libur Anda" : "Izin Disetujui") : translateUI("Tidak Ada Jadwal Hari Ini")}</h3>
+          <p className="text-sm text-slate-400 mt-1">{errorMsg || today?.timeOff?.reason || 'Kamu tidak memiliki jadwal kerja untuk hari ini.'}</p>
         </div>
         {showCalendar ? <AttendanceCalendar /> : null}
       </div>

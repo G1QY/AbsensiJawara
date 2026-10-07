@@ -1,3 +1,5 @@
+> **Status dokumentasi: Catatan historis.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 # JAWARA V13. Paket gabungan V12, role, shift, dan payroll
 
 Paket disiapkan 26 September 2026. Dasar repo: `origin/main` commit `d39b57b`, yang sudah memuat V11. Source lengkap memasukkan V12 dan seluruh perubahan V13. Tidak perlu memasang source V12 secara terpisah.

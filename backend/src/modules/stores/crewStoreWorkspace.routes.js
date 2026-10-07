@@ -16,8 +16,9 @@ router.get('/',async(req,res,next)=>{try{
   let schedules=[];{const result=await db.from('store_schedules').select('id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id,status,start_date,end_date)').eq('store_assignment.crew_id',crew.id).gte('schedule_date',monthStart).lt('schedule_date',nextMonth.toISOString().slice(0,10)).order('schedule_date',{ascending:false}).limit(500);if(result.error)throw fail(result.error.message);schedules=(result.data||[]).filter(row=>row.schedule_date<today||(row.store_assignment?.status==='ACTIVE'&&row.store_assignment.start_date<=row.schedule_date&&(!row.store_assignment.end_date||row.store_assignment.end_date>=row.schedule_date))); }
   const {data:attendance,error:attendanceError}=await db.from('attendance_logs').select('id,attendance_date,check_in,check_out,status,review_status,late_minutes,overtime_minutes,overtime_status,store_schedule:store_schedules(id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved)').eq('crew_id',crew.id).order('attendance_date',{ascending:false}).limit(500);
   if(attendanceError)throw fail(attendanceError.message);
-  const {data:permissions,error:permissionError}=await db.from('permissions').select('start_date,end_date,type,status').eq('crew_id',crew.id).eq('status','APPROVED').order('start_date',{ascending:false}).limit(100);
+  const {data:permissions,error:permissionError}=await db.from('permissions').select('start_date,end_date,type,status,reason').eq('crew_id',crew.id).eq('status','APPROVED').lt('start_date',nextMonth.toISOString().slice(0,10)).gte('end_date',monthStart).order('start_date',{ascending:false}).limit(500);
   if(permissionError)throw fail(permissionError.message);
+  schedules=schedules.filter(s=>!(permissions||[]).some(p=>s.schedule_date>=p.start_date&&s.schedule_date<=p.end_date));
   res.json({crew,assignment,schedules,attendance:attendance||[],permissions:permissions||[]});
 }catch(error){next(error);}});
 

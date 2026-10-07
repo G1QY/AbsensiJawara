@@ -1,3 +1,5 @@
+> **Status dokumentasi: Referensi implementasi.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 # Pembaruan workflow event
 
 Jalankan `supabase/migrations/20260903061829_event_workflow_15_steps.sql` satu kali melalui Supabase SQL Editor sebelum memakai backend dan frontend baru. Migrasi ini tidak menghapus akun atau data JSON workflow. Progress lama yang belum selesai kembali ke langkah 1. Workflow lama yang selesai dipetakan ke langkah 15.

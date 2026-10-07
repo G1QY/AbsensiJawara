@@ -1,5 +1,6 @@
 const db = require("../../config/supabaseClient")
 const { fail } = require("../crew/crew.validation")
+const { calendar } = require('./payroll.calendar')
 const DEFAULT_POLICY = Object.freeze({
   monthly_basis: "MONTHLY",
   late_rate: 0,
@@ -8,6 +9,9 @@ const DEFAULT_POLICY = Object.freeze({
   absence_mode: "NONE",
   absence_rate: 0,
   event_basis: "PER_ATTENDANCE",
+  cutoff_day: 31,
+  payment_day: 1,
+  payment_month_offset: 1,
 })
 const dateWib = (value) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(value)
@@ -57,6 +61,7 @@ function calculate(source, month, now = new Date()) {
   } = source
   const [year, m] = month.split("-").map(Number),
     lastDay = new Date(Date.UTC(year, m, 0)).toISOString().slice(0, 10)
+  const window = source.calendar || calendar(month, policy)
   for (const person of people) {
     const own = attendance.filter((a) => a.crew_id === person.id),
       places = placements.filter((a) => a.crew_id === person.id)
@@ -82,21 +87,31 @@ function calculate(source, month, now = new Date()) {
       const logs = own.filter((a) =>
         isEvent
           ? eventAssignments.some((e) => e.id === a.event_assignment_id)
-          : a.store_assignment_id && a.attendance_date.startsWith(month),
+          : a.store_assignment_id && a.attendance_date >= window.startDate && a.attendance_date <= window.endDate,
       )
       const valid = logs.filter(approved),
         validDates = new Set(valid.map((a) => a.attendance_date))
-      const work = isEvent
+      const ownPermissions = permissions.filter((p) => p.crew_id === person.id)
+      const scopeStart = isEvent ? event.event_date : window.startDate
+      const scopeEnd = isEvent ? (event.end_date || event.event_date) : window.endDate
+      const offDates = new Set(ownPermissions.filter(p => p.status === 'APPROVED' && p.type === 'DAY_OFF')
+        .flatMap(p => {
+          const days=[], end=p.end_date<scopeEnd?p.end_date:scopeEnd
+          for(let d=p.start_date>scopeStart?p.start_date:scopeStart;d<=end;d=new Date(Date.parse(d+'T00:00:00Z')+86400000).toISOString().slice(0,10)) days.push(d)
+          return days
+        }))
+      const allWork = isEvent
         ? eventSchedules.filter(
             (s) =>
               s.crew_id === person.id &&
               s.event_id === scopeKey &&
               s.status === "ACTIVE",
           )
-        : schedules.filter((s) => s.crew_id === person.id)
+        : schedules.filter((s) => s.crew_id === person.id && s.schedule_date >= window.startDate && s.schedule_date <= window.endDate)
+      const work = allWork.filter(s => !offDates.has(s.schedule_date))
       const due = work.filter((s) => ended(s, now)),
         scheduledDates = [...new Set(work.map((s) => s.schedule_date))]
-      const ownPermissions = permissions.filter((p) => p.crew_id === person.id)
+      const permissionDates = scheduledDates.filter(d => ownPermissions.some(p => p.status === 'APPROVED' && p.type !== 'DAY_OFF' && d >= p.start_date && d <= p.end_date))
       const unresolved = logs.filter(
         (a) =>
           a.check_in &&
@@ -167,28 +182,31 @@ function calculate(source, month, now = new Date()) {
         total = Math.max(0, gross - deduction),
         cappedDeduction = Math.min(gross, deduction)
       const pendingOvertime = logs.filter(
-        (a) => a.overtime_status === "PENDING",
+        (a) => a.check_in && a.review_status !== 'REJECTED' && a.overtime_status === "PENDING",
       ).length
       let blockedReason = !source.policy
-        ? "Simpan aturan payroll periode ini."
+        ? "Simpan aturan payroll untuk tahun ini."
         : unresolved.length || pendingPermissionDates.length
           ? "Selesaikan tinjauan absensi dan izin terlebih dahulu."
           : !isEvent && pendingOvertime
             ? "Selesaikan persetujuan lembur terlebih dahulu."
-            : !isEvent && (today <= lastDay || work.some((s) => !ended(s, now)))
-              ? "Periode kerja belum selesai."
+            : !isEvent && (today <= window.endDate || work.some((s) => !ended(s, now)))
+              ? `Periode kerja berakhir ${window.endDate}. Finalisasi setelah tanggal tersebut dan semua shift selesai.`
               : isEvent &&
                   (event?.event_status !== "COMPLETED" ||
                     work.some((s) => !ended(s, now)))
                 ? "Event belum selesai."
                 : null
-      if (person.join_date > lastDay) continue
+      if (person.join_date > (isEvent ? lastDay : window.endDate)) continue
       rows.push({
         key: person.id + ":" + scopeKey,
         crewId: person.id,
         userId: person.user_id,
         scopeKey,
         month,
+        periodStart: scopeStart,
+        periodEnd: scopeEnd,
+        paymentDate: isEvent ? null : window.paymentDate,
         kind: isEvent ? "EVENT" : "MONTHLY",
         person,
         event: isEvent
@@ -223,6 +241,8 @@ function calculate(source, month, now = new Date()) {
         absentDays: absentDates.length,
         absentDates,
         scheduledDays: scheduledDates.length,
+        daysOff: offDates.size,
+        permissionDays: permissionDates.length,
         dailyRate,
         presentDays: validDates.size,
         pendingCount: unresolved.length + pendingPermissionDates.length,
@@ -270,19 +290,23 @@ function calculate(source, month, now = new Date()) {
       a.scopeKey.localeCompare(b.scopeKey),
   )
 }
-async function workspace(month, userId = null) {
+async function workspace(month, userId = null, previewPolicy = null, previewAdjustments = null) {
   const { data, error } = await db.rpc("payroll_workspace", {
     p_period: period(month),
     p_user: userId,
   })
   check(error)
   if (!data?.source) throw fail("Data payroll tidak tersedia.", 503)
+  const source = {...data.source}
+  if(previewPolicy) source.policy=previewPolicy
+  if(previewAdjustments) source.adjustments=[...(source.adjustments||[]).filter(a=>!previewAdjustments.some(p=>p.crewId===a.crew_id&&p.scopeKey===a.scope_key)),...previewAdjustments.map(p=>({...p,crew_id:p.crewId,scope_key:p.scopeKey}))]
   return {
     month,
     revision: data.revision,
     policy: data.source.policy || { ...DEFAULT_POLICY },
     configured: !!data.source.policy,
-    rows: calculate(data.source, month),
+    calendar: data.source.calendar || calendar(month, data.source.policy || {}),
+    rows: calculate(source, month),
   }
 }
 module.exports = { DEFAULT_POLICY, period, check, calculate, workspace }

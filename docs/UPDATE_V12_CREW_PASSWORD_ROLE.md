@@ -1,3 +1,5 @@
+> **Status dokumentasi: Catatan historis.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 # V12: Password khusus Super Admin dan role langsung di Detail Crew
 
 Pembaruan ini melanjutkan paket V11, commit 8c0e52d86e93a6d6562087a919cbcdae79b5cf84. Source lengkap menyertakan V11. Patch V12 hanya memuat perubahan sejak commit tersebut.

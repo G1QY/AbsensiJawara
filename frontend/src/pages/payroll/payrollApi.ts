@@ -9,6 +9,10 @@ export type PayrollPolicy = {
   absence_mode: "NONE" | "SCHEDULED" | "FIXED"
   absence_rate: number
   event_basis: "PER_ATTENDANCE" | "PER_EVENT"
+  cutoff_day?: number
+  payment_day?: number
+  payment_month_offset?: number
+  annual_year?: number | null
 }
 export type Adjustment = {
   rate_override: number | null
@@ -22,6 +26,9 @@ export type PayrollEntry = {
   userId: string
   scopeKey: string
   month: string
+  periodStart?: string
+  periodEnd?: string
+  paymentDate?: string | null
   kind: "MONTHLY" | "EVENT"
   person: {
     full_name: string
@@ -50,6 +57,8 @@ export type PayrollEntry = {
   absentDays: number
   absentDates: string[]
   scheduledDays: number
+  daysOff?: number
+  permissionDays?: number
   dailyRate: number
   presentDays: number
   pendingCount: number
@@ -83,8 +92,16 @@ export type PayrollWorkspaceData = {
   revision: string
   policy: PayrollPolicy
   configured: boolean
+  calendar?: PayrollCalendar
   rows: PayrollEntry[]
 }
+export type PayrollCalendar = {startDate:string;endDate:string;paymentDate:string}
+export type PayrollYearPreview = {
+  year:number;fromMonth:number;revision:string;issues:string[];basisChanged:boolean;datesChanged:boolean
+  months:{month:string;affected:boolean;beforeCalendar:PayrollCalendar;afterCalendar:PayrollCalendar;beforeTotal:number;afterTotal:number;drafts:number;locked:number}[]
+}
+export const payrollDate = (date:string) => new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'}).format(new Date(date+'T00:00:00+07:00'))
+export const payrollMonth = (month:string) => new Intl.DateTimeFormat('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'}).format(new Date(month+'-01T00:00:00+07:00'))
 export const currentMonth = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" })
     .format(new Date())
@@ -161,6 +178,9 @@ export function payrollExport(rows: PayrollEntry[]) {
       "Catatan",
       "Tanggal bayar",
       "Referensi pembayaran",
+      "Awal perhitungan",
+      "Akhir perhitungan",
+      "Rencana pembayaran",
     ],
     ...rows.map((r) => [
       r.month,
@@ -192,6 +212,9 @@ export function payrollExport(rows: PayrollEntry[]) {
       r.adjustment.note,
       r.paidDate || "",
       r.paymentReference || "",
+      r.periodStart || "",
+      r.periodEnd || "",
+      r.paymentDate || "",
     ]),
   ]
 }

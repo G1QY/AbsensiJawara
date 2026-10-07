@@ -21,6 +21,14 @@ test('payroll API enforces roles, own-user scope, saved policy validation, revis
   assert.equal((await post('policy',{policy:{...source.policy,late_rate:-1}})).status,422);
   assert.equal((await post('adjustment',{crewId:id(2),scopeKey:'MONTHLY',adjustment:{rate_override:null,allowance:1,deduction:0,note:''}})).status,422);
   assert.equal((await post('finalize',{crewId:id(2),scopeKey:'MONTHLY',revision:'b'.repeat(32)})).status,409);
+  let preview=await post('preview',{policy:{...source.policy,late_rate:25000}});assert.equal(preview.status,200);assert.equal((await preview.json()).rows[0].policy.late_rate,25000);assert.equal(source.policy.late_rate,12000);
+  assert.equal((await post('preview',{policy:source.policy},'CREW_STORE')).status,403);
+  assert.equal((await post('batch-adjustments',{keys:[id(2)+':MONTHLY'],patch:{allowance:50000,note:'Transport'}})).status,200);
+  assert.equal(calls.at(-1).name,'mutate_payroll_adjustments');assert.equal(calls.at(-1).args.p_rows[0].allowance,50000);assert.equal(calls.at(-1).args.p_rows[0].rate_override,null);
+  assert.equal((await post('batch-adjustments',{keys:[id(2)+':MONTHLY',id(2)+':MONTHLY'],patch:{allowance:1,note:'Uji'}})).status,422);
+  assert.equal((await post('batch-adjustments',{keys:['missing'],patch:{deduction:1,note:'Uji'}})).status,409);
+  assert.equal((await post('batch-adjustments',{keys:[id(2)+':MONTHLY'],patch:{allowance:-1,note:'Uji'}})).status,422);
+  preview=await post('batch-adjustments',{keys:[id(2)+':MONTHLY'],patch:{allowance:50000,note:'Transport'},preview:true});assert.equal(preview.status,200);assert.equal((await preview.json()).rows[0].total,2050000);
   const response=await post('finalize',{crewId:id(2),scopeKey:'MONTHLY',total:1,status:'PAID'});assert.equal(response.status,200,await response.text());
   assert.equal(calls.at(-1).args.p_data.total,2000000);assert.equal(calls.at(-1).args.p_data.status,'DRAFT');assert.equal(calls.at(-1).args.p_actor,id(1));
   assert.equal((await post('paid',{id:id(6),paid_date:'2026-02-30',payment_reference:'REF-1'})).status,422);

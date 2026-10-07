@@ -1,3 +1,5 @@
+> **Status dokumentasi: Catatan historis.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 # Pembaruan dashboard, lokasi, bahasa, dan mobile — 15 September 2026
 
 Dasar kode: `main` setelah merge PR #3, commit `409cc8c68704b40c4074ca56b6634d5ab1c72a8f`.

@@ -1,3 +1,5 @@
+> **Status dokumentasi: Catatan historis.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 V14: Tampilan role, pusat akun, dan alur payroll
 Tanggal: 26 September 2026
 Dasar patch: V13, commit 71c65e1dda3f828285282c3b50d293cdd474a370

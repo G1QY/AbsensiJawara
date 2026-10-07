@@ -17,7 +17,7 @@ Repository ini berisi monorepo untuk aplikasi operasional JAWARA yang mencakup f
 - Frontend: React 19, Vite 8, TypeScript, Tailwind CSS 4
 - Backend: Node.js, Express.js, Supabase JS SDK, AWS S3 SDK
 - Database: PostgreSQL / Supabase
-- Testing: Node test runner untuk backend, serta frontend build validation
+- Testing: Node test runner, pengujian SQL dengan PGlite, TypeScript, build, dan alur browser dengan Playwright
 
 ## Struktur folder
 
@@ -55,24 +55,26 @@ AbsensiJawara/
 ### 1) Clone repositori
 
 ```bash
-git clone <url-repository>
+git clone https://github.com/G1QY/AbsensiJawara.git
 cd AbsensiJawara
 ```
 
 ### 2) Install dependensi
 
+Gunakan Node.js 24 sesuai CI. Siapkan environment dan database uji mengikuti [SETUP](docs/SETUP.md) sebelum menjalankan aplikasi.
+
 Frontend:
 
 ```bash
 cd frontend
-npm install
+npm ci
 ```
 
 Backend:
 
 ```bash
 cd backend
-npm install
+npm ci
 ```
 
 ## Menjalankan aplikasi
@@ -86,7 +88,7 @@ npm run dev
 
 Frontend biasanya berjalan di:
 
-- `http://localhost:5173`
+- `http://localhost:8443` (atau nilai `PORT` yang dipakai Vite).
 
 ### Frontend production build
 
@@ -132,21 +134,22 @@ Proyek ini memanfaatkan SQL migrations yang berada di beberapa folder:
 - `database/migrations/`
 - `supabase/migrations/`
 
-Gunakan migration yang relevan sesuai kebutuhan environment Anda. Pastikan konfigurasi Supabase dan variabel lingkungan backend sudah diisi sebelum menjalankan fitur yang bergantung pada data real.
+Ikuti [panduan database](supabase/README.md); kedua folder tidak boleh diterapkan berulang tanpa memeriksa skema dan histori migrasi. Untuk pembaruan ini, pasang `20261005160149_payroll_schedule_time_off.sql`, lalu `20261006100934_payroll_annual_calendar.sql` setelah prasyarat payroll tersedia. Rekonsiliasi lebih dahulu jika objek payroll sudah ada tetapi histori migrasinya berbeda.
 
 ## Variabel lingkungan
 
-Untuk backend yang berjalan dengan data real, pastikan file `.env` sudah disiapkan sesuai kebutuhan project. Beberapa bagian aplikasi memerlukan konfigurasi Supabase, S3, dan token/secret yang berkaitan dengan autentikasi dan upload file.
+Daftar environment backend/frontend terdapat di [SETUP](docs/SETUP.md). Frontend memakai `VITE_API_BASE_URL` tanpa akhiran `/api`. Supabase service-role key, S3, Resend dan kunci vault hanya berada di backend; jangan memasukkannya ke Git atau variabel `VITE_*`.
 
 ## Dokumentasi penting
 
 Dokumen utama yang paling relevan saat ini:
 
-- `docs/ABSENSI_REVIEW_EXCEL.md` — fitur absensi, guest, review, dan export Excel
-- `docs/ADMIN_CREW_CABANG.md` — panduan admin, crew, cabang, dan store
-- `docs/ADMIN_EVENT_PAYROLL_OTP.md` — update dashboard, event, email crew, dan payroll
-- `docs/UPDATE_20260907.md` — catatan update terbaru
-- `docs/DESIGN.md` — panduan design system
+- [Payroll dan jadwal](docs/PAYROLL_JADWAL.md) — aturan bisnis dan pembaruan terbaru.
+- [PRD dan relasi data](docs/PRD_ERD_CURRENT.md) — cakupan aplikasi, role dan model data.
+- [Akun dan hak akses](docs/ADMIN_CREW_ACCOUNTS.md) — bootstrap admin, akses dan pemulihan password.
+- [Setup](docs/SETUP.md) — environment, dependency dan deployment.
+- [Desain](docs/DESIGN.md) — komponen dan perilaku UI.
+- [Checklist rilis](docs/RELEASE_CHECKLIST.md) — verifikasi sebelum dan setelah penerapan.
 
 ## Deployment
 
@@ -160,12 +163,3 @@ Konfigurasi deployment tersedia di:
 - README ini diperbarui untuk mencerminkan struktur repositori saat ini.
 - Beberapa fitur masih sangat bergantung pada konfigurasi environment real (Supabase/S3) agar dapat berjalan penuh.
 - Jika Anda ingin mengembangkan fitur baru, pastikan untuk mengikuti pola modularisasi backend dan dokumentasi yang ada di `docs/`.
-
-## Quick start summary
-
-```bash
-cd frontend && npm install && npm run dev
-cd backend && npm install && npm run dev
-```
-
-Setelah itu, sesuaikan konfigurasi Supabase dan environment lain agar fitur yang memerlukan data real dapat dijalankan dengan benar.

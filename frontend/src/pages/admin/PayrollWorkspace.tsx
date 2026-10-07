@@ -1,3 +1,4 @@
+import PayrollBatchForm, {PolicyReview} from '../payroll/PayrollReviewForms';
 import { useState } from "react"
 import { api } from "../../lib/apiClient"
 import { button, primary, control, panel, message, money } from "./adminData"
@@ -5,6 +6,7 @@ import Modal from "../../components/ui/Modal"
 import {
   type PayrollEntry,
   currentMonth,
+  payrollDate,
   usePayroll,
 } from "../payroll/payrollApi"
 import {
@@ -12,7 +14,6 @@ import {
   PayrollExports,
   PayrollList,
   PayrollDetails,
-  PolicyForm,
   AdjustmentForm,
 } from "../payroll/PayrollComponents"
 export default function PayrollWorkspace({
@@ -21,11 +22,12 @@ export default function PayrollWorkspace({
   onAttendance?: () => void
 }) {
   const [month, setMonth] = useState(currentMonth),
-    [kind, setKind] = useState("MONTHLY"),
+    [kind, setKind] = useState("ALL"),
     [placementKind, setPlacementKind] = useState(""),
     [placement, setPlacement] = useState(""),
     [search, setSearch] = useState(""),
     [status, setStatus] = useState("")
+  const [batchOpen,setBatchOpen]=useState(false),[dirty,setDirty]=useState(false),[readiness,setReadiness]=useState("");
   const { data, loading, error, reload } = usePayroll(month)
   const [detailKey, setDetailKey] = useState<string | null>(null),
     [policyOpen, setPolicyOpen] = useState(false),
@@ -43,7 +45,7 @@ export default function PayrollWorkspace({
     detail = all.find((r) => r.key === detailKey) || null
   const base = all.filter(
     (r) =>
-      r.kind === kind &&
+      (kind === "ALL" || r.kind === kind) &&
       (!placementKind ||
         (placementKind === "NONE"
           ? !r.placements.length
@@ -58,6 +60,7 @@ export default function PayrollWorkspace({
     (r) =>
       (!placement || r.placements.some((p) => p.id === placement)) &&
       (!status || r.status === status) &&
+      (!readiness || (r.status === "DRAFT" && (readiness === "READY" ? !r.blockedReason : !!r.blockedReason))) &&
       [
         r.person.full_name,
         r.person.email,
@@ -82,11 +85,15 @@ export default function PayrollWorkspace({
       })
       await reload()
       setPolicyOpen(false)
+      setBatchOpen(false)
+      setDirty(false)
       setConfirm("")
       setReference("")
       const notices: Record<string, string> = {
         policy:
           "Aturan periode " + month + " tersimpan. Draft mengikuti aturan ini.",
+        "year-policy": `Aturan tahun ${payload.year} tersimpan mulai bulan ${payload.fromMonth}. Slip final/dibayar tetap.`,
+        "batch-adjustments": "Penyesuaian seluruh draft terpilih tersimpan. Periksa rincian sebelum finalisasi.",
         adjustment: "Penyesuaian karyawan tersimpan. Status slip tetap Draft.",
         finalize:
           "Slip berhasil difinalkan. Setelah membayar karyawan, pilih Catat pembayaran.",
@@ -102,6 +109,7 @@ export default function PayrollWorkspace({
     }
   }
   function show(r: PayrollEntry) {
+    setDirty(false)
     setDetailKey(r.key)
     setConfirm(r.status === "FINAL" ? "paid" : "")
     setActionError("")
@@ -140,11 +148,11 @@ export default function PayrollWorkspace({
               setPolicyOpen(true)
             }}
           >
-            Atur aturan periode
+            Atur aturan tahunan
           </button>
         </div>
       </header>
-      {(error || (!detail && !policyOpen && actionError)) && (
+      {(error || (!detail && !policyOpen && !batchOpen && actionError)) && (
         <p role="alert" className="ui-error p-4 rounded-xl">
           {error || actionError}
         </p>
@@ -160,11 +168,12 @@ export default function PayrollWorkspace({
       <section className={panel + " space-y-4"}>
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div
-            className="flex gap-1 rounded-full bg-slate-100 p-1"
+            className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1"
             role="tablist"
             aria-label="Sistem payroll"
           >
             {[
+              ["ALL", "Semua crew"],
               ["MONTHLY", "Store & Kantor"],
               ["EVENT", "Crew Event"],
             ].map(([value, label]) => (
@@ -195,6 +204,8 @@ export default function PayrollWorkspace({
               onChange={(e) => {
                 if (e.target.value) {
                   setMonth(e.target.value)
+                  setPolicyOpen(false)
+                  setBatchOpen(false)
                   setDetailKey(null)
                   setNotice("")
                 }
@@ -203,7 +214,7 @@ export default function PayrollWorkspace({
           </label>
         </div>
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {kind === "MONTHLY" && (
+          {kind !== "EVENT" && (
             <select
               aria-label="Jenis penempatan"
               className={control}
@@ -216,6 +227,7 @@ export default function PayrollWorkspace({
               <option value="">Semua penempatan</option>
               <option value="STORE">Store</option>
               <option value="OFFICE">Kantor</option>
+              <option value="EVENT">Event</option>
               <option value="NONE">Belum ditempatkan</option>
             </select>
           )}
@@ -238,7 +250,7 @@ export default function PayrollWorkspace({
             aria-label="Status payroll"
             className={control}
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {setStatus(e.target.value);setReadiness("")}}
           >
             <option value="">Semua status</option>
             <option value="DRAFT">Draft</option>
@@ -265,15 +277,11 @@ export default function PayrollWorkspace({
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-semibold">Mulai dari aturan periode</h2>
+                  <h2 className="font-semibold">Aturan tahunan & pembayaran</h2>
                   <p className="text-sm text-slate-600 mt-1">
                     {data.configured
-                      ? "Aturan " +
-                        month +
-                        " sudah tersimpan. Periksa draft karyawan sebelum finalisasi."
-                      : "Aturan " +
-                        month +
-                        " belum disimpan. Menyimpan penyesuaian karyawan tidak menyimpan aturan periode."}
+                      ? data.policy.annual_year ? `Mengikuti aturan tahun ${data.policy.annual_year}. Periksa draft sebelum finalisasi.` : `Masih memakai aturan bulanan lama untuk ${month}. Anda dapat mengaturnya secara tahunan.`
+                      : `Aturan ${month} belum disimpan. Atur tahun ini agar berlaku otomatis sampai Desember.`}
                   </p>
                 </div>
                 <button
@@ -284,71 +292,29 @@ export default function PayrollWorkspace({
                   }}
                 >
                   {data.configured
-                    ? "Lihat aturan periode"
-                    : "Atur periode sekarang"}
+                    ? "Lihat aturan tahunan"
+                    : "Atur tahun sekarang"}
                 </button>
               </div>
-              <div className="grid md:grid-cols-3 gap-3">
+              {data.calendar&&<div className="grid sm:grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                <p>Periode perhitungan<strong className="block mt-1">{payrollDate(data.calendar.startDate)} – {payrollDate(data.calendar.endDate)}</strong></p>
+                <p>Rencana pembayaran<strong className="block mt-1">{payrollDate(data.calendar.paymentDate)}</strong></p>
+                <p>Lembur: <strong>{money(data.policy.overtime_rate)}/jam disetujui</strong></p>
+                <p>Telat: <strong>{money(data.policy.late_rate)}/jam</strong> · {data.policy.late_rounding==='MINUTE'?'proporsional per menit':'bulat ke atas per absensi'}</p>
+              </div>}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                 {[
-                  {
-                    key: "DRAFT",
-                    title: "1. Periksa Draft",
-                    text: "Gaji masih dapat berubah. Periksa absensi, potongan, dan tambahan.",
-                  },
-                  {
-                    key: "FINAL",
-                    title: "2. Finalkan Slip",
-                    text: "Nominal dikunci setelah kamu menekan Finalkan payroll. Siap dibayarkan.",
-                  },
-                  {
-                    key: "PAID",
-                    title: "3. Catat Pembayaran",
-                    text: "Setelah transfer atau bayar tunai, isi tanggal dan referensi pembayaran.",
-                  },
-                ].map((step) => (
-                  <button
-                    key={step.key}
-                    className={`text-left rounded-xl border p-4 ${
-                      status === step.key
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-slate-200 bg-slate-50"
-                    }`}
-                    onClick={() =>
-                      setStatus(status === step.key ? "" : step.key)
-                    }
-                  >
-                    <p className="font-semibold text-sm">{step.title}</p>
-                    <p className="text-xs text-slate-600 mt-2">{step.text}</p>
-                    <p className="text-sm font-semibold mt-3">
-                      {
-                        base.filter(
-                          (r) =>
-                            r.status === step.key &&
-                            (!placement ||
-                              r.placements.some((p) => p.id === placement)) &&
-                            [
-                              r.person.full_name,
-                              r.person.email,
-                              r.person.employee_code,
-                              r.person.company_name,
-                              r.person.division,
-                            ]
-                              .join(" ")
-                              .toLowerCase()
-                              .includes(search.trim().toLowerCase()),
-                        ).length
-                      }{" "}
-                      slip
-                    </p>
-                  </button>
-                ))}
+                  {key:'REVIEW',label:'Perlu diperiksa',count:base.filter(r=>r.status==='DRAFT'&&r.blockedReason).length},
+                  {key:'READY',label:'Siap difinalkan',count:base.filter(r=>r.status==='DRAFT'&&!r.blockedReason).length},
+                  {key:'FINAL',label:'Menunggu pembayaran',count:base.filter(r=>r.status==='FINAL').length},
+                  {key:'PAID',label:'Sudah dibayar',count:base.filter(r=>r.status==='PAID').length},
+                ].map(step=><button key={step.key} aria-pressed={readiness===step.key||status===step.key} className={`text-left p-3 rounded-xl border ${readiness===step.key||status===step.key?'border-blue-600 bg-blue-50':'border-slate-200'}`} onClick={()=>{
+                  if(step.key==='REVIEW'||step.key==='READY'){setReadiness(readiness===step.key?'':step.key);setStatus('')}
+                  else {setStatus(status===step.key?'':step.key);setReadiness('')}
+                }}><strong className="text-xl block">{step.count}</strong><span className="text-xs text-slate-600">{step.label}</span></button>)}
               </div>
-              <p className="text-xs text-slate-600">
-                {kind === "MONTHLY"
-                  ? "Payroll bulanan dapat difinalkan setelah periode dan shift terakhir selesai serta tinjauan absensi tuntas."
-                  : "Fee event dapat difinalkan setelah event selesai dan tinjauan absensi tuntas."}{" "}
-                Aplikasi mencatat pembayaran, tidak mentransfer uang.
-              </p>
+              {readiness&&<button className={button} onClick={()=>setReadiness('')}>Hapus filter kesiapan</button>}
+              <p className="text-xs text-slate-600">Aturan → periksa draft → finalkan → catat pembayaran. Gaji bulanan difinalkan setelah periode dan tinjauan selesai. Aplikasi mencatat pembayaran, tidak mentransfer uang.</p>
             </section>
             <PayrollTotals rows={rows} />
             <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -363,6 +329,10 @@ export default function PayrollWorkspace({
                 onError={setActionError}
               />
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-600">{rows.length} slip ditampilkan · {rows.filter(r=>r.status==='DRAFT').length} draft</p>
+              <button className={primary} disabled={busy||!rows.some(r=>r.status==='DRAFT')} onClick={()=>{setActionError('');setBatchOpen(true)}}>Atur banyak crew</button>
+            </div>
             <PayrollList rows={rows} onDetail={show} management />
           </>
         )
@@ -375,7 +345,7 @@ export default function PayrollWorkspace({
             setActionError("")
           }
         }}
-        title={`Aturan Periode · ${month}`}
+        title="Aturan Payroll Tahunan"
         size="lg"
       >
         {data && (
@@ -386,17 +356,21 @@ export default function PayrollWorkspace({
               </p>
             )}
             <p className="text-sm text-slate-600">
-              Berlaku untuk seluruh draft pada periode {month}. Pengaturan ini
-              terpisah dari penyesuaian per karyawan.
+              Tarif lembur, potongan telat, batas periode dan rencana tanggal bayar dikelola di sini.
+              Penyesuaian per karyawan tetap tersedia pada detail slip.
             </p>
-            <PolicyForm
+            <PolicyReview
               key={month + data.revision}
-              policy={data.policy}
+              data={data}
               busy={busy}
-              onSave={(policy) => void save("policy", { policy })}
+              onSave={(payload) => void save("year-policy", payload)}
             />
           </div>
         )}
+      </Modal>
+      <Modal open={batchOpen&&!!data} onClose={()=>{if(!busy){setBatchOpen(false);setActionError('')}}} title={`Atur Banyak Crew · ${month}`} size="lg">
+        {actionError&&<p role="alert" className="ui-error p-3 rounded-xl mb-4">{actionError}</p>}
+        {data&&batchOpen&&<PayrollBatchForm key={month+data.revision} data={data} rows={rows.filter(r=>r.status==='DRAFT')} busy={busy} onSave={(keys,patch)=>void save('batch-adjustments',{keys,patch})}/>}
       </Modal>
       <Modal
         open={!!detail && !policyOpen}
@@ -440,7 +414,7 @@ export default function PayrollWorkspace({
                         setPolicyOpen(true)
                       }}
                     >
-                      Atur periode sekarang
+                      Atur tahun sekarang
                     </button>
                   ) : (
                     onAttendance &&
@@ -557,7 +531,7 @@ export default function PayrollWorkspace({
                 {detail.status === "DRAFT" && (
                   <button
                     className={primary}
-                    disabled={busy || !!detail.blockedReason}
+                    disabled={busy || dirty || !!detail.blockedReason}
                     onClick={() => setConfirm("finalize")}
                   >
                     Finalkan payroll
@@ -583,6 +557,7 @@ export default function PayrollWorkspace({
                 )}
               </div>
             )}
+            {dirty&&<p role="status" className="bg-amber-50 text-amber-900 rounded-xl p-3 text-sm">Ada perubahan komponen yang belum disimpan. Simpan penyesuaian sebelum finalisasi.</p>}
             <PayrollDetails row={detail} />
             {actionError && (
               <p role="alert" className="ui-error p-3 rounded-xl">
@@ -599,6 +574,7 @@ export default function PayrollWorkspace({
                     key={detail.key + data?.revision}
                     row={detail}
                     busy={busy}
+                    onDirty={setDirty}
                     onSave={(adjustment) =>
                       void save("adjustment", {
                         crewId: detail.crewId,

@@ -6,8 +6,11 @@ export interface CalendarDay {
   scheduleId?: string | null;
   holidayName?: string;
   holidayKind?: string;
+  dayStatus?: string;
+  dayNote?: string;
+  adminManaged?: boolean;
   date: string;
-  type: 'STORE' | 'EVENT' | 'HOLIDAY' | 'NONE';
+  type: 'STORE' | 'EVENT' | 'HOLIDAY' | 'NONE' | 'TIME_OFF';
   source: string | null;
   startTime: string | null;
   endTime: string | null;
@@ -26,6 +29,7 @@ export interface AttendanceCalendarProps {
   month?: string;
   onMonthChange?: (month: string) => void;
   onEditSchedule?: (day: CalendarDay) => void;
+  onEditDayStatus?: (day: CalendarDay) => void;
   refreshTrigger?: number;
 }
 
@@ -36,19 +40,20 @@ const STATUS_STYLE: Record<string, string> = {
   PERMISSION: 'bg-blue-100 text-blue-700 ring-blue-300',
   SICK: 'bg-purple-100 text-purple-700 ring-purple-300',
   HOLIDAY: 'bg-amber-100 text-amber-700 ring-amber-300',
+  DAY_OFF: 'bg-amber-100 text-amber-800 ring-amber-300',
   PENDING: 'bg-white text-slate-700 ring-slate-200',
   NO_SCHEDULE: 'bg-white text-slate-500 ring-slate-200',
 };
 
 const STATUS_LABEL: Record<string, string> = {
   PRESENT: 'Hadir', LATE: 'Telat', ABSENT: 'Absen', PERMISSION: 'Izin',
-  SICK: 'Sakit', HOLIDAY: 'Libur', PENDING: 'Terjadwal', NO_SCHEDULE: 'Tanpa jadwal',
+  SICK: 'Sakit', HOLIDAY: 'Libur nasional', DAY_OFF: 'Libur crew', PENDING: 'Terjadwal', NO_SCHEDULE: 'Tanpa jadwal',
 };
 
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
 /** Kalender kerja — dipakai di halaman Absensi Crew Store & Crew Event. */
-export default function AttendanceCalendar({ crewId, month: controlledMonth, onMonthChange, onEditSchedule, refreshTrigger }: AttendanceCalendarProps = {}) {
+export default function AttendanceCalendar({ crewId, month: controlledMonth, onMonthChange, onEditSchedule, onEditDayStatus, refreshTrigger }: AttendanceCalendarProps = {}) {
   const todayWib = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
   const now = new Date(todayWib + 'T12:00:00');
   const [internalYear, setInternalYear] = useState(now.getFullYear());
@@ -107,7 +112,7 @@ export default function AttendanceCalendar({ crewId, month: controlledMonth, onM
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5">
+    <div className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <button aria-label={translateUI("Bulan sebelumnya")} onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -186,9 +191,10 @@ export default function AttendanceCalendar({ crewId, month: controlledMonth, onM
             </span>
           </div>
           {selected.checkIn && <p className="text-xs text-blue-700">Tinjauan admin: {({PENDING:"Menunggu tinjauan",APPROVED:"Disetujui",REJECTED:"Ditolak",NOT_REQUIRED:"Belum ditinjau manual"} as Record<string,string>)[selected.reviewStatus||"PENDING"]}</p>}
-          {selected.holidayName && selected.type !== 'HOLIDAY' && <p className="text-xs text-amber-700">{selected.holidayName}{translateUI(". Anda tetap memiliki jadwal kerja pada tanggal ini.")}</p>}
+          {selected.holidayName && <p className="text-xs text-amber-700">{selected.holidayName}{!selected.dayStatus && selected.type !== 'HOLIDAY' ? '. Tetap masuk sesuai jadwal admin.' : ''}</p>}
+          {selected.dayStatus && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{selected.dayStatus==='DAY_OFF'?'Libur crew':'Izin disetujui'} · {selected.dayNote || 'Tidak wajib hadir pada tanggal ini.'}</p>}
           <p className="text-xs text-slate-500">{selected.type === 'NONE' ? translateUI("Keterangan") : selected.type === 'HOLIDAY' ? translateUI("Keterangan") : selected.type === 'STORE' ? translateUI("Lokasi kerja") : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
-          {selected.type !== 'HOLIDAY' && selected.type !== 'NONE' ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+          {selected.startTime && !selected.dayStatus ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">{selected.shiftNumber?`Shift ${selected.shiftNumber}`:translateUI("Jadwal")}</p>
               <p className="font-mono font-semibold text-slate-700">{selected.startTime?.slice(0, 5)} - {selected.endTime?.slice(0, 5)}{selected.endTime&&selected.startTime&&selected.endTime<selected.startTime?" (+1 hari)":""}</p>
@@ -214,17 +220,18 @@ export default function AttendanceCalendar({ crewId, month: controlledMonth, onM
               </div>
             )}
           </div> : null}
-          {onEditSchedule && selected.type === 'STORE' && !selected.checkIn ? (
+          {onEditSchedule && selected.type !== 'EVENT' && !selected.dayStatus && !selected.checkIn ? (
             <div className="pt-2">
               <button
                 type="button"
                 onClick={() => onEditSchedule(selected)}
                 className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition flex items-center justify-center gap-2"
               >
-                {translateUI("Ubah Shift Tanggal Ini")} ({selected.shiftNumber ? `Shift ${selected.shiftNumber}` : 'Shift 1'} • {selected.startTime?.slice(0, 5)}–{selected.endTime?.slice(0, 5)})
+                {selected.scheduleId ? `Ubah Shift Tanggal Ini (Shift ${selected.shiftNumber||1})` : 'Buat jadwal tanggal ini'}
               </button>
             </div>
           ) : null}
+          {onEditDayStatus && !selected.checkIn && <button type="button" className="w-full min-h-11 rounded-xl border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-700" onClick={()=>onEditDayStatus(selected)}>{selected.dayStatus?'Ubah libur / izin':'Atur libur / izin tanggal ini'}</button>}
         </div>
       )}
     </div>

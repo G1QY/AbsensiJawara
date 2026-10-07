@@ -1,15 +1,16 @@
+import DayStatusForm from './DayStatusForm';
 import ShiftFields from '../../components/attendance/ShiftFields';
 import {t as translateUI} from '../../lib/i18n';
 import {submitScheduleRange} from '../../lib/scheduleRange';
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useRef,useState,type FormEvent} from 'react';
 import AttendanceCalendar, {type CalendarDay} from '../../components/attendance/AttendanceCalendar';
 import {api} from '../../lib/apiClient';
 import {button,control,message,primary} from './adminData';
 import Modal from '../../components/ui/Modal';
 
-interface Schedule {shift_number?:number;id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
+interface Schedule {day_status?:string;day_note?:string;shift_number?:number;id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 interface Response {assignment:{id:string;start_date:string;end_date:string|null;store:{name:string}}|null;schedules:Schedule[]}
-interface RangeResult {warnings?:string[];created:number;inserted?:number;updated?:number;lockedByAttendance?:number;skippedOverlap?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number}
+interface RangeResult {warnings?:string[];created:number;inserted?:number;updated?:number;lockedByAttendance?:number;skippedOverlap?:number;skippedTimeOff?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number}
 interface EditScheduleTarget {id?:string|null;schedule_date:string;shift_number:number;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 
 const currentMonth=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).format(new Date()).slice(0,7);
@@ -17,6 +18,9 @@ const DAY_OPTIONS=[{value:0,label:'Min'},{value:1,label:'Sen'},{value:2,label:'S
 const emptyForm={startDate:'',endDate:'',shiftNumber:1,startTime:'09:00',endTime:'18:00',lateToleranceMinutes:'0',overtimePreapproved:false,workDays:[1,2,3,4,5,6]};
 
 export default function StoreScheduleManager({crewId,crewName}:{crewId:string;crewName:string}){
+  const loadRequest=useRef(0);
+  const [view,setView]=useState<'calendar'|'range'|'off'>('calendar');
+  const [statusDate,setStatusDate]=useState<string|null>(null);
   const [month,setMonth]=useState(currentMonth());
   const [data,setData]=useState<Response|null>(null);
   const [busy,setBusy]=useState(false);
@@ -29,18 +33,20 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
   const [editForm,setEditForm]=useState({shiftNumber:1,startTime:'09:00',endTime:'18:00',lateToleranceMinutes:'0',overtimePreapproved:false});
 
   async function load(){
+    const request=++loadRequest.current;
     setBusy(true);
     setError('');
     try{
-      setData(await api.get<Response>(`/admin-store-schedules/crew/${crewId}?month=${month}`));
+      const result=await api.get<Response>(`/admin-store-schedules/crew/${crewId}?month=${month}`);
+      if(request===loadRequest.current)setData(result);
     }catch(e){
-      setError(message(e));
+      if(request===loadRequest.current)setError(message(e));
     }finally{
-      setBusy(false);
+      if(request===loadRequest.current)setBusy(false);
     }
   }
 
-  useEffect(()=>{void load();},[crewId,month]);
+  useEffect(()=>{setData(null);void load();return()=>{loadRequest.current++;};},[crewId,month]);
 
   async function saveRange(e:FormEvent){
     e.preventDefault();
@@ -49,9 +55,10 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     setNotice('');
     try{
       const result=await submitScheduleRange(body=>api.post<RangeResult>('/admin-store-schedules/range',body),{crewId,...rangeForm,lateToleranceMinutes:Number(rangeForm.lateToleranceMinutes)},setNotice);
-      const parts=[`${result.inserted||0} jadwal baru dibuat.`,result.updated?`${result.updated} jadwal lama diperbarui ke shift baru.`:'',result.lockedByAttendance?`${result.lockedByAttendance} jadwal dikunci karena sudah ada absensi.`:'',result.skippedHoliday?`${result.skippedHoliday} hari libur dilewati.`:'',result.skippedEvent?`${result.skippedEvent} benturan event dilewati.`:'',result.skippedOverlap?`${result.skippedOverlap} shift bertumpuk dilewati.`:'',result.skippedDay?`${result.skippedDay} hari non-kerja dilewati.`:'',...(result.warnings||[])].filter(Boolean);
+      const parts=[`${result.inserted||0} jadwal baru dibuat.`,result.updated?`${result.updated} jadwal lama diperbarui ke shift baru.`:'',result.lockedByAttendance?`${result.lockedByAttendance} jadwal dikunci karena sudah ada absensi.`:'',result.skippedTimeOff?`${result.skippedTimeOff} libur/izin crew dilewati.`:'',result.skippedEvent?`${result.skippedEvent} benturan event dilewati.`:'',result.skippedOverlap?`${result.skippedOverlap} shift bertumpuk dilewati.`:'',result.skippedDay?`${result.skippedDay} hari non-kerja dilewati.`:'',...(result.warnings||[])].filter(Boolean);
       setNotice(parts.join(' '));
       setRangeForm(emptyForm);
+      setView('calendar');
       await load();
       setCalendarRefresh(prev=>prev+1);
     }catch(e){
@@ -62,6 +69,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
   }
 
   function openEditFromTable(s:Schedule){
+    if(s.day_status){setStatusDate(s.schedule_date);return;}
     setEditingSchedule({
       id:s.id,
       schedule_date:s.schedule_date,
@@ -139,7 +147,11 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     <label className="block text-xs text-slate-600">{translateUI("Bulan kalender")}<input aria-label={translateUI("Bulan jadwal Store")} type="month" className={control+' !w-auto'} value={month} onChange={e=>setMonth(e.target.value)}/></label>
     {data&&!data.assignment?<p className="bg-amber-50 text-amber-800 p-3 rounded-xl text-sm">{translateUI("Belum ada lokasi kerja aktif pada bulan ini.")}</p>:data?.assignment&&<p className="text-sm text-slate-700">{translateUI("Lokasi kerja:") + " "}<strong>{data.assignment.store.name}</strong> • {data.assignment.start_date}{data.assignment.end_date?` sampai ${data.assignment.end_date}`:''}</p>}
 
-    <form onSubmit={saveRange} className="grid sm:grid-cols-2 gap-3 border border-slate-200 rounded-xl p-4">
+    <div className="grid grid-cols-3 gap-2" role="group" aria-label="Pengaturan jadwal">
+      {([['calendar','Kalender'],['range','Buat jadwal'],['off','Libur & izin']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={view===key} disabled={busy} onClick={()=>setView(key)} className={(view===key?primary:button)+' min-h-11 !px-2'}>{label}</button>)}
+    </div>
+    {view==='off'&&<DayStatusForm crewId={crewId} onSaved={note=>{setNotice(note);setView('calendar');setCalendarRefresh(n=>n+1);void load();}}/>}
+    {view==='range'&&<form onSubmit={saveRange} className="grid sm:grid-cols-2 gap-3 border border-slate-200 rounded-xl p-4">
       <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
         <strong className="text-sm text-slate-900">{translateUI("Buat jadwal rentang")}</strong>
       </div>
@@ -153,14 +165,17 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
       <label className="text-xs text-slate-600 sm:col-span-2">{translateUI("Toleransi telat (menit)")}<input required type="number" min="0" max="240" className={control} value={rangeForm.lateToleranceMinutes} onChange={e=>setRangeForm({...rangeForm,lateToleranceMinutes:e.target.value})}/></label>
       <label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><input aria-label={translateUI("Setujui lembur dari jadwal")} type="checkbox" className="mt-1" checked={rangeForm.overtimePreapproved} onChange={e=>setRangeForm({...rangeForm,overtimePreapproved:e.target.checked})}/><span><strong>{translateUI("Setujui lembur dari jadwal")}</strong><small className="block mt-1">{translateUI("Jam penuh setelah jam pulang langsung disetujui. Jika tidak dicentang, lembur menunggu admin.")}</small></span></label>
       <button disabled={busy||rangeForm.startTime===rangeForm.endTime||!data?.assignment||!rangeForm.workDays.length} className={primary+' sm:col-span-2'}>{busy?translateUI("Menyimpan..."):translateUI("Buat Jadwal Rentang")}</button>
-    </form>
+      <p className="sm:col-span-2 text-xs text-slate-600">Tanggal merah tetap dijadwalkan sesuai hari kerja terpilih. Libur/izin crew dilewati. Jadwal lama tanpa absensi diperbarui.</p>
+    </form>}
 
+    {view==='calendar'&&<>
     <AttendanceCalendar
       crewId={crewId}
       month={month}
       onMonthChange={setMonth}
       refreshTrigger={calendarRefresh}
       onEditSchedule={openEditFromCalendar}
+      onEditDayStatus={day=>setStatusDate(day.date)}
     />
 
     <div className="hidden sm:block border border-slate-200 rounded-xl overflow-x-auto">
@@ -179,7 +194,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
           {data?.schedules.map(s=>(
             <tr key={s.id} className="hover:bg-slate-50 transition-colors">
               <td className="p-3 font-medium">{s.schedule_date}</td>
-              <td className="p-3 whitespace-nowrap"><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Shift {s.shift_number||1}</span></td>
+              <td className="p-3 whitespace-nowrap"><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':'Izin') : `Shift ${s.shift_number||1}`}</span></td>
               <td className="p-3 font-mono">{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}{s.end_time<s.start_time&&<small className="block text-blue-700 font-sans">Pulang besok</small>}</td>
               <td className="p-3">{s.late_tolerance_minutes||0}{" " + translateUI("menit")}</td>
               <td className="p-3">{s.overtime_preapproved?<span className="text-emerald-700 font-medium">{translateUI("Disetujui")}</span>:<span className="text-slate-500">{translateUI("Perlu tinjauan")}</span>}</td>
@@ -196,7 +211,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
         <article key={s.id} className="rounded-xl border border-slate-200 p-4 space-y-2">
           <div className="flex justify-between gap-2">
             <strong className="text-sm">{s.schedule_date}</strong>
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">Shift {s.shift_number||1}</span>
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':'Izin') : `Shift ${s.shift_number||1}`}</span>
           </div>
           <p className="text-sm font-mono">{s.start_time.slice(0,5)} – {s.end_time.slice(0,5)} WIB{s.end_time<s.start_time?' · Pulang besok':''}</p>
           <p className="text-xs text-slate-500">Toleransi {s.late_tolerance_minutes||0} menit · Lembur {s.overtime_preapproved?'disetujui':'perlu tinjauan'}</p>
@@ -206,6 +221,10 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
       {data&&!data.schedules.length&&<p className="text-sm text-slate-500 text-center">Belum ada jadwal pada bulan ini.</p>}
     </div>
 
+    </>}
+    <Modal open={statusDate!==null} onClose={()=>setStatusDate(null)} title={`Libur & izin • ${crewName}`} size="lg">
+      {statusDate!==null&&<DayStatusForm crewId={crewId} date={statusDate} onSaved={note=>{setNotice(note);setStatusDate(null);setCalendarRefresh(n=>n+1);void load();}}/>}
+    </Modal>
     <Modal
       open={!!editingSchedule}
       onClose={()=>{if(!busy)setEditingSchedule(null);}}
@@ -213,6 +232,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     >
       {editingSchedule&&(
         <form onSubmit={saveSingleEdit} className="space-y-4">
+          {error&&<p role="alert" className="ui-error p-3 rounded-xl text-sm">{error}</p>}
           <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600">
             <p><strong>Crew:</strong> {crewName}</p>
             <p className="mt-1"><strong>Tanggal:</strong> {editingSchedule.schedule_date}</p>

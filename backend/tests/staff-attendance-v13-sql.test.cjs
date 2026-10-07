@@ -97,6 +97,8 @@ test('V13 role divisions, personal access, mandatory review and new evidence',{s
   assert.ok((await one("select count(*)::int n from audit_logs where action='ATTENDANCE_APPROVED'")).n>=2);
   // Real PostgreSQL payroll persistence, source isolation, conflict handling and immutable paid slips.
   await db.exec(fs.readFileSync(path.join(dir,'20260925222422_persisted_payroll.sql'),'utf8'));
+  await db.exec(fs.readFileSync(path.join(dir,'20261005160149_payroll_schedule_time_off.sql'),'utf8'));
+  await db.exec(fs.readFileSync(path.join(dir,'20261006100934_payroll_annual_calendar.sql'),'utf8'));
   const month=(await one("select to_char(current_date,'YYYY-MM-01') d")).d;
   const workspace=async(user=null)=>(await one('select payroll_workspace($1,$2) d',[month,user])).d;
   const mutate=async(action,data,revision,actor=id(1))=>one('select mutate_payroll($1,$2,$3,$4,$5) id',[actor,action,month,revision||(await workspace()).revision,data]);
@@ -133,6 +135,39 @@ test('V13 role divisions, personal access, mandatory review and new evidence',{s
    await db.exec('reset role');
   }
   assert.ok((await one("select count(*)::int n from audit_logs where action like 'PAYROLL_%'")).n>=7);
+  // Day status is atomic, preserves shifts, rejects attendance/final payroll and is service-only.
+  const setDay=(start,end,type='DAY_OFF',actor=id(1))=>one('select set_crew_day_status($1,$2,$3,$4,$5,$6) n',[actor,id(21),start,end,type,'Jadwal libur uji']);
+  await setDay('2027-01-10','2027-01-10');
+  assert.equal((await one("select type from permissions where crew_id=$1 and start_date='2027-01-10' and status='APPROVED'",[id(21)])).type,'DAY_OFF');
+  assert.equal((await one('select count(*)::int n from store_schedules where id=$1',[id(80)])).n,1);
+  const offAttendance=()=>db.query("insert into attendance_logs(crew_id,store_assignment_id,store_schedule_id,attendance_date,check_in,status) values($1,$2,$3,'2027-01-10','2027-01-10T15:00:00Z','PRESENT')",[id(21),id(40),id(80)]);
+  await assert.rejects(offAttendance(),/libur atau izin/);
+  await setDay('2027-01-10','2027-01-10','PERMIT');
+  assert.equal((await one("select type from permissions where crew_id=$1 and start_date='2027-01-10' and status='APPROVED'",[id(21)])).type,'PERMIT');
+  await setDay('2027-01-10','2027-01-10','WORK');await offAttendance();
+  await assert.rejects(setDay('2027-01-09','2027-01-10'),/absensi/);
+  assert.equal((await one("select count(*)::int n from permissions where crew_id=$1 and start_date='2027-01-09'",[id(21)])).n,0);
+  await assert.rejects(setDay('2027-02-01','2027-02-01','DAY_OFF',id(3)),/Super Admin/);
+  await assert.rejects(setDay(month,month),/sudah final/);
+  await setDay('2027-01-11','2027-01-11');
+  const future=(await one("select payroll_workspace('2027-01-01',null) d")).d;
+  assert.ok(future.source.permissions.some(p=>p.type==='DAY_OFF'&&p.status==='APPROVED'));
+  const batchRows=[{...adjustment,crewId:id(21),allowance:123},{...adjustment,crewId:id(22),allowance:456}];
+  const batch=revision=>one("select mutate_payroll_adjustments($1,'2027-01-01',$2,$3) n",[id(1),revision,batchRows]);
+  assert.equal((await batch(future.revision)).n,2);
+  await assert.rejects(batch(future.revision),/berubah/);
+  let afterBatch=(await one("select payroll_workspace('2027-01-01',null) d")).d;
+  assert.deepEqual(afterBatch.source.adjustments.map(a=>Number(a.allowance)),[123,456]);
+  batchRows[0].allowance=789;batchRows[1].crewId=id(999);
+  await assert.rejects(batch(afterBatch.revision),/tidak tersedia/);
+  afterBatch=(await one("select payroll_workspace('2027-01-01',null) d")).d;
+  assert.equal(Number(afterBatch.source.adjustments[0].allowance),123);
+  for(const role of ['anon','authenticated']) {
+    await db.exec('set role '+role);
+    await assert.rejects(setDay('2027-02-01','2027-02-01'),/permission denied/);
+    await assert.rejects(batch(afterBatch.revision),/permission denied/);
+    await db.exec('reset role');
+  }
   // Old assignments can be ENDED without an end_date. Infer the transfer boundary;
   // scheduled future days at the old location must not create absence deductions.
   await db.exec(`update store_assignments set status='ENDED' where id='${id(40)}';
@@ -141,5 +176,54 @@ test('V13 role divisions, personal access, mandatory review and new evidence',{s
   assert.ok(!(await workspace()).source.schedules.some(s=>s.id===id(85)));
   assert.ok((await workspace()).source.schedules.some(s=>s.id===id(50)));
   await db.exec('set role service_role');assert.ok((await workspace()).source.people.length>0);await db.exec('reset role');
+  // Annual rules use a continuous cutoff calendar, with real SQL preview and
+  // atomic save. The following January participates in conflict detection.
+  const annualPolicy={...policy,cutoff_day:25,payment_day:30,payment_month_offset:0};
+  const yearPreview=async(p=annualPolicy)=>(await one('select payroll_year_workspace(2028,1,$1) d',[p])).d;
+  const saveYear=async(p,revision,actor=id(1))=>one('select set_payroll_year_policy($1,2028,1,$2,$3) n',[actor,revision,p]);
+  const annualBefore=await yearPreview();assert.equal(annualBefore.months.length,13);
+  assert.equal(annualBefore.months[0].source.policy,null);
+  assert.deepEqual(annualBefore.months[1].previewSource.calendar,{startDate:'2028-01-26',endDate:'2028-02-25',paymentDate:'2028-02-29'});
+  assert.equal(annualBefore.months[12].previewSource.calendar.startDate,'2028-12-26');
+  assert.equal((await one("select count(*)::int n from payroll_policies where extract(year from period)=2028")).n,0);
+  await assert.rejects(saveYear(annualPolicy,annualBefore.revision,id(3)),/Super Admin/);
+  await assert.rejects(saveYear({...annualPolicy,cutoff_day:31},annualBefore.revision),/Tanggal bayar/);
+  await assert.rejects(saveYear({...annualPolicy,late_rate:-1},annualBefore.revision),/check constraint/);
+  assert.equal((await one("select count(*)::int n from payroll_policies where extract(year from period)=2028")).n,0);
+  assert.equal((await saveYear(annualPolicy,annualBefore.revision)).n,12);
+  await assert.rejects(saveYear(annualPolicy,annualBefore.revision),/berubah/);
+  const annualAfter=await yearPreview();assert.equal(annualAfter.months[0].source.policy.annual_year,2028);
+  assert.deepEqual(annualAfter.months[1].source.calendar,annualBefore.months[1].previewSource.calendar);
+  assert.equal(annualAfter.months[12].source.policy,null);
+  await db.exec(`insert into store_schedules(id,store_assignment_id,schedule_date,start_time,end_time) values('${id(90)}','${id(42)}','2028-01-26','09:00','17:00');
+    insert into attendance_logs(crew_id,store_assignment_id,store_schedule_id,attendance_date,check_in,status) values('${id(21)}','${id(42)}','${id(90)}','2028-01-26','2028-01-26T02:00:00Z','PRESENT');`);
+  const feb=(await one("select payroll_workspace('2028-02-01',null) d")).d;
+  assert.ok(feb.source.schedules.some(s=>s.id===id(90)));assert.ok(feb.source.attendance.some(a=>a.store_schedule_id===id(90)));
+  assert.ok(!(await one("select payroll_source('2028-01-01',null) d")).d.attendance.some(a=>a.store_schedule_id===id(90)));
+  await one("select mutate_payroll($1,'FINALIZE','2028-02-01',$2,$3)",[id(1),feb.revision,{...snapshot,periodStart:'2028-01-26',periodEnd:'2028-02-25'}]);
+  const locked=await yearPreview({...annualPolicy,cutoff_day:24});
+  await assert.rejects(saveYear({...annualPolicy,cutoff_day:24},locked.revision),/terkunci/);
+  await assert.rejects(setDay('2028-01-27','2028-01-27'),/sudah final/);
+  await setDay('2028-02-26','2028-02-26'); // belongs to March, outside final February
+  const stable=await yearPreview({...annualPolicy,late_rate:15000});
+  await saveYear({...annualPolicy,late_rate:15000},stable.revision);
+  assert.equal((await one("select snapshot->>'total' t from payroll_slips where period='2028-02-01'")).t,'150000');
+  const january=(await one("select payroll_workspace('2029-01-01',null) d")).d;
+  await one("select mutate_payroll($1,'POLICY','2029-01-01',$2,$3)",[id(1),january.revision,policy]);
+  const januaryReady=(await one("select payroll_workspace('2029-01-01',null) d")).d;
+  await one("select mutate_payroll($1,'FINALIZE','2029-01-01',$2,$3)",[id(1),januaryReady.revision,{...snapshot,periodStart:'2028-12-26',periodEnd:'2029-01-31'}]);
+  const decemberPreview=(await one('select payroll_year_workspace(2028,12,$1) d',[{...annualPolicy,cutoff_day:24}])).d;
+  await assert.rejects(one('select set_payroll_year_policy($1,2028,12,$2,$3)',[id(1),decemberPreview.revision,{...annualPolicy,cutoff_day:24}]),/2029-01.*terkunci/);
+  const midyear=(await one('select payroll_year_workspace(2029,9,$1) d',[annualPolicy])).d;
+  assert.equal(midyear.months[0].previewSource.calendar.startDate,'2029-09-01');
+  assert.equal((await one('select set_payroll_year_policy($1,2029,9,$2,$3) n',[id(1),midyear.revision,annualPolicy])).n,4);
+  assert.equal((await one("select cutoff_day from payroll_policies where period='2029-01-01'")).cutoff_day,31);
+  for(const role of ['anon','authenticated']) {
+    await db.exec('set role '+role);
+    await assert.rejects(yearPreview(),/permission denied/);
+    await assert.rejects(saveYear(annualPolicy,stable.revision),/permission denied/);
+    await db.exec('reset role');
+  }
+  await db.exec('set role service_role');assert.equal((await yearPreview()).months.length,13);await db.exec('reset role');
  }finally{await db.close()}
 });

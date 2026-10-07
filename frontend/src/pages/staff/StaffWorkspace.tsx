@@ -57,6 +57,7 @@ export default function StaffWorkspace({
   const schedule =
     open?.store_schedule || schedules.find((s) => s.schedule_date === today)
   const latest = open || rows.find((a) => a.attendance_date === today)
+  const timeOff=data?.permissions.find(p=>today>=p.start_date&&today<=p.end_date)
   const place = data?.assignment?.store
   const hours = (s: StoreWorkSchedule) =>
     `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)} WIB${
@@ -87,7 +88,7 @@ export default function StaffWorkspace({
         )}
       </div>
       <p className="text-2xl sm:text-3xl font-bold">
-        {schedule ? hours(schedule) : "Belum ada jadwal"}
+        {schedule ? hours(schedule) : timeOff ? timeOff.type==='DAY_OFF'?'Libur crew':'Izin disetujui' : 'Belum ada jadwal'}
       </p>
       <p className="text-sm text-slate-500">
         {place?.name || "Lokasi belum ditetapkan"}

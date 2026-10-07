@@ -1,3 +1,5 @@
+> **Status dokumentasi: Referensi implementasi.** Isi berikut merekam versi/fitur tertentu dan belum diselaraskan penuh dengan baseline 5 Oktober 2026. Untuk setup, arsitektur, role dan rilis saat ini, gunakan [indeks dokumentasi aktif](README.md). Instruksi patch/SQL dan hasil tes di bawah berlaku pada konteks versi asalnya, bukan otomatis pada checkout sekarang.
+
 # Revisi Admin, Crew, Cabang, dan Store
 
 > Ada revisi lanjutan: keterangan email read-only, event tanpa jadwal otomatis, dashboard dan payroll di dokumen ini telah digantikan oleh [ADMIN_EVENT_PAYROLL_OTP.md](ADMIN_EVENT_PAYROLL_OTP.md).

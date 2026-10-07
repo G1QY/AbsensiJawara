@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { money, button, primary, control, panel } from "../admin/adminData"
 import { DataTable, Stat } from "../admin/adminWidgets"
 import { accountRoles } from "../../lib/accountRoles"
@@ -245,6 +245,8 @@ export function PayrollList({
 }
 export function PayrollDetails({ row: r }: { row: PayrollEntry }) {
   const lines: [string, string][] = [
+    ...(r.periodStart && r.periodEnd ? [["Rentang perhitungan", `${r.periodStart} – ${r.periodEnd}`] as [string,string]] : []),
+    ...(r.paymentDate ? [["Rencana pembayaran", r.paymentDate] as [string,string]] : []),
     ["Dasar gaji", basisLabel(r.basis)],
     [`Gaji / fee (${r.units} × ${money(r.baseRate)})`, money(r.base)],
     ["Tunjangan / tambahan", money(r.allowance)],
@@ -299,7 +301,7 @@ export function PayrollDetails({ row: r }: { row: PayrollEntry }) {
           <p className="text-xs text-slate-500">Kehadiran</p>
           <p className="font-medium mt-1">{r.presentDays} hari disetujui</p>
           <p className="text-xs text-slate-500 mt-1">
-            {r.pendingCount} menunggu tinjauan
+            {r.pendingCount} menunggu tinjauan · {r.daysOff||0} libur · {r.permissionDays||0} izin
           </p>
         </div>
       </div>
@@ -397,6 +399,7 @@ export function RupiahInput({
     <label className="block text-sm text-slate-600">
       {label}
       <input
+        aria-label={label}
         className={control + " mt-1"}
         inputMode="numeric"
         value={value}
@@ -406,6 +409,7 @@ export function RupiahInput({
         }}
         onFocus={(e) => e.target.select()}
       />
+      <small className="block mt-1 text-slate-500">{value === "" && optional ? "Mengikuti tarif profil" : money(Number(value))}</small>
     </label>
   )
 }
@@ -413,7 +417,9 @@ export function PolicyForm({
   policy,
   busy,
   onSave,
+  submitLabel = "Simpan aturan payroll",
 }: {
+  submitLabel?: string
   policy: PayrollPolicy
   busy: boolean
   onSave: (p: PayrollPolicy) => void
@@ -438,6 +444,16 @@ export function PolicyForm({
       }}
     >
       <fieldset disabled={busy} className="space-y-4">
+        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
+          <h3 className="font-semibold text-sm">Periode perhitungan & rencana pembayaran</h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="text-sm">Batas akhir periode (tanggal)<input aria-label="Batas akhir periode (tanggal)" type="number" required min={1} max={31} step={1} className={control+' mt-1'} value={p.cutoff_day??31} onChange={e=>setP({...p,cutoff_day:Number(e.target.value)})}/></label>
+            <label className="text-sm">Tanggal pembayaran<input aria-label="Tanggal pembayaran" type="number" required min={1} max={31} step={1} className={control+' mt-1'} value={p.payment_day??1} onChange={e=>setP({...p,payment_day:Number(e.target.value)})}/></label>
+            <label className="text-sm sm:col-span-2">Bulan pembayaran<select aria-label="Bulan pembayaran" className={control+' mt-1'} value={p.payment_month_offset??1} onChange={e=>setP({...p,payment_month_offset:Number(e.target.value)})}><option value={0}>Bulan payroll yang sama</option><option value={1}>Bulan berikutnya</option></select></label>
+          </div>
+          <p className="text-xs text-slate-600">Contoh: batas 25 dan bayar 30 pada bulan yang sama. Tanggal 29–31 yang tidak tersedia mengikuti hari terakhir bulan. Finalisasi dibuka setelah batas periode dan semua shift selesai.</p>
+          <p className="text-xs text-slate-600">Awal periode mengikuti akhir periode sebelumnya. Saat aturan mulai berubah, rentang bulan pertama dapat lebih pendek/panjang. Periksa kalender pada pratinjau.</p>
+        </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="text-sm text-slate-600">
             Dasar gaji Store & Kantor
@@ -494,7 +510,7 @@ export function PolicyForm({
               }
             >
               <option value="MINUTE">Proporsional per menit</option>
-              <option value="HOUR_CEIL">Bulat ke atas per jam per hari</option>
+              <option value="HOUR_CEIL">Bulat ke atas per jam per absensi</option>
             </select>
           </label>
           <RupiahInput
@@ -529,12 +545,12 @@ export function PolicyForm({
           )}
         </div>
         <p className="text-xs text-slate-500">
-          Aturan telat, absen, dan lembur berlaku untuk payroll bulanan. Crew
+          Aturan telat, absen, dan lembur berlaku untuk Store & Kantor. Crew
           Event memakai fee event dan penyesuaian manual. Slip final tetap
           memakai aturan saat difinalkan.
         </p>
         <button className={primary} type="submit">
-          {busy ? "Menyimpan..." : "Simpan aturan payroll"}
+          {busy ? "Memproses..." : submitLabel}
         </button>
       </fieldset>
     </form>
@@ -544,7 +560,9 @@ export function AdjustmentForm({
   row,
   busy,
   onSave,
+  onDirty,
 }: {
+  onDirty?: (dirty:boolean)=>void
   row: PayrollEntry
   busy: boolean
   onSave: (a: Adjustment) => void
@@ -558,6 +576,8 @@ export function AdjustmentForm({
     deduction: String(row.adjustment.deduction),
     note: row.adjustment.note,
   })
+  const dirty=(a.rate_override===''?null:Number(a.rate_override))!==row.adjustment.rate_override || Number(a.allowance)!==row.adjustment.allowance || Number(a.deduction)!==row.adjustment.deduction || a.note!==row.adjustment.note;
+  useEffect(()=>{onDirty?.(dirty)},[dirty,onDirty]);
   return (
     <form
       className="space-y-4"
@@ -578,9 +598,7 @@ export function AdjustmentForm({
         </p>
         <RupiahInput
           label={
-            row.kind === "EVENT"
-              ? "Tarif fee event (Rp)"
-              : "Gaji pokok periode ini (Rp)"
+            row.basis === "PER_ATTENDANCE" ? "Tarif per hari hadir (Rp)" : row.kind === "EVENT" ? "Tarif per event (Rp)" : "Gaji pokok periode ini (Rp)"
           }
           value={a.rate_override}
           optional
@@ -601,6 +619,7 @@ export function AdjustmentForm({
         <label className="block text-sm text-slate-600">
           Catatan penyesuaian
           <textarea
+            aria-label="Catatan penyesuaian"
             className={control + " !rounded-xl mt-1 min-h-24"}
             maxLength={1000}
             value={a.note}
@@ -608,7 +627,7 @@ export function AdjustmentForm({
           />
         </label>
         <p className="text-xs text-slate-500">
-          Berlaku untuk slip ini. Kosongkan tarif untuk mengikuti gaji pada
+          Satuan tarif: {basisLabel(row.basis)}. {row.units} unit digunakan dalam perhitungan. Berlaku untuk slip ini. Kosongkan tarif untuk mengikuti gaji pada
           profil karyawan.
         </p>
         <button className={primary} type="submit">
