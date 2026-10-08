@@ -43,6 +43,8 @@ export interface Crew {
   id: string
   employee_code: string
   crew_type: "CREW_EVENT" | "CREW_STORE"
+  assignment_kind?: "EVENT" | "STORE" | "OFFICE"
+  attendance_location_mode?: "ASSIGNED" | "ANYWHERE"
   status: "ACTIVE" | "INACTIVE"
   base_salary: number
   branch_id: string | null
@@ -54,7 +56,7 @@ export interface Crew {
     status: string
     start_date: string
     end_date: string | null
-    store: Pick<Store, "id" | "name" | "branch_id"> | null
+    store: Pick<Store, "id" | "name" | "branch_id" | "location_kind"> | null
   }[]
   event_assignments: {
     id: string

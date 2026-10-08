@@ -84,8 +84,12 @@ export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
   function positions(a:AttendanceRow) {
     return <div className="grid sm:grid-cols-2 gap-3">{(['in','out'] as const).map(side=>{
       const point=side==='in'?a.inGPS:a.outGPS;
+      const mode=side==='in'?a.inLocationMode:a.outLocationMode;
+      const distance=side==='in'?a.inDistance:a.outDistance;
       return <div key={side} className="rounded-xl border border-slate-200 p-3 text-xs text-slate-700">
         <p className="font-semibold">GPS {side==='in'?'Clock In':'Clock Out'}</p>
+        {mode && <p className="mt-1 text-blue-700">{translateUI(mode==='ANYWHERE'?'Semua lokasi — GPS tetap dicatat':'Sesuai radius lokasi penugasan')}</p>}
+        {distance !== null && distance !== undefined && <p>{translateUI("Jarak dari lokasi penugasan:")} {Number(distance).toLocaleString('id-ID')} m</p>}
         {point?<><p className="mt-1">{point.latitude}, {point.longitude}</p><p>{translateUI("Akurasi:") + " "}{point.accuracy===null?translateUI("Tidak tercatat"):`±${point.accuracy} m`}</p><a className="text-blue-700 underline" href={gpsLink(point)} target="_blank" rel="noopener noreferrer">{translateUI("Buka titik GPS")}</a></>:<p>{translateUI("Koordinat belum tercatat.")}</p>}
       </div>;
     })}</div>;

@@ -27,16 +27,20 @@ function attendanceNote(body) {
 }
 
 async function resolveCrewId(req, requestedCrewId) {
-  const { data, error } = await supabase.from('crew').select('id').eq('user_id', req.user.id).maybeSingle();
+  const { data, error } = await supabase.from('crew').select('id, attendance_location_mode').eq('user_id', req.user.id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { status: 503 });
   if (!data) throw Object.assign(new Error('Profil crew tidak ditemukan untuk akun ini.'), { status: 404 });
   if (requestedCrewId && requestedCrewId !== data.id) {
     throw Object.assign(new Error('Anda tidak dapat mencatat absensi untuk crew lain.'), { status: 403 });
   }
+  req.attendanceLocationMode = data.attendance_location_mode === 'ANYWHERE' ? 'ANYWHERE' : 'ASSIGNED';
   return data.id;
 }
 
 function validateCoordinates(latitude, longitude) {
+  if ([latitude, longitude].some(value => !['string', 'number'].includes(typeof value) || String(value).trim() === '')) {
+    throw Object.assign(new Error('Koordinat GPS wajib disertakan.'), { status: 422 });
+  }
   const lat = Number(latitude);
   const lng = Number(longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -158,7 +162,7 @@ async function checkIn(req, res, next) {
       lat, lng, refLocation.latitude, refLocation.longitude, radius
     );
 
-    if (!withinRadius) {
+    if (!withinRadius && req.attendanceLocationMode !== 'ANYWHERE') {
       return res.status(422).json({
         message: `Anda berada ${distanceMeters}m dari lokasi (maks ${radius}m). Check-in ditolak.`,
         distanceMeters,
@@ -206,6 +210,7 @@ async function checkIn(req, res, next) {
         check_in_lat: lat,
         check_in_lng: lng,
         check_in_distance_m: distanceMeters,
+        check_in_location_mode: req.attendanceLocationMode,
         check_in_photo_url: objectKey,
         status,
         late_minutes: lateMinutes,
@@ -268,7 +273,7 @@ async function checkOut(req, res, next) {
 
     const radius = refLocation.radius_meters || DEFAULT_GEOFENCE_RADIUS_METERS;
     const { withinRadius, distanceMeters } = isWithinGeofence(lat, lng, refLocation.latitude, refLocation.longitude, radius);
-    if (!withinRadius) {
+    if (!withinRadius && req.attendanceLocationMode !== 'ANYWHERE') {
       return res.status(422).json({
         message: `Anda berada ${distanceMeters}m dari lokasi (maks ${radius}m). Check-out ditolak.`,
         distanceMeters,
@@ -310,6 +315,7 @@ async function checkOut(req, res, next) {
         check_out_lat: lat,
         check_out_lng: lng,
         check_out_distance_m: distanceMeters,
+        check_out_location_mode: req.attendanceLocationMode,
         check_out_photo_url: photoKey,
         overtime_minutes: overtimeMinutes,
         overtime_status: overtimeStatus,
@@ -550,7 +556,7 @@ async function calendar(req, res, next) {
 // id-id (assignment/schedule) yang dibutuhkan untuk memanggil check-in/out.
 async function today(req, res, next) {
   try {
-    const { data: crew, error: crewError } = await supabase.from('crew').select('id, crew_type, status').eq('user_id', req.user.id).maybeSingle();
+    const { data: crew, error: crewError } = await supabase.from('crew').select('id, crew_type, status, attendance_location_mode').eq('user_id', req.user.id).maybeSingle();
     if (crewError) throw Object.assign(new Error('Profil crew tidak dapat dimuat.'), { status: 503 });
     if (!crew) return res.status(404).json({ message: 'Profil crew tidak ditemukan untuk akun ini.' });
     if (crew.status !== 'ACTIVE') return res.status(403).json({ message: 'Akun crew tidak aktif.' });
@@ -564,7 +570,7 @@ async function today(req, res, next) {
     if(open){
       const isStore=!!open.store_assignment_id,sch=isStore?open.store_schedule:open.event_schedule;
       if(!sch)throw Object.assign(new Error('Jadwal absensi terbuka tidak ditemukan. Hubungi admin.'),{status:422});
-      return res.json({crewId:crew.id,date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,shiftNumber:sch.shift_number||null,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
+      return res.json({crewId:crew.id,locationMode:crew.attendance_location_mode || 'ASSIGNED',date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,shiftNumber:sch.shift_number||null,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
     }
 
     let storeSchedule = null;
@@ -638,7 +644,7 @@ async function today(req, res, next) {
     }
 
     const timeOff = await timeOffFor(crew.id, context?.scheduleDate || todayStr);
-    if(timeOff) return res.json({crewId:crew.id,date:todayStr,hasSchedule:false,context:null,attendance:null,timeOff});
+    if(timeOff) return res.json({crewId:crew.id,locationMode:crew.attendance_location_mode || 'ASSIGNED',date:todayStr,hasSchedule:false,context:null,attendance:null,timeOff});
     let attendance = null;
     if (context) {
       const { data, error: attendanceError } = await supabase
@@ -651,7 +657,7 @@ async function today(req, res, next) {
       attendance = data;
     }
 
-    res.json({ crewId: crew.id, date: todayStr, hasSchedule: !!context, context, attendance });
+    res.json({ crewId: crew.id, locationMode: crew.attendance_location_mode || 'ASSIGNED', date: todayStr, hasSchedule: !!context, context, attendance });
   } catch (err) {
     next(err);
   }

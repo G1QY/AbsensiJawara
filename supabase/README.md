@@ -26,8 +26,13 @@ Folder `migrations/` berisi SQL dasar tanpa timestamp, migrasi bertimestamp dan 
 | `20260925033622` | Staff, review dan dashboard. |
 | `20260925113935` | Work shifts. |
 | `20260925222422` | Persisted payroll. |
+| `20261005160149` | Payroll, libur dan izin jadwal. |
+| `20261006100934` | Aturan payroll tahunan dan kalender pembayaran. |
+| `20261008043901` | Jenis penugasan Kantor, mode absensi semua lokasi, snapshot mode dan jarak GPS antarkota. |
 
-Pada pemeriksaan 5 Oktober, sembilan versi pertama tercatat di database yang diperiksa. Versi payroll terakhir tidak tercatat, tetapi tabel/fungsinya sudah ada. Ini temuan bertanggal, bukan instruksi menjalankan ulang migrasi. Bandingkan definisi objek dan riwayat terlebih dahulu; lihat [laporan](../docs/PROJECT_HANDOVER_20261005.md).
+Pada pemeriksaan 5 Oktober, sembilan versi pertama tercatat di database yang diperiksa. Versi payroll `20260925222422` tidak tercatat, tetapi tabel/fungsinya sudah ada. Ini temuan bertanggal, bukan instruksi menjalankan ulang migrasi. Bandingkan definisi objek dan riwayat terlebih dahulu; lihat [laporan](../docs/PROJECT_HANDOVER_20261005.md).
+
+Untuk perubahan lokasi absensi 8 Oktober, terapkan `20261008043901_crew_office_flexible_attendance.sql` sebelum menjalankan backend baru. Migrasi menambahkan field crew dan absensi, memperbesar kolom jarak, serta memperbarui RPC `manage_crew`; lokasi kantor existing dikenali dari penugasan aktif. Tidak diperlukan perubahan bucket atau pemindahan foto. Pengujian migrasi lokal tersedia di `backend/tests/crew-location-policy-sql.test.cjs`; hasil lokal tidak membuktikan migrasi sudah diterapkan ke production.
 
 ## Database existing
 

@@ -33,6 +33,8 @@ const empty = {
   companyName: "",
   jobTitle: "",
   crewType: "CREW_EVENT",
+  assignmentKind: "EVENT",
+  attendanceLocationMode: "ASSIGNED",
   baseSalary: "0",
   status: "ACTIVE",
   branchId: "",
@@ -117,6 +119,8 @@ export default function KelolaCrew() {
             companyName: c.company_name || "",
             jobTitle: c.job_title || "",
             crewType: c.crew_type,
+            assignmentKind: c.assignment_kind || (c.crew_type === "CREW_EVENT" ? "EVENT" : c.store_assignments.find(a => a.status === "ACTIVE")?.store?.location_kind || "STORE"),
+            attendanceLocationMode: c.attendance_location_mode || "ASSIGNED",
             baseSalary: String(Number(c.base_salary)),
             status: c.status,
             branchId: c.branch_id || "",
@@ -238,7 +242,7 @@ export default function KelolaCrew() {
         .includes(search.toLowerCase()),
   )
   const locations = form.crewType === "CREW_STORE"
-    ? directory.stores.filter((s) => s.branch_id === form.branchId && s.status === "ACTIVE").map((s) => ({ id: s.id, name: s.name, code:s.code }))
+    ? directory.stores.filter((s) => s.branch_id === form.branchId && s.status === "ACTIVE" && (s.location_kind || "STORE") === form.assignmentKind).map((s) => ({ id: s.id, name: s.name, code:s.code }))
     : directory.events.filter((e) => e.branch_id === form.branchId && ["SCHEDULED","ONGOING"].includes(e.status)).map((e) => ({ id:e.id, name:e.event_name, code:e.event_code }))
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -373,7 +377,7 @@ export default function KelolaCrew() {
                 <tr key={c.id} className="hover:bg-slate-50">
                   <td className="p-4 min-w-56">
                     <div className="flex items-center gap-3">
-                      <Avatar name={c.user.full_name} />
+                      <Avatar name={c.user.full_name} src={c.avatarUrl} />
                       <div>
                         <p className="font-semibold text-slate-900">
                           {c.user.full_name}
@@ -388,7 +392,11 @@ export default function KelolaCrew() {
                   <td className="p-4 text-slate-700">{c.company_name || translateUI("Belum ditetapkan")}</td>
                   <td className="p-4 text-slate-700">{[c.job_title,c.division].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="p-4 text-slate-700">{branchLabel(c.branch) || translateUI("Belum ditetapkan")}</td>
-                  <td className="p-4 min-w-40 text-slate-700">{sources(c).join(", ") || translateUI("Belum ditugaskan")}</td>
+                  <td className="p-4 min-w-40 text-slate-700">
+                    {sources(c).join(", ") || translateUI("Belum ditugaskan")}
+                    {c.assignment_kind === "OFFICE" && <p className="text-xs text-slate-500">{translateUI("Kantor")}</p>}
+                    {c.attendance_location_mode === "ANYWHERE" && <p className="mt-1 text-xs text-blue-700">{translateUI("Absensi semua lokasi")}</p>}
+                  </td>
                   <td className="p-4 whitespace-nowrap text-blue-700">
                     {crewKind(c)}
                   </td>
@@ -512,15 +520,23 @@ export default function KelolaCrew() {
             <label className="text-sm text-slate-700">{" " + translateUI("Jenis Penugasan") + " "}<select
                 aria-label={translateUI("Jenis Crew")}
                 className={control}
-                disabled={!!editing?.user.user_roles?.some(r=>!['CREW_STORE','CREW_EVENT'].includes(r.role.code))}
-                value={form.crewType}
+                value={form.assignmentKind}
                 onChange={(e) =>
-                  changeCodeInputs({ crewType: e.target.value, assignTo: "" })
+                  changeCodeInputs({ assignmentKind: e.target.value, crewType: e.target.value === "EVENT" ? "CREW_EVENT" : "CREW_STORE", assignTo: "" })
                 }
               >
-                <option value="CREW_EVENT">{translateUI("Crew Event")}</option>
-                <option value="CREW_STORE">{translateUI("Crew Store")}</option>
+                <option value="EVENT" disabled={!!editing && editing.crew_type !== "CREW_EVENT" && !!editing.user.user_roles?.some(r=>!['CREW_STORE','CREW_EVENT'].includes(r.role.code))}>{translateUI("Crew Event")}</option>
+                <option value="STORE" disabled={!!editing && editing.crew_type !== "CREW_STORE" && !!editing.user.user_roles?.some(r=>!['CREW_STORE','CREW_EVENT'].includes(r.role.code))}>{translateUI("Crew Store")}</option>
+                <option value="OFFICE" disabled={!!editing && editing.crew_type !== "CREW_STORE" && !!editing.user.user_roles?.some(r=>!['CREW_STORE','CREW_EVENT'].includes(r.role.code))}>{translateUI("Kantor")}</option>
               </select>
+              <span className="text-xs text-slate-500">{translateUI("Kantor mengikuti jadwal kerja dan tidak mengubah role akun.")}</span>
+            </label>
+            <label className="text-sm text-slate-700">{translateUI("Lokasi absensi")}
+              <select aria-label={translateUI("Lokasi absensi")} className={control} value={form.attendanceLocationMode} disabled={auth?.role !== "SUPER_ADMIN"} onChange={e => change("attendanceLocationMode", e.target.value)}>
+                <option value="ASSIGNED">{translateUI("Sesuai radius lokasi penugasan")}</option>
+                <option value="ANYWHERE">{translateUI("Semua lokasi — GPS tetap dicatat")}</option>
+              </select>
+              <span className="mt-1 block text-xs text-slate-500">{translateUI("Semua lokasi mengizinkan clock in dan clock out dari mana saja. Jadwal, GPS, foto, dan tinjauan admin tetap berlaku. Hanya Super Admin yang dapat mengaturnya.")}</span>
             </label>
             <label className="text-sm text-slate-700">{" " + translateUI("Gaji Pokok (Rp)") + " "}<input
                 type="text"
@@ -624,6 +640,8 @@ export default function KelolaCrew() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 ["Role", crewKind(detail)],
+                ["Jenis Penugasan", translateUI(detail.assignment_kind === "OFFICE" ? "Kantor" : detail.crew_type === "CREW_EVENT" ? "Crew Event" : "Crew Store")],
+                ["Lokasi absensi", translateUI(detail.attendance_location_mode === "ANYWHERE" ? "Semua lokasi — GPS tetap dicatat" : "Sesuai radius lokasi penugasan")],
                 ["Divisi", detail.division || "—"],
                 ["Status", detail.status === "ACTIVE" ? translateUI("Aktif") : translateUI("Non-Aktif")],
                 ["Nomor HP", detail.user.phone_number || translateUI("HP belum diisi")],

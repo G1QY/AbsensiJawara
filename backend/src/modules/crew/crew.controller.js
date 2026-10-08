@@ -10,7 +10,7 @@ const {
 const { avatarPattern } = require("../profile/profile.service")
 const { getSignedDownloadUrl } = require("../../utils/signedUrl")
 const selection = `*, user:users(id,full_name,email,phone_number,user_roles(role:roles(code,name)),head_store_scopes(city_name)), branch:branches(id,name,city_name),
-  store_assignments(id,status,start_date,end_date,store:stores(id,name,branch_id)),
+  store_assignments(id,status,start_date,end_date,store:stores(id,name,branch_id,location_kind)),
   event_assignments(id,status,position,event:events(id,event_code,event_name,event_date,status,branch_id))`
 function check(error) {
   if (!error) return
@@ -41,8 +41,30 @@ async function fetchCrew(id) {
   return data
 }
 function eventCrew(c) {
-  const {id,crew_type,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments} = c
-  return {id,crew_type,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments,store_assignments: []}
+  const {id,crew_type,assignment_kind,attendance_location_mode,avatarUrl,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments} = c
+  return {id,crew_type,assignment_kind,attendance_location_mode,avatarUrl,employee_code,status,company_name,job_title,division,branch,branch_id,user,event_assignments,store_assignments: []}
+}
+async function withAvatars(rows) {
+  // Bound Auth/Storage concurrency; one unavailable photo must not hide the directory.
+  const result = new Array(rows.length)
+  let cursor = 0
+  await Promise.all(Array.from({length: Math.min(6, rows.length)}, async () => {
+    while (cursor < rows.length) {
+      const index = cursor++, crew = rows[index]
+      let avatarUrl = ""
+      try {
+        const userId = crew.user_id || crew.user?.id
+        if (userId) {
+          const {data, error} = await db.auth.admin.getUserById(userId)
+          const key = data?.user?.user_metadata?.avatar_key
+          if (!error && typeof key === "string" && avatarPattern(userId).test(key))
+            avatarUrl = await getSignedDownloadUrl(key, 3600)
+        }
+      } catch { /* Keep the initials fallback when Auth or Storage is unavailable. */ }
+      result[index] = {...crew, avatarUrl}
+    }
+  }))
+  return result
 }
 async function list(req, res, next) {
   try {
@@ -59,7 +81,9 @@ async function list(req, res, next) {
       rows.push(...data)
       if (data.length < 500) break
     }
-    res.json(req.role === "EVENT_MANAGER" ? rows.filter(c => c.crew_type === "CREW_EVENT").map(eventCrew) : rows)
+    const visible = req.role === "EVENT_MANAGER" ? rows.filter(c => c.crew_type === "CREW_EVENT") : rows
+    const withPhotos = await withAvatars(visible)
+    res.json(req.role === "EVENT_MANAGER" ? withPhotos.map(eventCrew) : withPhotos)
   } catch (error) {
     next(error)
   }
@@ -70,7 +94,7 @@ async function detail(req, res, next) {
     const crew = await fetchCrew(req.params.id)
     if (req.role === "EVENT_MANAGER") {
       if (crew.crew_type !== "CREW_EVENT") throw fail("Crew berada di luar cakupan event.", 403)
-      return res.json(eventCrew(crew))
+      return res.json(eventCrew((await withAvatars([crew]))[0]))
     }
     const { data, error } = await db.auth.admin.getUserById(crew.user_id)
     if (error) throw fail("Akun crew belum dapat dimuat.", 503)

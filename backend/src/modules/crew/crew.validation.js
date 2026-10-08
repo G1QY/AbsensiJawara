@@ -60,6 +60,18 @@ function validateCrew(body, creating = false) {
       throw fail("Status tidak valid.")
     out.status = body.status
   }
+  for (const [key, values] of [
+    ["assignmentKind", ["EVENT", "STORE", "OFFICE"]],
+    ["attendanceLocationMode", ["ASSIGNED", "ANYWHERE"]],
+  ]) {
+    if (body[key] !== undefined) {
+      if (!values.includes(body[key])) throw fail(`${key} tidak valid.`)
+      out[key] = body[key]
+    }
+  }
+  if (out.assignmentKind && out.crewType &&
+      (out.assignmentKind === "EVENT") !== (out.crewType === "CREW_EVENT"))
+    throw fail("Jenis penugasan tidak sesuai dengan jenis crew.")
   if (body.baseSalary !== undefined || creating) {
     const value = body.baseSalary ?? 0
     if (

@@ -1907,5 +1907,14 @@
   "Data terkait": "Related data",
   "Akun pelaksana": "Acting account",
   "Aturan payroll": "Payroll rules",
-  "Pengguna tidak tersedia": "User unavailable"
+  "Pengguna tidak tersedia": "User unavailable",
+  "Absensi semua lokasi": "Attendance from any location",
+  "Semua lokasi — GPS tetap dicatat": "Any location — GPS is still recorded",
+  "Sesuai radius lokasi penugasan": "Within the assigned location radius",
+  "Lokasi absensi": "Attendance location",
+  "Kantor mengikuti jadwal kerja dan tidak mengubah role akun.": "Office assignments follow work schedules and do not change the account role.",
+  "Semua lokasi mengizinkan clock in dan clock out dari mana saja. Jadwal, GPS, foto, dan tinjauan admin tetap berlaku. Hanya Super Admin yang dapat mengaturnya.": "Any location allows clock in and clock out from anywhere. Schedules, GPS, photos, and admin review still apply. Only Super Admin can change this setting.",
+  "Absensi semua lokasi aktif. Anda dapat clock in dan clock out dari mana saja sesuai jadwal. Titik GPS dan foto tetap dicatat untuk ditinjau admin.": "Attendance from any location is enabled. You can clock in and clock out from anywhere according to your schedule. GPS coordinates and photos are still recorded for admin review.",
+  "Absensi mengikuti radius lokasi penugasan. Aktifkan GPS dan izinkan akses kamera saat clock in dan clock out.": "Attendance requires being within the assigned location radius. Enable GPS and allow camera access to clock in and clock out.",
+  "Jarak dari lokasi penugasan:": "Distance from assigned location:"
 }

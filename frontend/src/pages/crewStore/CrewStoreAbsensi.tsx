@@ -1,3 +1,4 @@
+import LocationPolicyNotice from "../../components/attendance/LocationPolicyNotice";
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import CameraCapture from '../../components/attendance/CameraCapture';
@@ -34,6 +35,7 @@ interface AttendanceState {
 }
 
 interface TodayResponse {
+  locationMode?: "ASSIGNED" | "ANYWHERE";
   crewId: string;
   hasSchedule: boolean;
   timeOff?: {type:string;reason:string};
@@ -58,7 +60,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     setErrorMsg('');
     try {
       const data = await api.get<TodayResponse>('/attendance/today');
-      const revision=JSON.stringify([data.context,data.attendance?.id,data.attendance?.check_in,data.attendance?.check_out]);
+      const revision=JSON.stringify([data.locationMode,data.context,data.attendance?.id,data.attendance?.check_in,data.attendance?.check_out]);
       const unchanged=revision===contextRevision.current;contextRevision.current=revision;
       setToday(data);
       const target:Step=!data.hasSchedule?'no-schedule':data.attendance?.check_out?'completed':data.attendance?.check_in?'working':'menu';
@@ -156,6 +158,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'menu') {
     return (
       <div className="p-6 space-y-5 max-w-lg mx-auto">
+        <LocationPolicyNotice mode={today?.locationMode} />
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
           <h3 className="font-semibold text-slate-900 text-sm mb-1">{translateUI("Jadwal Kerja Hari Ini")}</h3>
           <p className="text-xs text-slate-400 mb-4">{ctx?.locationName}{ctx?.shiftNumber?` · Shift ${ctx.shiftNumber}`:""}</p>
@@ -189,6 +192,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'clockin-camera') {
     return (
       <div className="p-6 space-y-4 max-w-lg mx-auto">
+        <LocationPolicyNotice mode={today?.locationMode} />
         <div className="text-center">
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock In")}</h3>
           <p className="text-xs text-slate-400 mt-0.5">{translateUI("Pastikan wajah terlihat jelas")}</p>
@@ -253,6 +257,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'working') {
     return (
       <div className="p-6 space-y-5 max-w-lg mx-auto">
+        <LocationPolicyNotice mode={today?.locationMode} />
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
             <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -288,6 +293,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'clockout-camera') {
     return (
       <div className="p-6 space-y-4 max-w-lg mx-auto">
+        <LocationPolicyNotice mode={today?.locationMode} />
         <div className="text-center">
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock Out")}</h3>
         </div>

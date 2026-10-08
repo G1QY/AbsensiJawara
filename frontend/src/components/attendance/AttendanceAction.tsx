@@ -1,3 +1,4 @@
+import LocationPolicyNotice from "./LocationPolicyNotice";
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
@@ -18,6 +19,7 @@ interface AttendanceState {
 }
 
 interface TodayResponse {
+  locationMode?: "ASSIGNED" | "ANYWHERE";
   crewId: string;
   hasSchedule: boolean;
   context: {
@@ -141,6 +143,7 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
   if (submitting) return <State text={translateUI('Mengambil lokasi dan menyimpan absensi...')} />;
 
   return <div className="space-y-4">
+    <LocationPolicyNotice mode={today.locationMode} />
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-semibold text-slate-900">{context.locationName}</p>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">

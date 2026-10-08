@@ -1,6 +1,6 @@
 # Akun, role dan password JAWARA
 
-Panduan aktif, 5 Oktober 2026. Dasar: middleware/controller baseline `805c40b`.
+Panduan aktif, diperbarui 8 Oktober 2026 sesuai alur akun dan lokasi absensi di repository.
 
 ## Identitas dan sesi
 
@@ -24,7 +24,7 @@ Jika Auth berhasil dibuat tetapi pemasangan role gagal, periksa pengguna yang su
 
 1. Super Admin membuat personel di **Kelola Crew** dengan email, password awal, profil dan jenis crew.
 2. Backend membuat pengguna Auth kemudian menjalankan RPC personel. Bila RPC awal gagal, backend mencoba membatalkan pengguna Auth baru.
-3. Penempatan Store/jadwal dikelola dari Kelola Crew. Penugasan/PIC Event melalui **Kelola Event**; event acuan kode personel tidak otomatis menjadi penugasan.
+3. Pilih **Crew Store**, **Kantor**, atau **Crew Event** pada Jenis Penugasan. Store/Kantor menampilkan lokasi aktif sesuai jenis dan cabangnya; jadwal dikelola dari Kelola Crew. Penugasan/PIC Event melalui **Kelola Event**; event acuan kode personel tidak otomatis menjadi penugasan.
 4. Role, divisi, cakupan Head Store dan kontrol password berada di **Akun & Hak Akses**.
 5. Login ulang setelah perubahan role agar workspace sesuai akses baru.
 
@@ -38,6 +38,18 @@ Jika Auth berhasil dibuat tetapi pemasangan role gagal, periksa pengguna yang su
 | Guest | Pengajuan tanpa token Supabase Auth; tidak mendapat akses API karyawan. |
 
 Divisi Finance adalah label profil, bukan izin payroll. Akses ditentukan middleware, pembatas workspace dan RPC; jangan menyimpulkan izin hanya dari tombol atau requireRole satu router.
+
+## Absensi dari mana saja
+
+Super Admin membuka **Kelola Crew → Detail → Edit → Lokasi absensi**, memilih **Semua lokasi — GPS tetap dicatat**, lalu menyimpan crew. Pengaturan berlaku untuk clock in dan clock out orang tersebut, termasuk penugasan Kantor. Pilihan awal tetap **Sesuai radius lokasi penugasan**.
+
+Crew tetap membutuhkan penugasan dan jadwal aktif, izin GPS, serta foto kamera. Libur/izin yang disetujui tetap memblokir clock in. Admin melihat koordinat, tautan peta, jarak dari lokasi penugasan, dan mode lokasi pada detail absensi. Koordinat merupakan lokasi yang dilaporkan perangkat saat absen; fitur ini bukan pelacakan terus-menerus.
+
+Contoh: personel ditugaskan di kantor Bandung tetapi sedang di Jogja. Dengan mode Semua lokasi, jadwal kantor tetap digunakan dan titik GPS Jogja dicatat. Setelah kembali ke mode radius, clock in/out berikutnya harus berada dalam radius kantor. Perubahan mode tidak mengubah catatan absensi sebelumnya.
+
+Jenis Kantor disimpan sebagai `assignment_kind=OFFICE` dengan `crew_type=CREW_STORE` untuk mempertahankan alur jadwal/payroll. Role akun tetap terpisah; memilih Kantor tidak otomatis mengangkat crew menjadi Head Office atau Staff Kantor. Perubahan jenis/penempatan mengakhiri penugasan sebelumnya tanpa menghapus riwayat, dan jadwal baru perlu dibuat.
+
+Foto profil ditampilkan pada daftar dan detail crew melalui signed URL storage private. Crew tanpa foto atau foto yang gagal dimuat menggunakan inisial.
 
 ## Password
 
