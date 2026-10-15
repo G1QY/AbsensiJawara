@@ -2,7 +2,7 @@ import LocationPolicyNotice from "./LocationPolicyNotice";
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
-import { useGeolocation } from '../../hooks/useGeolocation';
+import type { DevicePosition } from '../../lib/deviceLocation';
 import CameraCapture from './CameraCapture';
 
 type Mode = 'IN' | 'OUT';
@@ -52,7 +52,6 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
   const [camera, setCamera] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const { getPosition } = useGeolocation();
 
   const load = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -78,13 +77,13 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
     };
   }, [load]);
 
-  const submit = useCallback(async (photo: Blob) => {
+  const submit = useCallback(async (photo: Blob, _previewUrl: string, position?: DevicePosition) => {
     const context = today?.context;
     if (!today || !context) return;
     setSubmitting(true);
     setError('');
     try {
-      const position = await getPosition();
+      if (!position) throw new Error('GPS saat foto belum tersedia. Ambil ulang foto.');
       const form = new FormData();
       form.append('photo', photo, mode === 'IN' ? 'checkin.jpg' : 'checkout.jpg');
       form.append('note', note);
@@ -115,7 +114,7 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
     } finally {
       setSubmitting(false);
     }
-  }, [getPosition, load, mode, note, onRecorded, today]);
+  }, [load, mode, note, onRecorded, today]);
 
   if (loading) return <State text={translateUI('Memuat status absensi...')} />;
 
@@ -158,7 +157,7 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
       <label className="block text-sm text-slate-700">{translateUI("Catatan") + " "}{mode === 'IN' ? 'Clock In' : 'Clock Out'}
         <textarea maxLength={2000} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder={translateUI("Catatan kehadiran, opsional")} />
       </label>
-      <CameraCapture accentColor={mode === 'IN' ? 'emerald' : 'amber'} locationName={context.locationName} onCapture={photo => void submit(photo)} />
+      <CameraCapture accentColor={mode === 'IN' ? 'emerald' : 'amber'} locationName={context.locationName} captureLocation onCapture={submit} />
       <button type="button" onClick={() => setCamera(false)} className="w-full text-sm text-slate-500">{translateUI("Batal")}</button>
     </> : <button type="button" onClick={() => setCamera(true)} className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white ${mode === 'IN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
       {mode === 'IN' ? translateUI("Clock In Sekarang") : translateUI("Clock Out Sekarang")}

@@ -19,4 +19,4 @@ admin.post('/reverse', handler('reverse'));
 // Guest can resolve a GPS point, never search the directory or read attendance.
 const guest = express.Router();
 guest.post('/reverse', locationLimits, handler('reverse'));
-module.exports = { admin, guest };
+module.exports = { admin, guest, reverseHandler: handler('reverse') };

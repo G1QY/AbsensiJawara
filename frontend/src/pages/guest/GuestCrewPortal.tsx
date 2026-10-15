@@ -1,6 +1,6 @@
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { readDeviceLocation } from '../../lib/deviceLocation';
-import { reverseAddress, type AddressResult } from '../../lib/geocoding';
+import { addressLookupError, reverseAddress, type AddressResult } from '../../lib/geocoding';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifications } from '../../lib/NotificationsContext';
 import { useAuth } from '../../lib/AuthContext';
@@ -114,18 +114,18 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
   const captureBusy = useRef(false);
   const photoCodeRef = useRef('');
   const photoPosition = useRef<{latitude:number;longitude:number;accuracy:number}|null>(null);
-  const resolveGpsAddress = useCallback(async (latitude: number, longitude: number) => {
+  const resolveGpsAddress = useCallback(async (latitude: number, longitude: number, forceRefresh = false) => {
     const id = ++addressRequest.current;
     setGpsAddress(''); setAddressError(''); setAddressLoading(true);
     let result: AddressResult | null = null;
     try {
-      result = await reverseAddress(latitude, longitude, true);
+      result = await reverseAddress(latitude, longitude, true, forceRefresh);
       if (id === addressRequest.current) {
         setGpsAddress(result?.address || '');
-        if (!result) setAddressError('Nama jalan belum ditemukan. Koordinat GPS tetap tercatat.');
+        if (!result) setAddressError('Alamat belum tercantum di peta untuk titik ini. Koordinat GPS tetap tercatat.');
       }
-    } catch {
-      if (id === addressRequest.current) setAddressError('Nama jalan belum tersedia. Coba cari alamat lagi. Koordinat GPS tetap tercatat.');
+    } catch (error) {
+      if (id === addressRequest.current) setAddressError(addressLookupError(error));
     } finally { if (id === addressRequest.current) setAddressLoading(false); }
     return result;
   }, []);
@@ -307,13 +307,11 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       if (captureId !== captureRequest.current) return;
       setLat(point.latitude); setLng(point.longitude); setAccuracy(point.accuracy); setLocSource('gps');
       setLocError(point.accuracy > 100 ? translateUI('Lokasi masih kurang akurat. Aktifkan lokasi presisi.') : '');
-      result = await resolveGpsAddress(point.latitude, point.longitude);
     } catch (error) {
       if (captureId === captureRequest.current) { setCameraError(error instanceof Error ? error.message : 'GPS belum tersedia'); captureBusy.current = false; setCapturing(false); }
       return;
     }
     if (captureId !== captureRequest.current || !videoRef.current || !canvasRef.current) return;
-    captureBusy.current = false; setCapturing(false);
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
@@ -323,7 +321,8 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) { captureBusy.current = false; setCapturing(false); setCameraError('Foto tidak dapat diproses. Coba lagi.'); return; }
+    const takenAt = new Date();
 
     // Draw Video Frame (Mirror if front camera)
     ctx.save();
@@ -334,14 +333,17 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
     ctx.drawImage(video, 0, 0, width, height);
     ctx.restore();
 
+    // Freeze the frame before the network lookup so GPS and photograph agree.
+    result = await resolveGpsAddress(point.latitude, point.longitude);
+    if (captureId !== captureRequest.current) return;
+    captureBusy.current = false; setCapturing(false);
     // Generate Verification Code
     const photoCode = generatePhotoCode();
-    const takenAt = new Date();
     const timeShort = takenAt.toLocaleTimeString(getLocale(), {timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit'}).replace('.',':');
     const dateFull = takenAt.toLocaleDateString(getLocale(), {timeZone:'Asia/Jakarta',weekday:'long',day:'numeric',month:'long',year:'numeric'});
     const locationName = getLocationText();
     const gpsText = `GPS saat foto: ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} (±${point.accuracy} m)`;
-    const resolvedAddress = `Lokasi GPS: ${result?.address || 'Nama jalan belum tersedia'}\n${gpsText}\nPenugasan: ${locationName || 'Tanpa pilihan lokasi'}${result ? '\n© OpenStreetMap contributors' : ''}`;
+    const resolvedAddress = `Lokasi GPS: ${result?.address || 'Alamat belum tersedia; lihat koordinat GPS'}\n${gpsText}\nPenugasan: ${locationName || 'Tanpa pilihan lokasi'}`;
     setPhotoAddress(result?.address || '');
     photoPosition.current = point;
     photoCodeRef.current = photoCode;
@@ -467,7 +469,7 @@ export default function GuestCrewPortal({ page, onNavigate }: { page: string; on
       latitude: lat,
       longitude: lng,
       accuracy,
-      address: photoAddress ? `Lokasi GPS saat foto: ${photoAddress}` : 'Nama jalan belum tersedia',
+      address: photoAddress ? `Lokasi GPS saat foto: ${photoAddress}` : 'Alamat belum tersedia; lihat koordinat GPS',
       photoCode,
       foto,
       catatan: catatan.trim(),
@@ -752,9 +754,9 @@ _Foto selfie telah tersimpan di sistem._`;
                       <div className="space-y-3">
                         <div className="text-xs text-slate-700 space-y-2" aria-live="polite">
                           <p className="font-semibold">{translateUI('Alamat dari GPS perangkat')}</p>
-                          <p className="break-words">{addressLoading ? translateUI('Mencari nama jalan...') : gpsAddress || translateUI('Nama jalan belum tersedia')}</p>
+                          <p className="break-words">{addressLoading ? translateUI('Mencari alamat GPS...') : gpsAddress || translateUI('Alamat belum tersedia; lihat koordinat GPS')}</p>
                           {addressError && <p className="text-amber-700">{translateUI(addressError)}</p>}
-                          {!addressLoading && !gpsAddress && <button type="button" disabled={capturing || submitting} onClick={() => void resolveGpsAddress(lat, lng)} className="rounded-lg border px-3 py-2">{translateUI('Cari alamat GPS lagi')}</button>}
+                          {!addressLoading && !gpsAddress && <button type="button" disabled={capturing || submitting} onClick={() => void resolveGpsAddress(lat, lng, true)} className="rounded-lg border px-3 py-2">{translateUI('Cari alamat GPS lagi')}</button>}
                           {gpsAddress && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="inline-block underline">© OpenStreetMap contributors</a>}
                         </div>
                         <DeviceLocationMap latitude={lat} longitude={lng} accuracy={accuracy} />
@@ -821,7 +823,7 @@ _Foto selfie telah tersimpan di sistem._`;
 
                             <div className="border-l-2 border-amber-400 pl-2 text-white text-[11px] leading-tight">
                               <p className="font-bold">{currentTimeFormatted.dateFull}</p>
-                              <p className="text-slate-200 line-clamp-3 mt-0.5">{gpsAddress || translateUI('Nama jalan belum tersedia')}</p>
+                              <p className="text-slate-200 line-clamp-3 mt-0.5">{gpsAddress || translateUI('Alamat belum tersedia; lihat koordinat GPS')}</p>
                               <p className="text-slate-200 line-clamp-2 mt-0.5">{`Penugasan: ${getLocationText() || 'Tidak dipilih'}`}</p>
                             </div>
                           </div>

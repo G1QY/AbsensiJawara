@@ -1,6 +1,6 @@
 # Dokumentasi JAWARA
 
-Panduan terbaru: [Payroll, jadwal, libur dan izin](PAYROLL_JADWAL.md) — perubahan 6 Oktober 2026, pratinjau aturan, pengaturan banyak crew, dan tanggal merah yang tetap bisa dijadwalkan.
+Panduan terbaru: [GPS dan watermark foto absensi](ABSENSI_GPS_WATERMARK.md) — perubahan 15 Oktober 2026 untuk crew terdaftar, guest, dan tampilan mobile. Lihat juga [Payroll, jadwal, libur dan izin](PAYROLL_JADWAL.md).
 
 Panduan umum diperbarui 5 Oktober 2026 berdasarkan source baseline `805c40b`; panduan payroll/jadwal diperbarui 6 Oktober 2026 mengikuti perubahan lokal terbaru.
 
@@ -12,6 +12,7 @@ Panduan umum diperbarui 5 Oktober 2026 berdasarkan source baseline `805c40b`; pa
 | [PRD dan relasi data](PRD_ERD_CURRENT.md) | Cakupan, role, aturan bisnis dan model data. |
 | [Setup](SETUP.md) | Environment lokal, integrasi dan deployment. |
 | [Akun dan role](ADMIN_CREW_ACCOUNTS.md) | Bootstrap, hak akses dan pemulihan password. |
+| [GPS dan watermark foto](ABSENSI_GPS_WATERMARK.md) | Lokasi aktual pada foto, tampilan mobile, dan layanan alamat. |
 | [Aliran data](MIGRATING_FROM_DUMMY_TO_REAL_DATA.md) | Pengganti panduan migrasi dummy lama. |
 | [Desain](DESIGN.md) | Tema, komponen dan perilaku UI aktual. |
 | [Checklist rilis](RELEASE_CHECKLIST.md) | Verifikasi dan penerapan perubahan. |

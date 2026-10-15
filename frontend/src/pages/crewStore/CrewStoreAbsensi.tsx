@@ -3,7 +3,7 @@ import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import CameraCapture from '../../components/attendance/CameraCapture';
 import AttendanceCalendar from '../../components/attendance/AttendanceCalendar';
-import { useGeolocation } from '../../hooks/useGeolocation';
+import type { DevicePosition } from '../../lib/deviceLocation';
 import { api, ApiError } from '../../lib/apiClient';
 
 type Step = 'loading' | 'no-schedule' | 'menu' | 'clockin-camera' | 'submitting-in' | 'clockin-result' | 'working' | 'clockout-camera' | 'submitting-out' | 'clockout-result' | 'completed';
@@ -54,7 +54,6 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   const [inNote, setInNote] = useState('');
   const [outNote, setOutNote] = useState('');
   const [lastResult, setLastResult] = useState<AttendanceState & { durationMinutes?: number } | null>(null);
-  const { getPosition } = useGeolocation();
 
   const loadToday = useCallback(async () => {
     setErrorMsg('');
@@ -79,12 +78,12 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [loadToday]);
 
-  const submitCheckIn = async (photoBlob: Blob) => {
+  const submitCheckIn = async (photoBlob: Blob, _previewUrl: string, pos?: DevicePosition) => {
     if (!today?.context) return;
     setStep('submitting-in');
     setErrorMsg('');
     try {
-      const pos = await getPosition();
+      if (!pos) throw new Error('GPS saat foto belum tersedia. Ambil ulang foto.');
       const form = new FormData();
       form.append('photo', photoBlob, 'checkin.jpg');
       form.append('note', inNote);
@@ -109,12 +108,12 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     }
   };
 
-  const submitCheckOut = async (photoBlob: Blob) => {
+  const submitCheckOut = async (photoBlob: Blob, _previewUrl: string, pos?: DevicePosition) => {
     if (!today?.attendance) return;
     setStep('submitting-out');
     setErrorMsg('');
     try {
-      const pos = await getPosition();
+      if (!pos) throw new Error('GPS saat foto belum tersedia. Ambil ulang foto.');
       const form = new FormData();
       form.append('photo', photoBlob, 'checkout.jpg');
       form.append('note', outNote);
@@ -199,7 +198,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         </div>
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
         <label className="block text-sm text-slate-700">{translateUI("Catatan Clock In")}<textarea maxLength={2000} value={inNote} onChange={e=>setInNote(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl bg-white" placeholder={translateUI("Catatan kehadiran (opsional)")}/></label>
-        <CameraCapture accentColor="emerald" locationName={ctx?.locationName} onCapture={(blob) => submitCheckIn(blob)} />
+        <CameraCapture accentColor="emerald" locationName={ctx?.locationName} captureLocation onCapture={submitCheckIn} />
         <button onClick={() => setStep('menu')} className="w-full text-center text-sm text-slate-400 hover:text-slate-600">{translateUI("Batal")}</button>
       </div>
     );
@@ -299,7 +298,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         </div>
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
         <label className="block text-sm text-slate-700">{translateUI("Catatan Clock Out")}<textarea maxLength={2000} value={outNote} onChange={e=>setOutNote(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl bg-white" placeholder={translateUI("Catatan atau alasan lembur (opsional)")}/></label>
-        <CameraCapture accentColor="amber" locationName={ctx?.locationName} onCapture={(blob) => submitCheckOut(blob)} />
+        <CameraCapture accentColor="amber" locationName={ctx?.locationName} captureLocation onCapture={submitCheckOut} />
         <button onClick={() => setStep('working')} className="w-full text-center text-sm text-slate-400 hover:text-slate-600">{translateUI("Batal")}</button>
       </div>
     );

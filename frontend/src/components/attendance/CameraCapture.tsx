@@ -1,8 +1,12 @@
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { readDeviceLocation, type DevicePosition } from '../../lib/deviceLocation';
+import { reverseAddress } from '../../lib/geocoding';
+import { drawAttendanceWatermark } from '../../lib/attendanceWatermark';
 
 interface CameraCaptureProps {
-  onCapture: (blob: Blob, previewUrl: string) => void;
+  onCapture: (blob: Blob, previewUrl: string, position?: DevicePosition) => void | Promise<void>;
+  captureLocation?: boolean;
   accentColor?: 'emerald' | 'amber';
   locationName?: string | null;
   facingMode?: 'user' | 'environment';
@@ -22,13 +26,17 @@ const ACCENT_CLASSES = {
  * bukan dari galeri). Hasil capture dikirim sebagai Blob JPEG ke parent
  * lewat onCapture, siap dimasukkan ke FormData untuk POST ke backend.
  */
-export default function CameraCapture({ onCapture, accentColor = 'emerald', locationName, facingMode = 'user', faceGuide = true }: CameraCaptureProps) {
+export default function CameraCapture({ onCapture, accentColor = 'emerald', locationName, facingMode = 'user', faceGuide = true, captureLocation = false }: CameraCaptureProps) {
   const [activeFacing,setActiveFacing]=useState(facingMode);
   const accent = ACCENT_CLASSES[accentColor];
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const captureBusy = useRef(false);
+  const captureRevision = useRef(0);
+  const [captureStatus, setCaptureStatus] = useState('');
+  const [captureError, setCaptureError] = useState('');
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [now, setNow] = useState(new Date());
@@ -68,53 +76,56 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
 
     return () => {
       cancelled = true;
+      ++captureRevision.current;
       clockInterval && clearInterval(clockInterval);
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, [activeFacing]);
 
-  const handleCapture = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (activeFacing === 'user') {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+  const handleCapture = useCallback(async () => {
+    if (captureBusy.current || !ready) return;
+    captureBusy.current = true;
+    const revision = ++captureRevision.current;
+    const current = () => revision === captureRevision.current;
+    setCaptureError('');
+    setCaptureStatus(captureLocation ? 'Mengambil GPS saat foto...' : 'Menyiapkan foto...');
+    try {
+      const position = captureLocation ? await readDeviceLocation() : undefined;
+      if (!current()) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || !video.videoWidth || !video.videoHeight) throw new Error('Kamera belum siap. Coba ambil foto lagi.');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Foto tidak dapat diproses. Coba lagi.');
+      // Freeze the frame with this GPS measurement, before the address lookup.
+      const capturedAt = new Date();
+      if (activeFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-    } else {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    }
-
-    const capturedAt = new Date();
-    const fontSize = Math.max(16, Math.round(canvas.width / 34));
-    const padding = Math.max(14, Math.round(canvas.width / 45));
-    const firstLine = capturedAt.toLocaleString(getLocale(), {
-      timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-    }) + ' WIB';
-    const secondLine = locationName || 'Lokasi kerja';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
-    ctx.fillRect(0, canvas.height - (fontSize * 3.2), canvas.width, fontSize * 3.2);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `600 ${fontSize}px sans-serif`;
-    ctx.fillText(firstLine, padding, canvas.height - fontSize * 1.65);
-    ctx.font = `400 ${Math.max(14, fontSize - 2)}px sans-serif`;
-    ctx.fillText(secondLine.slice(0, 80), padding, canvas.height - padding);
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
+      let address = null;
+      if (position) {
+        setCaptureStatus('Mencari alamat GPS dan menyiapkan foto...');
+        try { address = await reverseAddress(position.latitude, position.longitude, 'attendance'); }
+        catch { /* The exact GPS point stays on the photo if the address service is down. */ }
+      }
+      if (!current()) return;
+      drawAttendanceWatermark(ctx, capturedAt, locationName, position, address);
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      if (!current()) return;
+      if (!blob) throw new Error('Foto tidak dapat diproses. Coba lagi.');
       const previewUrl = URL.createObjectURL(blob);
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      onCapture(blob, previewUrl);
-    }, 'image/jpeg', 0.9);
-  }, [activeFacing, locationName, onCapture]);
+      // Attendance consumers do not retain this URL; evidence uploaders own theirs.
+      try { await onCapture(blob, previewUrl, position); }
+      finally { if (captureLocation) URL.revokeObjectURL(previewUrl); }
+    } catch (reason) {
+      if (current()) setCaptureError(reason instanceof Error ? reason.message : 'Foto gagal diambil. Coba lagi.');
+    } finally {
+      captureBusy.current = false;
+      if (current()) setCaptureStatus('');
+    }
+  }, [activeFacing, captureLocation, locationName, onCapture, ready]);
 
   return (
     <div className="space-y-4">
@@ -145,18 +156,21 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
               {now.toLocaleString(getLocale(), { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })} WIB
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent text-center">
-              <p className="text-white/90 text-xs">{locationName || 'Lokasi kerja'}</p>
+              <p className="text-white/90 text-xs">{translateUI('Penugasan:')} {locationName || translateUI('Belum ditetapkan')}</p>
             </div>
           </>
         )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
+      {captureLocation && <p className="rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">{translateUI('Foto akan memuat lokasi GPS saat pengambilan, koordinat, akurasi, waktu, dan penugasan. Jika alamat belum tersedia, koordinat tetap dicetak pada foto.')}</p>}
+      {captureError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{translateUI(captureError)}</p>}
+      {captureStatus && <p role="status" className="text-center text-sm text-slate-600">{translateUI(captureStatus)}</p>}
 
-      <div className="flex flex-col items-center gap-3"><button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm" onClick={()=>setActiveFacing(value=>value==='user'?'environment':'user')}>{activeFacing==='user'?translateUI("Ganti ke kamera belakang"):translateUI("Ganti ke kamera depan")}</button>
+      <div className="flex flex-col items-center gap-3"><button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm" disabled={!!captureStatus} onClick={()=>setActiveFacing(value=>value==='user'?'environment':'user')}>{activeFacing==='user'?translateUI("Ganti ke kamera belakang"):translateUI("Ganti ke kamera depan")}</button>
         <button
           type="button" aria-label={translateUI("Ambil foto")}
           onClick={handleCapture}
-          disabled={!ready || !!error}
+          disabled={!ready || !!error || !!captureStatus}
           className={`w-16 h-16 rounded-full bg-white border-4 ${accent.border} flex items-center justify-center hover:scale-105 shadow-lg disabled:opacity-40 disabled:hover:scale-100 transition-transform`}
         >
           <div aria-hidden="true" className={`w-10 h-10 rounded-full ${accent.bg}`} />

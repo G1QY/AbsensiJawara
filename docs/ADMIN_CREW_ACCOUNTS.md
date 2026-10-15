@@ -1,6 +1,6 @@
 # Akun, role dan password JAWARA
 
-Panduan aktif, diperbarui 8 Oktober 2026 sesuai alur akun dan lokasi absensi di repository.
+Panduan aktif, diperbarui 15 Oktober 2026 sesuai alur akun dan lokasi absensi di repository.
 
 ## Identitas dan sesi
 
@@ -50,6 +50,8 @@ Contoh: personel ditugaskan di kantor Bandung tetapi sedang di Jogja. Dengan mod
 Jenis Kantor disimpan sebagai `assignment_kind=OFFICE` dengan `crew_type=CREW_STORE` untuk mempertahankan alur jadwal/payroll. Role akun tetap terpisah; memilih Kantor tidak otomatis mengangkat crew menjadi Head Office atau Staff Kantor. Perubahan jenis/penempatan mengakhiri penugasan sebelumnya tanpa menghapus riwayat, dan jadwal baru perlu dibuat.
 
 Foto profil ditampilkan pada daftar dan detail crew melalui signed URL storage private. Crew tanpa foto atau foto yang gagal dimuat menggunakan inisial.
+
+Pada ponsel, Kelola Crew menggunakan kartu berisi foto, kontak, penempatan, mode lokasi, dan tombol Detail. Jalur Detail → Edit serta pilihan Kantor/Semua lokasi sama dengan desktop. Foto clock in/out mencetak alamat GPS aktual, koordinat, akurasi, waktu WIB, dan penugasan secara terpisah; lihat [panduan watermark GPS](ABSENSI_GPS_WATERMARK.md).
 
 ## Password
 

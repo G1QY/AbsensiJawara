@@ -352,7 +352,30 @@ export default function KelolaCrew() {
         ))}
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-slate-100 sm:hidden">
+          {filtered.map(c => <article key={c.id} className="space-y-3 p-4" aria-label={c.user.full_name}>
+            <div className="flex items-start gap-3">
+              <Avatar name={c.user.full_name} src={c.avatarUrl} />
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-semibold text-slate-900">{c.user.full_name}</p>
+                <p className="break-all text-xs text-slate-500">{c.user.email}</p>
+                <p className="text-xs text-slate-500">{c.user.phone_number || translateUI("HP belum diisi")}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-lg bg-blue-50 px-2 py-1 text-blue-700">{crewKind(c)}</span>
+              <StatusBadge status={c.status === "ACTIVE" ? "Aktif" : "Non-Aktif"} />
+            </div>
+            <dl className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
+              <div><dt className="text-xs text-slate-500">{translateUI("Perusahaan / Jabatan")}</dt><dd className="break-words">{[c.company_name, c.job_title, c.division].filter(Boolean).join(" · ") || "—"}</dd></div>
+              <div><dt className="text-xs text-slate-500">{translateUI("Cabang")}</dt><dd>{branchLabel(c.branch) || translateUI("Belum ditetapkan")}</dd></div>
+              <div><dt className="text-xs text-slate-500">{translateUI("Penempatan")}</dt><dd className="break-words">{sources(c).join(", ") || translateUI("Belum ditugaskan")}{c.assignment_kind === "OFFICE" && ` · ${translateUI("Kantor")}`}</dd></div>
+              <div><dt className="text-xs text-slate-500">{translateUI("Lokasi absensi")}</dt><dd className="font-medium text-blue-700">{translateUI(c.attendance_location_mode === "ANYWHERE" ? "Semua lokasi — GPS tetap dicatat" : "Sesuai radius lokasi penugasan")}</dd></div>
+            </dl>
+            <button type="button" disabled={busy} onClick={() => void openDetail(c)} className="min-h-11 w-full rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">{translateUI("Detail")}</button>
+          </article>)}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
               <tr>

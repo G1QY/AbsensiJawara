@@ -52,6 +52,21 @@ test('Redis cache avoids provider calls and shared store failure fails closed', 
   assert.equal((await service.reverse(0, 0))[0].address, 'Cached street'); assert.equal(calls, 0);
   await assert.rejects(createGeocoder({ getRedis: () => ({ get: async () => { throw new Error('redis down'); } }) }).reverse(0, 0), { status: 503 });
 });
+test('an unmapped street falls back to a named area, with spacing and cached results', async () => {
+  let clock = 0; const requests = [];
+  const service = create({ now: () => clock, wait: async ms => { clock += ms; }, fetcher: async url => {
+    requests.push({ at: clock, zoom: url.searchParams.get('zoom') });
+    return url.searchParams.get('zoom') === '17' ? response({ error: 'Unable to geocode' }, 404)
+      : response({ ...row, display_name: 'Kota Bandung, Jawa Barat, Indonesia', address: { city: 'Kota Bandung' } });
+  } });
+  const results = await service.reverse(-6.9, 107.6);
+  assert.equal(results[0].address, 'Kota Bandung, Jawa Barat, Indonesia');
+  assert.equal(results[0].street, '');
+  assert.equal(results[0].attribution, '© OpenStreetMap contributors');
+  assert.deepEqual(requests.map(r => r.zoom), ['17', '14']);
+  assert.ok(requests[1].at - requests[0].at >= 1100);
+  await service.reverse(-6.9, 107.6); assert.equal(requests.length, 2);
+});
 test('two server instances share provider spacing and cached results through Redis', async () => {
   const values = new Map();
   const redis = {
@@ -71,7 +86,15 @@ test('two server instances share provider spacing and cached results through Red
 test('guest route exposes reverse only, admin search requires an allowed role, missing coordinates return 400', async () => {
   const express=require('express');const routes=require('../src/modules/locations/locations.routes');
   const app=express();app.use(express.json());app.use((req,res,next)=>{req.role=req.get('x-test-role');next();});
+  // Isolate route authorization from attendance storage (no database calls).
+  const controllerPath = require.resolve('../src/modules/attendance/attendance.controller');
+  const previousController = require.cache[controllerPath];
+  require.cache[controllerPath] = { exports: Object.fromEntries(['checkIn','checkOut','today','calendar','list','getOne','update'].map(name => [name, (req,res) => res.sendStatus(204)])) };
+  let attendance;
+  try { attendance = require('../src/modules/attendance/attendance.routes'); }
+  finally { if (previousController) require.cache[controllerPath] = previousController; else delete require.cache[controllerPath]; }
   app.use('/guest',routes.guest);app.use('/admin',routes.admin);
+  app.use('/attendance', attendance);
   app.use((err,req,res,next)=>res.status(err.status||500).json({message:err.message}));
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
   const base='http://127.0.0.1:'+server.address().port;
@@ -81,5 +104,10 @@ test('guest route exposes reverse only, admin search requires an allowed role, m
     assert.equal((await post('/guest/reverse',{})).status,400);
     assert.equal((await post('/admin/search',{text:'Bandung'},'CREW_EVENT')).status,403);
     assert.equal((await post('/admin/search',{text:'ab'},'SUPER_ADMIN')).status,400);
+    for (const role of ['CREW_STORE','CREW_EVENT','HEAD_STORE','ADMIN_STORE','EVENT_MANAGER','HEAD_OFFICE','OFFICE_STAFF','PRODUCTION_STAFF']) {
+      assert.equal((await post('/attendance/location',{},role)).status,400,role + ' can resolve their GPS');
+    }
+    assert.equal((await post('/attendance/location',{})).status,403);
+    assert.equal((await post('/attendance/location',{},'FINANCE')).status,403);
   } finally { await new Promise(resolve=>server.close(resolve)); }
 });

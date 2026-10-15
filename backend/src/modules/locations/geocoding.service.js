@@ -72,7 +72,8 @@ function createGeocoder({ baseUrl = process.env.GEOCODING_BASE_URL || 'https://n
           if (redis) await redis.set(prefix + 'cooldown', '1', { EX: 60 }).catch(() => {});
           throw failure('Layanan alamat sedang dibatasi. Coba lagi nanti.', 429);
         }
-        if (!response.ok) throw failure('Layanan alamat belum tersedia. Coba lagi.');
+        // Nominatim returns 404 for an unmapped point; this is not an outage.
+        if (!response.ok && !(kind === 'reverse' && response.status === 404)) throw failure('Layanan alamat belum tersedia. Coba lagi.');
         let body;
         try { body = await response.json(); } catch { throw failure('Respons layanan alamat tidak valid.'); }
         if (kind === 'search' ? !Array.isArray(body) : !body || typeof body !== 'object' || Array.isArray(body)) throw failure('Respons layanan alamat tidak valid.');
@@ -100,7 +101,11 @@ function createGeocoder({ baseUrl = process.env.GEOCODING_BASE_URL || 'https://n
     },
     reverse(lat, lon) {
       const latitude = coordinate(lat, 90), longitude = coordinate(lon, 180);
-      return run('reverse', { lat: latitude.toFixed(5), lon: longitude.toFixed(5), zoom: 18 });
+      const point = { lat: latitude.toFixed(5), lon: longitude.toFixed(5) };
+      // Request a street first; when none is mapped, use a named neighbourhood.
+      // Both calls retain the shared provider limiter. Never retry provider errors.
+      return run('reverse', { ...point, zoom: 17 }).then(results => results.length
+        ? results : run('reverse', { ...point, zoom: 14 }));
     },
   };
 }

@@ -43,6 +43,7 @@ Form memiliki label, validasi serta keadaan simpan yang jelas. Sukses berarti se
 ## Mobile, bahasa dan aksesibilitas
 
 - Aturan mobile utama memakai breakpoint 767px; beberapa tabel/kartu berubah pada 639px.
+- Kelola Crew memakai kartu di bawah 640px agar foto, penempatan, mode lokasi, dan tombol Detail dapat dibaca tanpa menggeser tabel.
 - Selector mobile menerapkan target sentuh sekitar 44px; input workspace karyawan memakai font 16px/min-height 48px.
 - Periksa overflow, keyboard virtual, safe area, tabel dan dialog panjang.
 - Pertahankan focus indicator serta label/role untuk keyboard dan pembaca layar.
@@ -53,6 +54,8 @@ Form memiliki label, validasi serta keadaan simpan yang jelas. Sukses berarti se
 ## Bukti foto
 
 Kamera/lokasi dan dialog absensi membedakan izin ditolak, lokasi gagal, foto belum tersedia dan pengiriman gagal. Jangan menampilkan “Face Matched” tanpa implementasi biometrik; pengambilan foto bukan bukti adanya verifikasi wajah otomatis.
+
+Foto absensi baru mencetak alamat GPS aktual, koordinat/akurasi, waktu WIB, dan penugasan dalam baris terpisah. Frame dan GPS diambil sebelum pencarian alamat; kegagalan alamat tetap menampilkan koordinat. Komponen kamera absensi digunakan bersama pada desktop/mobile; lihat [panduan watermark](ABSENSI_GPS_WATERMARK.md).
 
 ## Verifikasi UI
 

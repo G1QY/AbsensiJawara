@@ -5,6 +5,10 @@ const controller = require('./attendance.controller');
 const personalAttendance = require('../../middlewares/requireRole')('CREW_STORE','CREW_EVENT','HEAD_STORE','ADMIN_STORE','EVENT_MANAGER','HEAD_OFFICE','OFFICE_STAFF','PRODUCTION_STAFF');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 30, fieldSize: 10000, parts: 31 } });
 
+// Resolve the crew's GPS point without granting access to admin location search.
+router.post('/location', personalAttendance, require('../../security/http').createLocationLimits(),
+  require('../locations/locations.routes').reverseHandler);
+
 // POST /attendance/check-in
 router.post('/check-in', personalAttendance, upload.single('photo'), controller.checkIn);
 

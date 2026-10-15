@@ -147,6 +147,7 @@ Dokumen utama yang paling relevan saat ini:
 - [Payroll dan jadwal](docs/PAYROLL_JADWAL.md) — aturan bisnis dan pembaruan terbaru.
 - [PRD dan relasi data](docs/PRD_ERD_CURRENT.md) — cakupan aplikasi, role dan model data.
 - [Akun dan hak akses](docs/ADMIN_CREW_ACCOUNTS.md) — bootstrap admin, akses dan pemulihan password.
+- [GPS dan watermark foto absensi](docs/ABSENSI_GPS_WATERMARK.md) — perilaku desktop/mobile, nama jalan, dan penanganan layanan alamat.
 - [Setup](docs/SETUP.md) — environment, dependency dan deployment.
 - [Desain](docs/DESIGN.md) — komponen dan perilaku UI.
 - [Checklist rilis](docs/RELEASE_CHECKLIST.md) — verifikasi sebelum dan setelah penerapan.

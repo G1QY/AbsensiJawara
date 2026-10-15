@@ -1916,5 +1916,21 @@
   "Semua lokasi mengizinkan clock in dan clock out dari mana saja. Jadwal, GPS, foto, dan tinjauan admin tetap berlaku. Hanya Super Admin yang dapat mengaturnya.": "Any location allows clock in and clock out from anywhere. Schedules, GPS, photos, and admin review still apply. Only Super Admin can change this setting.",
   "Absensi semua lokasi aktif. Anda dapat clock in dan clock out dari mana saja sesuai jadwal. Titik GPS dan foto tetap dicatat untuk ditinjau admin.": "Attendance from any location is enabled. You can clock in and clock out from anywhere according to your schedule. GPS coordinates and photos are still recorded for admin review.",
   "Absensi mengikuti radius lokasi penugasan. Aktifkan GPS dan izinkan akses kamera saat clock in dan clock out.": "Attendance requires being within the assigned location radius. Enable GPS and allow camera access to clock in and clock out.",
-  "Jarak dari lokasi penugasan:": "Distance from assigned location:"
+  "Jarak dari lokasi penugasan:": "Distance from assigned location:",
+  "Penugasan:": "Assignment:",
+  "Perusahaan / Jabatan": "Company / Job title",
+  "Mengambil GPS saat foto...": "Reading GPS for this photo...",
+  "Menyiapkan foto...": "Preparing photo...",
+  "Mencari alamat GPS dan menyiapkan foto...": "Looking up the GPS address and preparing photo...",
+  "Kamera belum siap. Coba ambil foto lagi.": "The camera is not ready. Try taking the photo again.",
+  "Foto tidak dapat diproses. Coba lagi.": "The photo could not be processed. Try again.",
+  "Foto gagal diambil. Coba lagi.": "The photo could not be captured. Try again.",
+  "GPS saat foto belum tersedia. Ambil ulang foto.": "GPS for this photo is unavailable. Take another photo.",
+  "Foto akan memuat lokasi GPS saat pengambilan, koordinat, akurasi, waktu, dan penugasan. Jika alamat belum tersedia, koordinat tetap dicetak pada foto.": "The photo will include its GPS location, coordinates, accuracy, time, and assignment. Coordinates remain on the photo if the address is unavailable.",
+  "Mencari alamat GPS...": "Looking up the GPS address...",
+  "Alamat belum tersedia; lihat koordinat GPS": "Address unavailable; see GPS coordinates",
+  "Alamat belum tercantum di peta untuk titik ini. Koordinat GPS tetap tercatat.": "No address is mapped for this point. GPS coordinates are still recorded.",
+  "Pencarian alamat sedang ramai. Tunggu sebentar lalu coba lagi. Koordinat GPS tetap tercatat.": "Address lookup is busy. Wait a moment and try again. GPS coordinates are still recorded.",
+  "Pencarian alamat tidak diizinkan. Periksa sesi login atau hubungi admin. Koordinat GPS tetap tercatat.": "Address lookup is not allowed. Check your login session or contact an admin. GPS coordinates are still recorded.",
+  "Layanan alamat belum dapat dihubungi. Coba cari alamat lagi. Koordinat GPS tetap tercatat.": "The address service cannot be reached. Try looking up the address again. GPS coordinates are still recorded."
 }
