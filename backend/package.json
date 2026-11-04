@@ -36,6 +36,7 @@
     "sharp@0.33.5": true
   },
   "overrides": {
-    "qs": "6.16.0"
+    "qs": "6.17.1",
+    "minimatch": "11.0.4"
   }
 }
