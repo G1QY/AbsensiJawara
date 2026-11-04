@@ -7,6 +7,8 @@ const supabase = require('../../config/supabaseClient');
 const { service: profileService, sessionClient } = require('../profile/profile.instance');
 const { sendOtpEmail, emailConfig } = require('../../utils/otpEmail');
 
+const passwordResetRequestMessage = 'Jika email tersebut terdaftar, kami akan mengirimkan kode verifikasi. Periksa kotak masuk dan folder spam. Jika kode tidak diterima, hubungi admin.';
+
 // ─── Helper: hash OTP dengan SHA-256 ────────────────────────────────
 function hashOtp(otp) {
   return crypto.createHash('sha256').update(otp).digest('hex');
@@ -105,7 +107,7 @@ async function forgotPassword(req, res, next) {
       .maybeSingle();
 
     if (!user) {
-      return res.status(404).json({ message: 'Email tidak terdaftar di sistem.' });
+      return res.status(202).json({ message: passwordResetRequestMessage });
     }
 
     const { data: recentOtp } = await supabase
@@ -117,7 +119,7 @@ async function forgotPassword(req, res, next) {
       .limit(1)
       .maybeSingle();
     if (recentOtp && Date.now() - new Date(recentOtp.created_at).getTime() < 60_000) {
-      return res.status(429).json({ message: 'Tunggu 60 detik sebelum meminta OTP baru.' });
+      return res.status(202).json({ message: passwordResetRequestMessage });
     }
 
     // Invalidasi OTP lama yang belum dipakai untuk email ini
@@ -149,12 +151,12 @@ async function forgotPassword(req, res, next) {
       throw emailError;
     }
 
-    const response = { message: 'Kode OTP telah dikirim ke email Anda.' };
+    const response = { message: passwordResetRequestMessage };
     if (process.env.ENABLE_DEV_OTP === 'true' && process.env.NODE_ENV !== 'production') {
       response.otp = otp;
     }
 
-    res.json(response);
+    res.status(202).json(response);
   } catch (err) {
     next(err);
   }

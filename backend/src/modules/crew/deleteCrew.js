@@ -19,7 +19,7 @@ async function deleteCrew(req, res, next) {
     if (prepared) {
       // Do not claim success or reactivate a possibly deleted account on an ambiguous network error.
       // A failed deletion remains disabled and can be retried from the account list.
-      error = fail('Penghapusan Auth belum terkonfirmasi. Akun dinonaktifkan. Coba Hapus permanen lagi; jangan hapus tabel secara manual.', 503);
+      return next(fail('Penghapusan Auth belum terkonfirmasi. Akun dinonaktifkan. Coba Hapus permanen lagi; jangan hapus tabel secara manual.', 503));
     }
     next(error);
   }

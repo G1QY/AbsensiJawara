@@ -49,6 +49,7 @@ Pembaruan 24 Oktober 2026: `POST /attendance/:id/break/start` dan `/end` menerim
 
 - `npm run bootstrap-admin`: admin pertama; lihat [panduan akun](../docs/ADMIN_CREW_ACCOUNTS.md).
 - `npm run check-email`: baca script untuk cakupan pemeriksaannya; bukan bukti otomatis email telah diterima.
+- `npm run lint`: lint source backend menggunakan konfigurasi ESLint repository.
 - `npm test`: `*.test.cjs` dan security, belum `*.test.js`.
 - `npm run test:security`: subset tes keamanan.
 - [Checklist rilis](../docs/RELEASE_CHECKLIST.md) menjelaskan tes lengkap. PGlite membutuhkan `PGLITE_MODULE`; tanpa itu tes SQL tertentu skip.

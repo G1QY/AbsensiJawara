@@ -84,7 +84,6 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
       throw fail('Terdapat crew dengan penugasan Store aktif yang bertumpuk. Rapikan penugasan sebelum membuat jadwal.', 409);
     }
   }
-  const assignmentIds = assignments.map(a => a.id);
   const selectedCrewIds = [...new Set(assignments.map(a => a.crew_id))];
   const calendarYears = [...new Set(dates.map(value => value.slice(0, 4)))];
 

@@ -88,11 +88,17 @@ test('guest route exposes reverse only, admin search requires an allowed role, m
   const app=express();app.use(express.json());app.use((req,res,next)=>{req.role=req.get('x-test-role');next();});
   // Isolate route authorization from attendance storage (no database calls).
   const controllerPath = require.resolve('../src/modules/attendance/attendance.controller');
+  const supabasePath = require.resolve('../src/config/supabaseClient');
   const previousController = require.cache[controllerPath];
+  const previousSupabase = require.cache[supabasePath];
   require.cache[controllerPath] = { exports: Object.fromEntries(['checkIn','checkOut','today','calendar','list','getOne','update'].map(name => [name, (req,res) => res.sendStatus(204)])) };
+  require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: {} };
   let attendance;
   try { attendance = require('../src/modules/attendance/attendance.routes'); }
-  finally { if (previousController) require.cache[controllerPath] = previousController; else delete require.cache[controllerPath]; }
+  finally {
+    if (previousController) require.cache[controllerPath] = previousController; else delete require.cache[controllerPath];
+    if (previousSupabase) require.cache[supabasePath] = previousSupabase; else delete require.cache[supabasePath];
+  }
   app.use('/guest',routes.guest);app.use('/admin',routes.admin);
   app.use('/attendance', attendance);
   app.use((err,req,res,next)=>res.status(err.status||500).json({message:err.message}));
