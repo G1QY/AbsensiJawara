@@ -1,3 +1,5 @@
+import BreakAttendance from '../../components/attendance/BreakAttendance';
+import PermissionRequests from '../../components/attendance/PermissionRequests';
 import LocationPolicyNotice from "../../components/attendance/LocationPolicyNotice";
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,6 +12,7 @@ type Step = 'loading' | 'no-schedule' | 'menu' | 'clockin-camera' | 'submitting-
 
 interface TodayContext {
   type: 'STORE' | 'EVENT';
+  breakStart?:string|null; breakEnd?:string|null; breakOpensAt?:string|null;
   shiftNumber?: number;
   scheduleDate?: string;
   storeAssignmentId: string | null;
@@ -24,6 +27,7 @@ interface TodayContext {
 }
 
 interface AttendanceState {
+  break_started_at?:string|null; break_ended_at?:string|null;
   id: string;
   check_in: string | null;
   check_out: string | null;
@@ -48,6 +52,7 @@ const approvalText = (value?:string) => translateUI(({PENDING:'Menunggu admin',A
 
 export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChanged }: { showCalendar?: boolean; onAttendanceChanged?: () => void }) {
   const contextRevision=useRef('');
+  const [calendarRevision,setCalendarRevision]=useState(0);
   const [step, setStep] = useState<Step>('loading');
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -59,7 +64,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     setErrorMsg('');
     try {
       const data = await api.get<TodayResponse>('/attendance/today');
-      const revision=JSON.stringify([data.locationMode,data.context,data.attendance?.id,data.attendance?.check_in,data.attendance?.check_out]);
+      const revision=JSON.stringify([data.locationMode,data.context,data.attendance?.id,data.attendance?.check_in,data.attendance?.check_out,data.attendance?.break_started_at,data.attendance?.break_ended_at]);
       const unchanged=revision===contextRevision.current;contextRevision.current=revision;
       setToday(data);
       const target:Step=!data.hasSchedule?'no-schedule':data.attendance?.check_out?'completed':data.attendance?.check_in?'working':'menu';
@@ -100,6 +105,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
       const result = await api.postForm<AttendanceState>('/attendance/check-in', form);
       setLastResult(result);
+      setToday(previous=>previous?{...previous,attendance:result}:previous);
       onAttendanceChanged?.();
       setStep('clockin-result');
     } catch (err) {
@@ -124,6 +130,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         `/attendance/${today.attendance.id}/check-out`, form
       );
       setLastResult(result);
+      setToday(previous=>previous?{...previous,attendance:result}:previous);
       onAttendanceChanged?.();
       setStep('clockout-result');
     } catch (err) {
@@ -139,15 +146,16 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
   if (step === 'no-schedule') {
     return (
-      <div className="p-6 space-y-5 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-5 max-w-lg mx-auto">
         <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center">
           <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
             <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
           </div>
-          <h3 className="font-semibold text-slate-900">{today?.timeOff ? (today.timeOff.type === "DAY_OFF" ? "Hari Libur Anda" : "Izin Disetujui") : translateUI("Tidak Ada Jadwal Hari Ini")}</h3>
+          <h3 className="font-semibold text-slate-900">{today?.timeOff ? (today.timeOff.type === "DAY_OFF" ? "Hari Libur Anda" : today.timeOff.type === "SICK" ? "Sakit Disetujui" : "Izin Disetujui") : translateUI("Tidak Ada Jadwal Hari Ini")}</h3>
           <p className="text-sm text-slate-400 mt-1">{errorMsg || today?.timeOff?.reason || 'Kamu tidak memiliki jadwal kerja untuk hari ini.'}</p>
         </div>
-        {showCalendar ? <AttendanceCalendar /> : null}
+        <PermissionRequests onChanged={()=>{setCalendarRevision(n=>n+1);void loadToday();}}/>
+        {showCalendar ? <AttendanceCalendar refreshTrigger={calendarRevision} /> : null}
       </div>
     );
   }
@@ -156,7 +164,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
   if (step === 'menu') {
     return (
-      <div className="p-6 space-y-5 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-5 max-w-lg mx-auto">
         <LocationPolicyNotice mode={today?.locationMode} />
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
           <h3 className="font-semibold text-slate-900 text-sm mb-1">{translateUI("Jadwal Kerja Hari Ini")}</h3>
@@ -181,16 +189,18 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{" " + translateUI("Clock In Sekarang") + " "}</button>
 
+        {ctx?.breakStart&&<p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">Istirahat: {ctx.breakStart.slice(0,5)} – {ctx.breakEnd?.slice(0,5)} WIB. Foto mulai dan selesai diambil setelah Clock In.</p>}
         <p className="text-center text-xs text-slate-400">{translateUI("Gunakan kamera dan lokasi perangkat untuk absen.")}</p>
 
-        {showCalendar ? <AttendanceCalendar /> : null}
+        <PermissionRequests onChanged={()=>{setCalendarRevision(n=>n+1);void loadToday();}}/>
+        {showCalendar ? <AttendanceCalendar refreshTrigger={calendarRevision} /> : null}
       </div>
     );
   }
 
   if (step === 'clockin-camera') {
     return (
-      <div className="p-6 space-y-4 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 max-w-lg mx-auto">
         <LocationPolicyNotice mode={today?.locationMode} />
         <div className="text-center">
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock In")}</h3>
@@ -219,7 +229,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'clockin-result' && lastResult) {
     const isLate = lastResult.status === 'LATE';
     return (
-      <div className="p-6 space-y-4 max-w-lg mx-auto animate-fade-in">
+      <div className="p-3 sm:p-6 space-y-4 max-w-lg mx-auto animate-fade-in">
         <h3 className="font-semibold text-slate-900 text-center">{translateUI("Hasil Clock In")}</h3>
 
         <div className={`${isLate ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'} border rounded-2xl p-5 space-y-4`}>
@@ -255,7 +265,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
   if (step === 'working') {
     return (
-      <div className="p-6 space-y-5 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-5 max-w-lg mx-auto">
         <LocationPolicyNotice mode={today?.locationMode} />
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
@@ -280,18 +290,21 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
 
+        {ctx?.breakStart&&ctx.breakEnd&&today?.attendance&&<BreakAttendance attendanceId={today.attendance.id} start={ctx.breakStart} end={ctx.breakEnd} opensAt={ctx.breakOpensAt} startedAt={today.attendance.break_started_at} endedAt={today.attendance.break_ended_at} locationName={ctx.locationName} onSaved={async()=>{await loadToday();onAttendanceChanged?.();}}/>}
         <button
+          disabled={!!today?.attendance?.break_started_at&&!today.attendance.break_ended_at}
           onClick={() => setStep('clockout-camera')}
-          className="w-full py-4 rounded-2xl bg-amber-600 text-white font-bold text-lg hover:bg-amber-700 flex items-center justify-center gap-3"
+          className="w-full py-4 rounded-2xl bg-amber-600 text-white font-bold text-lg hover:bg-amber-700 disabled:opacity-40 flex items-center justify-center gap-3"
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{" " + translateUI("Clock Out Sekarang") + " "}</button>
+        <PermissionRequests onChanged={()=>{setCalendarRevision(n=>n+1);void loadToday();}}/>
       </div>
     );
   }
 
   if (step === 'clockout-camera') {
     return (
-      <div className="p-6 space-y-4 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 max-w-lg mx-auto">
         <LocationPolicyNotice mode={today?.locationMode} />
         <div className="text-center">
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock Out")}</h3>
@@ -308,7 +321,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     const hasOvertime = lastResult.overtime_minutes > 0;
     const overtimeApproved = lastResult.overtime_status === 'APPROVED';
     return (
-      <div className="p-6 space-y-4 max-w-lg mx-auto animate-fade-in">
+      <div className="p-3 sm:p-6 space-y-4 max-w-lg mx-auto animate-fade-in">
         <h3 className="font-semibold text-slate-900 text-center">{translateUI("Hasil Clock Out")}</h3>
         <div className={`${hasOvertime ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-5 space-y-4`}>
           <div className={`flex items-center gap-2 ${hasOvertime ? 'text-amber-700' : 'text-slate-600'}`}>
@@ -341,7 +354,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
   if (step === 'completed') {
     const att = today?.attendance;
     return (
-      <div className="p-6 space-y-5 max-w-lg mx-auto">
+      <div className="p-3 sm:p-6 space-y-5 max-w-lg mx-auto">
         <div className="text-center">
           <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <svg className="mx-auto h-10 w-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
@@ -365,7 +378,8 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-3"><p className="text-xs text-blue-600">{translateUI("Persetujuan Absensi")}</p><strong className="text-sm text-blue-900">{approvalText(att?.review_status)}</strong></div>
           <div className="rounded-xl border border-amber-100 bg-amber-50 p-3"><p className="text-xs text-amber-600">{translateUI("Persetujuan Lembur")}</p><strong className="text-sm text-amber-900">{approvalText(att?.overtime_status)}</strong></div>
         </div>
-        {showCalendar ? <AttendanceCalendar /> : null}
+        <PermissionRequests onChanged={()=>{setCalendarRevision(n=>n+1);void loadToday();}}/>
+        {showCalendar ? <AttendanceCalendar refreshTrigger={calendarRevision} /> : null}
       </div>
     );
   }

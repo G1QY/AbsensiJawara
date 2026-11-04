@@ -99,6 +99,8 @@ test('V13 role divisions, personal access, mandatory review and new evidence',{s
   await db.exec(fs.readFileSync(path.join(dir,'20260925222422_persisted_payroll.sql'),'utf8'));
   await db.exec(fs.readFileSync(path.join(dir,'20261005160149_payroll_schedule_time_off.sql'),'utf8'));
   await db.exec(fs.readFileSync(path.join(dir,'20261006100934_payroll_annual_calendar.sql'),'utf8'));
+  await db.exec(fs.readFileSync(path.join(dir,'20261023150118_shift_breaks_permissions.sql'),'utf8'));
+  await require('./break-permission-sql-checks.cjs')(db,id);
   const month=(await one("select to_char(current_date,'YYYY-MM-01') d")).d;
   const workspace=async(user=null)=>(await one('select payroll_workspace($1,$2) d',[month,user])).d;
   const mutate=async(action,data,revision,actor=id(1))=>one('select mutate_payroll($1,$2,$3,$4,$5) id',[actor,action,month,revision||(await workspace()).revision,data]);

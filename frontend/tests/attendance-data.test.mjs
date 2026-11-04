@@ -35,6 +35,10 @@ test('PRESENT maps to on-time, minutes remain minutes, approval is independent',
  const a=d.fromRegistered({id:'a',attendance_date:'2026-08-31',check_in:'2026-08-31T02:00:00Z',check_out:'2026-08-31T11:00:00Z',status:'LATE',late_minutes:20,overtime_minutes:60,overtime_status:'PENDING',review_status:'APPROVED',check_in_note:'IN',check_out_note:'OUT',crew:null,store_assignment:{store:{name:'Store'}},event_assignment:null,store_schedule:{schedule_date:'2026-08-31',start_time:'09:00:00',end_time:'17:00:00'},event_schedule:null});
  assert.equal(a.status,'Telat');assert.equal(a.review,'APPROVED');assert.equal(a.lateMinutes,20);assert.equal(a.overtimeMinutes,60);
 });
+test('attendance Excel recap excludes break records and break duration',()=>{
+ const a=d.fromRegistered({id:'a',attendance_date:'2026-08-31',check_in:'2026-08-31T02:00:00Z',check_out:'2026-08-31T11:00:00Z',status:'PRESENT',late_minutes:0,overtime_minutes:0,overtime_status:'NONE',review_status:'APPROVED',check_in_note:'',check_out_note:'',crew:null,store_assignment:{store:{name:'Store'}},event_assignment:null,store_schedule:{schedule_date:'2026-08-31',start_time:'09:00:00',end_time:'17:00:00'},event_schedule:null,break_started_at:'2026-08-31T04:00:00Z',break_ended_at:'2026-08-31T05:00:00Z'});
+ const [headers,row]=d.recap([a]);assert.equal(headers.length,row.length);assert.ok(!headers.some(h=>/istirahat/i.test(h)));assert.ok(!row.some(v=>typeof v==='string'&&v.includes('Istirahat')));
+});
 test('xlsx is genuine OOXML; notes/phone/formula-looking strings remain text',()=>{
  const bytes=xlsx.namespace.makeWorkbook([['Nama','HP','Catatan','Menit'],['Gilang','08123456','=HYPERLINK("bad")\n<&>',60]]);
  assert.equal(bytes[0],0x50);assert.equal(bytes[1],0x4b);

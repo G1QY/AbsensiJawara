@@ -1,4 +1,5 @@
 import DayStatusForm from './DayStatusForm';
+import BreakFields from '../../components/attendance/BreakFields';
 import ShiftFields from '../../components/attendance/ShiftFields';
 import {t as translateUI} from '../../lib/i18n';
 import {submitScheduleRange} from '../../lib/scheduleRange';
@@ -8,14 +9,14 @@ import {api} from '../../lib/apiClient';
 import {button,control,message,primary} from './adminData';
 import Modal from '../../components/ui/Modal';
 
-interface Schedule {day_status?:string;day_note?:string;shift_number?:number;id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
+interface Schedule {break_start_time?:string|null;break_end_time?:string|null;day_status?:string;day_note?:string;shift_number?:number;id:string;schedule_date:string;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 interface Response {assignment:{id:string;start_date:string;end_date:string|null;store:{name:string}}|null;schedules:Schedule[]}
 interface RangeResult {warnings?:string[];created:number;inserted?:number;updated?:number;lockedByAttendance?:number;skippedOverlap?:number;skippedTimeOff?:number;skippedHoliday:number;skippedExisting:number;skippedEvent:number;skippedDay:number}
 interface EditScheduleTarget {id?:string|null;schedule_date:string;shift_number:number;start_time:string;end_time:string;late_tolerance_minutes:number;overtime_preapproved:boolean}
 
 const currentMonth=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).format(new Date()).slice(0,7);
 const DAY_OPTIONS=[{value:0,label:'Min'},{value:1,label:'Sen'},{value:2,label:'Sel'},{value:3,label:'Rab'},{value:4,label:'Kam'},{value:5,label:'Jum'},{value:6,label:'Sab'}];
-const emptyForm={startDate:'',endDate:'',shiftNumber:1,startTime:'09:00',endTime:'18:00',lateToleranceMinutes:'0',overtimePreapproved:false,workDays:[1,2,3,4,5,6]};
+const emptyForm={startDate:'',endDate:'',shiftNumber:1,startTime:'09:00',endTime:'18:00',breakStartTime:'',breakEndTime:'',lateToleranceMinutes:'0',overtimePreapproved:false,workDays:[1,2,3,4,5,6]};
 
 export default function StoreScheduleManager({crewId,crewName}:{crewId:string;crewName:string}){
   const loadRequest=useRef(0);
@@ -30,7 +31,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
   const [calendarRefresh,setCalendarRefresh]=useState(0);
 
   const [editingSchedule,setEditingSchedule]=useState<EditScheduleTarget|null>(null);
-  const [editForm,setEditForm]=useState({shiftNumber:1,startTime:'09:00',endTime:'18:00',lateToleranceMinutes:'0',overtimePreapproved:false});
+  const [editForm,setEditForm]=useState({shiftNumber:1,startTime:'09:00',endTime:'18:00',breakStartTime:'',breakEndTime:'',lateToleranceMinutes:'0',overtimePreapproved:false});
 
   async function load(){
     const request=++loadRequest.current;
@@ -81,6 +82,8 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     });
     setEditForm({
       shiftNumber:s.shift_number||1,
+      breakStartTime:s.break_start_time?.slice(0,5)||'',
+      breakEndTime:s.break_end_time?.slice(0,5)||'',
       startTime:s.start_time.slice(0,5),
       endTime:s.end_time.slice(0,5),
       lateToleranceMinutes:String(s.late_tolerance_minutes||0),
@@ -101,6 +104,8 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
     });
     setEditForm({
       shiftNumber:day.shiftNumber||matched?.shift_number||1,
+      breakStartTime:matched?.break_start_time?.slice(0,5)||'',
+      breakEndTime:matched?.break_end_time?.slice(0,5)||'',
       startTime:(day.startTime||matched?.start_time||'09:00').slice(0,5),
       endTime:(day.endTime||matched?.end_time||'18:00').slice(0,5),
       lateToleranceMinutes:String(matched?.late_tolerance_minutes||0),
@@ -120,6 +125,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
         scheduleDate:editingSchedule.schedule_date,
         scheduleId:editingSchedule.id||undefined,
         shiftNumber:editForm.shiftNumber,
+        breakStartTime:editForm.breakStartTime,breakEndTime:editForm.breakEndTime,
         startTime:editForm.startTime,
         endTime:editForm.endTime,
         lateToleranceMinutes:Number(editForm.lateToleranceMinutes),
@@ -162,6 +168,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
         <div className="flex flex-wrap gap-2">{DAY_OPTIONS.map(day=><label key={day.value} className={`cursor-pointer rounded-xl border px-3 py-2 text-sm ${rangeForm.workDays.includes(day.value)?'border-blue-500 bg-blue-50 text-blue-700':'border-slate-200 text-slate-500'}`}><input type="checkbox" className="sr-only" checked={rangeForm.workDays.includes(day.value)} onChange={()=>toggleDay(day.value)}/>{day.label}</label>)}</div>
       </fieldset>
       <ShiftFields shiftNumber={rangeForm.shiftNumber} startTime={rangeForm.startTime} endTime={rangeForm.endTime} disabled={busy} onChange={patch=>setRangeForm({...rangeForm,...patch})}/>
+   <BreakFields start={rangeForm.breakStartTime} end={rangeForm.breakEndTime} disabled={busy} onChange={(start,end)=>setRangeForm(previous=>({...previous,breakStartTime:start,breakEndTime:end}))}/>
       <label className="text-xs text-slate-600 sm:col-span-2">{translateUI("Toleransi telat (menit)")}<input required type="number" min="0" max="240" className={control} value={rangeForm.lateToleranceMinutes} onChange={e=>setRangeForm({...rangeForm,lateToleranceMinutes:e.target.value})}/></label>
       <label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><input aria-label={translateUI("Setujui lembur dari jadwal")} type="checkbox" className="mt-1" checked={rangeForm.overtimePreapproved} onChange={e=>setRangeForm({...rangeForm,overtimePreapproved:e.target.checked})}/><span><strong>{translateUI("Setujui lembur dari jadwal")}</strong><small className="block mt-1">{translateUI("Jam penuh setelah jam pulang langsung disetujui. Jika tidak dicentang, lembur menunggu admin.")}</small></span></label>
       <button disabled={busy||rangeForm.startTime===rangeForm.endTime||!data?.assignment||!rangeForm.workDays.length} className={primary+' sm:col-span-2'}>{busy?translateUI("Menyimpan..."):translateUI("Buat Jadwal Rentang")}</button>
@@ -194,8 +201,8 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
           {data?.schedules.map(s=>(
             <tr key={s.id} className="hover:bg-slate-50 transition-colors">
               <td className="p-3 font-medium">{s.schedule_date}</td>
-              <td className="p-3 whitespace-nowrap"><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':'Izin') : `Shift ${s.shift_number||1}`}</span></td>
-              <td className="p-3 font-mono">{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}{s.end_time<s.start_time&&<small className="block text-blue-700 font-sans">Pulang besok</small>}</td>
+              <td className="p-3 whitespace-nowrap"><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':s.day_status==='SICK'?'Sakit':'Izin') : `Shift ${s.shift_number||1}`}</span></td>
+              <td className="p-3 font-mono">{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}{s.end_time<s.start_time&&<small className="block text-blue-700 font-sans">Pulang besok</small>}{s.break_start_time&&<small className="block font-sans text-blue-700">Istirahat {s.break_start_time.slice(0,5)}–{s.break_end_time?.slice(0,5)}</small>}</td>
               <td className="p-3">{s.late_tolerance_minutes||0}{" " + translateUI("menit")}</td>
               <td className="p-3">{s.overtime_preapproved?<span className="text-emerald-700 font-medium">{translateUI("Disetujui")}</span>:<span className="text-slate-500">{translateUI("Perlu tinjauan")}</span>}</td>
               <td className="p-3"><button className={button} type="button" onClick={()=>openEditFromTable(s)}>{translateUI("Ubah")}</button></td>
@@ -211,9 +218,10 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
         <article key={s.id} className="rounded-xl border border-slate-200 p-4 space-y-2">
           <div className="flex justify-between gap-2">
             <strong className="text-sm">{s.schedule_date}</strong>
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':'Izin') : `Shift ${s.shift_number||1}`}</span>
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{s.day_status ? (s.day_status==='DAY_OFF'?'Libur':s.day_status==='SICK'?'Sakit':'Izin') : `Shift ${s.shift_number||1}`}</span>
           </div>
           <p className="text-sm font-mono">{s.start_time.slice(0,5)} – {s.end_time.slice(0,5)} WIB{s.end_time<s.start_time?' · Pulang besok':''}</p>
+          {s.break_start_time&&<p className="text-xs text-blue-700">Istirahat {s.break_start_time.slice(0,5)} – {s.break_end_time?.slice(0,5)} WIB</p>}
           <p className="text-xs text-slate-500">Toleransi {s.late_tolerance_minutes||0} menit · Lembur {s.overtime_preapproved?'disetujui':'perlu tinjauan'}</p>
           <button className={button+' w-full min-h-11'} type="button" onClick={()=>openEditFromTable(s)}>Ubah jadwal</button>
         </article>
@@ -246,6 +254,7 @@ export default function StoreScheduleManager({crewId,crewName}:{crewId:string;cr
             disabled={busy}
             onChange={patch=>setEditForm(prev=>({...prev,...patch}))}
           />
+<BreakFields start={editForm.breakStartTime} end={editForm.breakEndTime} disabled={busy} onChange={(start,end)=>setEditForm(previous=>({...previous,breakStartTime:start,breakEndTime:end}))}/>
 
           <label className="block text-xs text-slate-600">
             {translateUI("Toleransi telat (menit)")}

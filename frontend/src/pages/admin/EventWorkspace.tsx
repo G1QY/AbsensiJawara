@@ -23,6 +23,7 @@ import {
 import { DataTable, EventBadge, Stat } from "./adminWidgets";
 import { downloadWorkbook } from "../../lib/xlsxExport";
 import { stamp, reviewLabel } from "./attendanceData";
+import EventBreakSchedule from '../../components/attendance/EventBreakSchedule';
 import EventPayrollPanel from "../payroll/EventPayrollPanel";
 import OpenStreetMapLocationPicker from "../../components/maps/OpenStreetMapLocationPicker";
 export interface ManagedEvent extends Event {
@@ -55,6 +56,7 @@ export interface ManagedEvent extends Event {
       user: { full_name: string; email: string };
     };
     event_schedules: {
+      break_start_time?:string|null;break_end_time?:string|null;
       id: string;
       schedule_date: string;
       start_time: string;
@@ -634,12 +636,7 @@ export default function EventWorkspace({
                       a.crew.job_title || "Belum diisi",
                       a.crew.user.email,
                       role(a),
-                      a.event_schedules
-                        .map(
-                          (s) =>
-                            `${s.schedule_date} ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`,
-                        )
-                        .join(", ") || "Belum dibuat",
+                      a.event_schedules.length ? <div className="space-y-3">{a.event_schedules.map(s=><div key={s.id}><p>{s.schedule_date} {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}</p><EventBreakSchedule key={s.id+String(s.break_start_time)+String(s.break_end_time)} eventId={detail.id} schedule={s} onSaved={()=>void openDetail(detail)}/></div>)}</div> : "Belum dibuat",
                       translateUI(a.status),
                       a.status === "ACTIVE" ? (
                         <button

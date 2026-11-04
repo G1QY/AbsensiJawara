@@ -6,6 +6,7 @@ import { drawAttendanceWatermark } from '../../lib/attendanceWatermark';
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob, previewUrl: string, position?: DevicePosition) => void | Promise<void>;
+  activityLabel?: string;
   captureLocation?: boolean;
   accentColor?: 'emerald' | 'amber';
   locationName?: string | null;
@@ -26,7 +27,7 @@ const ACCENT_CLASSES = {
  * bukan dari galeri). Hasil capture dikirim sebagai Blob JPEG ke parent
  * lewat onCapture, siap dimasukkan ke FormData untuk POST ke backend.
  */
-export default function CameraCapture({ onCapture, accentColor = 'emerald', locationName, facingMode = 'user', faceGuide = true, captureLocation = false }: CameraCaptureProps) {
+export default function CameraCapture({ onCapture, accentColor = 'emerald', locationName, facingMode = 'user', faceGuide = true, captureLocation = false, activityLabel }: CameraCaptureProps) {
   const [activeFacing,setActiveFacing]=useState(facingMode);
   const accent = ACCENT_CLASSES[accentColor];
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -111,7 +112,7 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
         catch { /* The exact GPS point stays on the photo if the address service is down. */ }
       }
       if (!current()) return;
-      drawAttendanceWatermark(ctx, capturedAt, locationName, position, address);
+      drawAttendanceWatermark(ctx, capturedAt, locationName, position, address, activityLabel);
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
       if (!current()) return;
       if (!blob) throw new Error('Foto tidak dapat diproses. Coba lagi.');
@@ -125,7 +126,7 @@ export default function CameraCapture({ onCapture, accentColor = 'emerald', loca
       captureBusy.current = false;
       if (current()) setCaptureStatus('');
     }
-  }, [activeFacing, captureLocation, locationName, onCapture, ready]);
+  }, [activityLabel, activeFacing, captureLocation, locationName, onCapture, ready]);
 
   return (
     <div className="space-y-4">

@@ -1,8 +1,9 @@
 import {accountRoles} from '../../lib/accountRoles';
 import type { GuestAttendanceRecord } from '../guest/GuestCrewPortal';
 export type Source = 'registered' | 'guest' | 'local';
-export interface Schedule { shift_number?:number; schedule_date: string; start_time: string; end_time: string; late_tolerance_minutes?: number }
+export interface Schedule { shift_number?:number; schedule_date: string; start_time: string; end_time: string; late_tolerance_minutes?: number; break_start_time?:string|null; break_end_time?:string|null }
 export interface RegisteredAttendance {
+  break_started_at?:string|null;break_ended_at?:string|null;breakStartPhoto?:string;breakEndPhoto?:string;break_start_lat?:number;break_start_lng?:number;break_end_lat?:number;break_end_lng?:number;
   check_in_location_mode?: "ASSIGNED" | "ANYWHERE"; check_out_location_mode?: "ASSIGNED" | "ANYWHERE";
   check_in_distance_m?: number; check_out_distance_m?: number;
   check_in_lat?:number|null; check_in_lng?:number|null; check_out_lat?:number|null; check_out_lng?:number|null;
@@ -22,6 +23,7 @@ export interface ServerGuest {
   inPhoto?:string;outPhoto?:string;
 }
 export interface AttendanceRow {
+  breakStartedAt?:string|null;breakEndedAt?:string|null;breakStartPhoto?:string;breakEndPhoto?:string;breakStartGPS?:GPSPoint|null;breakEndGPS?:GPSPoint|null;
   inLocationMode?: string; outLocationMode?: string; inDistance?: number; outDistance?: number;
  inGPS?:GPSPoint|null; outGPS?:GPSPoint|null;
  companyName?:string;jobTitle?:string;
@@ -61,7 +63,7 @@ export function fromRegistered(a:RegisteredAttendance):AttendanceRow {
   const place=a.event_assignment?.event || a.store_assignment?.store;
   const location=[a.event_assignment?.event?.event_name||a.store_assignment?.store?.name,...[place?.branch?.city_name,place?.branch?.name].filter((v,i,arr)=>v&&arr.indexOf(v)===i)].filter(Boolean).join(' · ');
   const status=({PRESENT:'Tepat Waktu',ON_TIME:'Tepat Waktu',LATE:'Telat',ABSENT:'Tidak hadir',PERMISSION:'Izin',SICK:'Sakit',HOLIDAY:'Libur',NOT_SCHEDULED:'Tidak dijadwalkan',PENDING:schedule?'Menunggu verifikasi':'Belum dapat dinilai'} as Record<string,string>)[a.status]||a.status;
-  return {inLocationMode:a.check_in_location_mode,outLocationMode:a.check_out_location_mode,inDistance:a.check_in_distance_m,outDistance:a.check_out_distance_m,inGPS:gpsPoint(a.check_in_lat,a.check_in_lng),outGPS:gpsPoint(a.check_out_lat,a.check_out_lng),companyName:a.crew?.company_name||'',jobTitle:[a.crew?.job_title,a.crew?.division].filter(Boolean).join(' · '),id:a.id,source:'registered',name:a.crew?.user?.full_name||'Crew',phone:a.crew?.user?.phone_number||'',email:a.crew?.user?.email||'',employeeCode:a.crew?.employee_code||'',kind:accountRoles[a.crew?.user?.user_roles?.[0]?.role.code||''] || (a.event_assignment?'Crew Event':a.store_assignment?.store?.location_kind==='OFFICE'?'Kantor':'Crew Store'),location:location||'Lokasi belum tersedia',date:a.attendance_date,schedule,clockIn:a.check_in,clockOut:a.check_out,status,
+  return {breakStartedAt:a.break_started_at,breakEndedAt:a.break_ended_at,breakStartPhoto:a.breakStartPhoto,breakEndPhoto:a.breakEndPhoto,breakStartGPS:gpsPoint(a.break_start_lat,a.break_start_lng),breakEndGPS:gpsPoint(a.break_end_lat,a.break_end_lng),inLocationMode:a.check_in_location_mode,outLocationMode:a.check_out_location_mode,inDistance:a.check_in_distance_m,outDistance:a.check_out_distance_m,inGPS:gpsPoint(a.check_in_lat,a.check_in_lng),outGPS:gpsPoint(a.check_out_lat,a.check_out_lng),companyName:a.crew?.company_name||'',jobTitle:[a.crew?.job_title,a.crew?.division].filter(Boolean).join(' · '),id:a.id,source:'registered',name:a.crew?.user?.full_name||'Crew',phone:a.crew?.user?.phone_number||'',email:a.crew?.user?.email||'',employeeCode:a.crew?.employee_code||'',kind:accountRoles[a.crew?.user?.user_roles?.[0]?.role.code||''] || (a.event_assignment?'Crew Event':a.store_assignment?.store?.location_kind==='OFFICE'?'Kantor':'Crew Store'),location:location||'Lokasi belum tersedia',date:a.attendance_date,schedule,clockIn:a.check_in,clockOut:a.check_out,status,
     lateMinutes:schedule&&a.check_in?a.late_minutes:null,overtimeMinutes:schedule&&a.check_out?a.overtime_minutes:null,overtimeStatus:a.overtime_status||'NONE',review:a.review_status||'NOT_REQUIRED',reviewNote:a.review_note||'',inNote:a.check_in_note||'',outNote:a.check_out_note||'',inPhoto:a.check_in?a.inPhoto||'':'',outPhoto:a.check_out?a.outPhoto||'':'',timeSource:'SERVER'};
 }
 export function fromGuest(g:ServerGuest):AttendanceRow {

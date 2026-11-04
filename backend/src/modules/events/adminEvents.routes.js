@@ -59,6 +59,17 @@ async function save(req,res,next){try{
   res.status(req.params.id?200:201).json({id:data});
 }catch(e){next(e);}}
 router.post('/',save);router.patch('/:id',save);
+router.patch('/:id/schedules/:scheduleId/break',async(req,res,next)=>{
+  try {
+    const eventId=uuid(req.params.id),scheduleId=uuid(req.params.scheduleId);
+    const {data,error}=await db.from('event_schedules').select('id,start_time,end_time,event_assignment:event_assignments!inner(event_id)').eq('id',scheduleId).eq('event_assignment.event_id',eventId).maybeSingle();
+    check(error);if(!data)throw fail('Jadwal event tidak ditemukan.',404);
+    const fields=require('../../utils/workBreak').breakFields(data.start_time,data.end_time,req.body.breakStartTime,req.body.breakEndTime);
+    const {error:saveError}=await db.from('event_schedules').update(fields).eq('id',scheduleId);check(saveError);
+    await logAudit({actorUserId:req.user.id,action:'EVENT_BREAK_UPDATED',entityType:'events',entityId:eventId,newData:{schedule_id:scheduleId,...fields}});
+    res.json({message:'Jadwal istirahat tersimpan.'});
+  }catch(error){next(error);}
+});
 router.post('/:id/crew',async(req,res,next)=>{try{
   uuid(req.params.id);uuid(req.body.crewId);if(!['ACTIVE','ENDED'].includes(req.body.status)||typeof req.body.position!=='string'||req.body.position.length>50)throw fail('Penugasan tidak valid.');
   const {data,error}=await db.rpc('assign_admin_event',{p_actor:req.user.id,p_event:req.params.id,p_crew:req.body.crewId,p_position:req.body.position,p_status:req.body.status});check(error);res.json({id:data});

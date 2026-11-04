@@ -4,7 +4,7 @@ function eventManagerBoundary(req, res, next) {
   if (req.role !== 'EVENT_MANAGER') return next();
   const path = req.path.toLowerCase().replace(/\/+$/, '') || '/';
   const within = base => path === base || path.startsWith(base + '/');
-  const personal = ['/users/me', '/notifications', '/attendance', '/crew-store/workspace'];
+  const personal = ['/users/me', '/notifications', '/attendance', '/permissions', '/crew-store/workspace'];
   const event = ['/admin-events', '/event-workflows', '/locations'];
   const read = req.method === 'GET' || req.method === 'HEAD';
   if (personal.some(within) || event.some(within) || within('/admin-attendance')) return next();

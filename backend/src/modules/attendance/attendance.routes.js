@@ -14,6 +14,7 @@ router.post('/check-in', personalAttendance, upload.single('photo'), controller.
 
 // POST /attendance/{id}/check-out
 router.post('/:id/check-out', personalAttendance, upload.single('photo'), controller.checkOut);
+router.post('/:id/break/:action', personalAttendance, upload.single('photo'), require('./attendanceBreaks.controller').recordBreak);
 
 // GET /attendance/today — WAJIB sebelum /:id
 router.get('/today', controller.today);

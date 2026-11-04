@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
 
 export interface CalendarDay {
+  breakStart?:string|null; breakEnd?:string|null; breakStartedAt?:string|null; breakEndedAt?:string|null;
   scheduleId?: string | null;
   holidayName?: string;
   holidayKind?: string;
@@ -174,7 +175,7 @@ export default function AttendanceCalendar({ crewId, month: controlledMonth, onM
       )}
       {/* Legenda */}
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-        {Object.entries(STATUS_LABEL).map(([key, label]) => (
+        {Object.entries(STATUS_LABEL).filter(([key])=>key!=='HOLIDAY').map(([key, label]) => (
           <span key={key} className={`text-xs font-medium px-2 py-1 rounded-lg ring-1 ${STATUS_STYLE[key]}`}>{translateUI(label)}</span>
         ))}
       </div>
@@ -191,9 +192,10 @@ export default function AttendanceCalendar({ crewId, month: controlledMonth, onM
             </span>
           </div>
           {selected.checkIn && <p className="text-xs text-blue-700">Tinjauan admin: {({PENDING:"Menunggu tinjauan",APPROVED:"Disetujui",REJECTED:"Ditolak",NOT_REQUIRED:"Belum ditinjau manual"} as Record<string,string>)[selected.reviewStatus||"PENDING"]}</p>}
-          {selected.holidayName && <p className="text-xs text-amber-700">{selected.holidayName}{!selected.dayStatus && selected.type !== 'HOLIDAY' ? '. Tetap masuk sesuai jadwal admin.' : ''}</p>}
-          {selected.dayStatus && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{selected.dayStatus==='DAY_OFF'?'Libur crew':'Izin disetujui'} · {selected.dayNote || 'Tidak wajib hadir pada tanggal ini.'}</p>}
+          {selected.holidayName && <p className="text-xs text-amber-700">{selected.holidayName}{selected.startTime && !selected.dayStatus ? '. Tetap masuk sesuai jadwal admin.' : selected.status==='NO_SCHEDULE' ? '. Admin belum membuat jadwal pada tanggal ini.' : ''}</p>}
+          {selected.dayStatus && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{selected.dayStatus==='DAY_OFF'?'Libur crew':selected.dayStatus==='SICK'?'Sakit disetujui':'Izin disetujui'} · {selected.dayNote || 'Tidak wajib hadir pada tanggal ini.'}</p>}
           <p className="text-xs text-slate-500">{selected.type === 'NONE' ? translateUI("Keterangan") : selected.type === 'HOLIDAY' ? translateUI("Keterangan") : selected.type === 'STORE' ? translateUI("Lokasi kerja") : 'Event'}: {selected.source || 'Tidak ada jadwal kerja pada tanggal ini.'}</p>
+          {selected.breakStart&&<div className="rounded-xl bg-blue-50 p-3 text-xs text-blue-900 space-y-1"><p>Istirahat: {selected.breakStart.slice(0,5)} – {selected.breakEnd?.slice(0,5)} WIB</p><p>Tercatat: {selected.breakStartedAt?new Date(selected.breakStartedAt).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'Belum mulai'} / {selected.breakEndedAt?new Date(selected.breakEndedAt).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'Belum selesai'}</p></div>}
           {selected.startTime && !selected.dayStatus ? <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="bg-slate-50 rounded-lg p-2.5">
               <p className="text-slate-400">{selected.shiftNumber?`Shift ${selected.shiftNumber}`:translateUI("Jadwal")}</p>

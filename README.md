@@ -4,6 +4,8 @@ Repository ini berisi monorepo untuk aplikasi operasional JAWARA yang mencakup f
 
 ## Ringkasan proyek
 
+Pembaruan terbaru: [istirahat shift dengan foto, pengajuan izin/sakit, dan kalender kerja](docs/ISTIRAHAT_IZIN_JADWAL.md). Fitur mengikuti source pada checkout; penerapan production perlu migrasi dan deployment yang sesuai.
+
 - `frontend/` — aplikasi React + Vite + TypeScript + Tailwind untuk UI admin, crew, guest, dan portal absensi.
 - `backend/` — API Express.js untuk autentikasi, absensi, event, payroll, crew, store, serta integrasi Supabase/S3.
 - `database/` — migration SQL untuk struktur database dan data awal.
@@ -136,6 +138,8 @@ Proyek ini memanfaatkan SQL migrations yang berada di beberapa folder:
 
 Ikuti [panduan database](supabase/README.md); kedua folder tidak boleh diterapkan berulang tanpa memeriksa skema dan histori migrasi. Untuk pembaruan ini, pasang `20261005160149_payroll_schedule_time_off.sql`, lalu `20261006100934_payroll_annual_calendar.sql` setelah prasyarat payroll tersedia. Rekonsiliasi lebih dahulu jika objek payroll sudah ada tetapi histori migrasinya berbeda.
 
+Pembaruan istirahat/izin membutuhkan `20261023150118_shift_breaks_permissions.sql` sebelum backend/frontend baru digunakan. Migrasi sebelumnya untuk mode lokasi crew (`20261008043901`) juga harus tersedia.
+
 ## Variabel lingkungan
 
 Daftar environment backend/frontend terdapat di [SETUP](docs/SETUP.md). Frontend memakai `VITE_API_BASE_URL` tanpa akhiran `/api`. Supabase service-role key, S3, Resend dan kunci vault hanya berada di backend; jangan memasukkannya ke Git atau variabel `VITE_*`.
@@ -145,6 +149,7 @@ Daftar environment backend/frontend terdapat di [SETUP](docs/SETUP.md). Frontend
 Dokumen utama yang paling relevan saat ini:
 
 - [Payroll dan jadwal](docs/PAYROLL_JADWAL.md) — aturan bisnis dan pembaruan terbaru.
+- [Istirahat, izin/sakit, dan kalender kerja](docs/ISTIRAHAT_IZIN_JADWAL.md) — pengaturan per shift, foto istirahat, persetujuan izin, dan libur nasional.
 - [PRD dan relasi data](docs/PRD_ERD_CURRENT.md) — cakupan aplikasi, role dan model data.
 - [Akun dan hak akses](docs/ADMIN_CREW_ACCOUNTS.md) — bootstrap admin, akses dan pemulihan password.
 - [GPS dan watermark foto absensi](docs/ABSENSI_GPS_WATERMARK.md) — perilaku desktop/mobile, nama jalan, dan penanganan layanan alamat.

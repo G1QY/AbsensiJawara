@@ -9,13 +9,13 @@ export default function DayStatusForm({crewId, date='', onSaved, onCancel}:{crew
     e.preventDefault();setBusy(true);setError('');
     try {
       const result=await api.post<{updated:number}>('/admin-store-schedules/day-status',{crewId,...form});
-      onSaved(`${result.updated} tanggal diperbarui. ${form.type==='WORK'?'Jadwal shift sebelumnya aktif kembali. Tanggal tanpa shift perlu dibuatkan jadwal.':'Libur/izin tersimpan dan tidak dikenai potongan absen otomatis.'}`);
+      onSaved(`${result.updated} tanggal diperbarui. ${form.type==='WORK'?'Jadwal shift sebelumnya aktif kembali. Tanggal tanpa shift perlu dibuatkan jadwal.':'Status hari tersimpan dan tidak dikenai potongan absen otomatis.'}`);
     } catch(e) {setError(message(e));} finally {setBusy(false);}
   }}>
     <fieldset disabled={busy} className="space-y-4">
       <legend className="font-semibold text-slate-900 mb-3">Atur status hari crew</legend>
-      <div className="grid grid-cols-3 gap-2">
-        {[['DAY_OFF','Libur'],['PERMIT','Izin'],['WORK','Aktifkan kerja']].map(([value,label])=><label key={value} className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border p-2 text-sm cursor-pointer ${form.type===value?'border-blue-600 bg-blue-50 text-blue-800':'border-slate-200'}`}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[['DAY_OFF','Libur'],['PERMIT','Izin'],['SICK','Sakit'],['WORK','Aktifkan kerja']].map(([value,label])=><label key={value} className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border p-2 text-sm cursor-pointer ${form.type===value?'border-blue-600 bg-blue-50 text-blue-800':'border-slate-200'}`}>
           <input type="radio" name="day-status" value={value} checked={form.type===value} onChange={()=>setForm({...form,type:value})}/>{label}
         </label>)}
       </div>

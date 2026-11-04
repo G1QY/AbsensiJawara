@@ -43,6 +43,8 @@ Route direktori lama, assignment/schedule dan equipment/checklist/inspection jug
 
 Modul inventory Bujangan Food tidak di-mount.
 
+Pembaruan 24 Oktober 2026: `POST /attendance/:id/break/start` dan `/end` menerima foto kamera serta GPS milik crew yang login. `GET /permissions` membaca pengajuan sendiri (Super Admin dapat membaca semua), `POST /permissions` mengirim izin/sakit, dan `PATCH /permissions/:id` menyimpan keputusan Super Admin. Pengaturan istirahat tersedia melalui route jadwal store dan `PATCH /admin-events/:id/schedules/:scheduleId/break`. Terapkan migrasi `20261023150118_shift_breaks_permissions.sql` dahulu; lihat [panduan fitur](../docs/ISTIRAHAT_IZIN_JADWAL.md).
+
 ## Perintah dan tes
 
 - `npm run bootstrap-admin`: admin pertama; lihat [panduan akun](../docs/ADMIN_CREW_ACCOUNTS.md).

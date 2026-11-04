@@ -11,11 +11,13 @@ const call=async(fn,req)=>{let result;await fn(req,{json(data){result=data;retur
 const schedule=(date)=>({id:id(3),schedule_date:date,start_time:'09:00',end_time:'18:00',shift_number:1,store_assignment:{id:id(4),crew_id:id(1),status:'ACTIVE',start_date:'2020-01-01',store:{name:'Kantor Uji',status:'ACTIVE'}}});
 test('national holiday keeps its assigned shift; day off and permission overlay schedules and unscheduled dates',async()=>{
   schedules=[schedule('2099-08-17'),{...schedule('2099-08-18'),id:id(5)}];
-  holidays=[{holiday_date:'2099-08-17',name:'Kemerdekaan',kind:'NATIONAL_HOLIDAY'}];
+  holidays=[{holiday_date:'2099-08-17',name:'Kemerdekaan',kind:'NATIONAL_HOLIDAY'},{holiday_date:'2099-08-24',name:'Hari libur uji',kind:'NATIONAL_HOLIDAY'}];
   permissions=[{crew_id:id(1),type:'DAY_OFF',start_date:'2099-08-18',end_date:'2099-08-18',status:'APPROVED',reason:'Libur mingguan',admin_managed:true},{crew_id:id(1),type:'PERMIT',start_date:'2099-08-31',end_date:'2099-08-31',status:'APPROVED',reason:'Izin keluarga',admin_managed:true}];
   const result=await call(controller.calendar,{query:{month:'2099-08',crewId:id(1)},role:'SUPER_ADMIN',user:{id:id(2)}});
   assert.equal(result.days.find(d=>d.date==='2099-08-17').status,'PENDING');
   assert.equal(result.days.find(d=>d.date==='2099-08-17').holidayName,'Kemerdekaan');
+  assert.equal(result.days.find(d=>d.date==='2099-08-24').status,'NO_SCHEDULE');
+  assert.equal(result.days.find(d=>d.date==='2099-08-24').type,'NONE');
   assert.equal(result.days.find(d=>d.date==='2099-08-18').status,'DAY_OFF');
   assert.equal(result.days.find(d=>d.date==='2099-08-18').scheduleId,id(5));
   assert.equal(result.days.find(d=>d.date==='2099-08-31').status,'PERMISSION');

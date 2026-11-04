@@ -1,3 +1,4 @@
+import BreakFields from '../../components/attendance/BreakFields';
 import ShiftFields from '../../components/attendance/ShiftFields';
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import {submitScheduleRange} from '../../lib/scheduleRange';
@@ -12,7 +13,7 @@ interface Result {warnings?:string[];created:number;crewCount:number;skippedOver
 const DAYS=[{value:0,label:'Min'},{value:1,label:'Sen'},{value:2,label:'Sel'},{value:3,label:'Rab'},{value:4,label:'Kam'},{value:5,label:'Jum'},{value:6,label:'Sab'}];
 
 export default function BulkStoreScheduleManager({stores,crew}:{stores:Store[];crew:Crew[]}){
- const [form,setForm]=useState({storeId:'',startDate:'',endDate:'',shiftNumber:1,startTime:'09:00',endTime:'18:00',lateToleranceMinutes:'0',overtimePreapproved:false,workDays:[1,2,3,4,5,6]});
+ const [form,setForm]=useState({storeId:'',startDate:'',endDate:'',shiftNumber:1,startTime:'09:00',endTime:'18:00',breakStartTime:'',breakEndTime:'',lateToleranceMinutes:'0',overtimePreapproved:false,workDays:[1,2,3,4,5,6]});
  const [scope,setScope]=useState<'ALL'|'SELECTED'>('ALL'),[selected,setSelected]=useState<string[]>([]);
  const eligible=crew.filter(c=>c.status==='ACTIVE'&&c.crew_type==='CREW_STORE'&&c.store_assignments.some(a=>a.status==='ACTIVE'&&a.store?.id===form.storeId));
  const selectedIds=selected.filter(id=>eligible.some(c=>c.id===id));
@@ -34,6 +35,7 @@ export default function BulkStoreScheduleManager({stores,crew}:{stores:Store[];c
    <label className="text-xs text-slate-600">{translateUI("Tanggal selesai")}<input required type="date" min={form.startDate} className={control} value={form.endDate} onChange={event=>setForm({...form,endDate:event.target.value})}/></label>
    <fieldset className="sm:col-span-2"><legend className="mb-2 text-xs text-slate-600">{translateUI("Hari kerja")}</legend><div className="flex flex-wrap gap-2">{DAYS.map(day=><label key={day.value} className={`cursor-pointer rounded-xl border px-3 py-2 text-sm ${form.workDays.includes(day.value)?'border-blue-500 bg-blue-50 text-blue-700':'border-slate-200 text-slate-500'}`}><input type="checkbox" className="sr-only" checked={form.workDays.includes(day.value)} onChange={()=>toggle(day.value)}/>{day.label}</label>)}</div><p className="mt-2 text-xs text-slate-500">{translateUI("Minggu dapat dipilih sebagai hari kerja. Tanggal merah tetap masuk sesuai hari kerja yang dipilih.")}</p></fieldset>
    <ShiftFields shiftNumber={form.shiftNumber} startTime={form.startTime} endTime={form.endTime} disabled={busy} onChange={patch=>setForm({...form,...patch})}/>
+   <BreakFields start={form.breakStartTime} end={form.breakEndTime} disabled={busy} onChange={(start,end)=>setForm(previous=>({...previous,breakStartTime:start,breakEndTime:end}))}/>
    <label className="sm:col-span-2 text-xs text-slate-600">{translateUI("Toleransi telat (menit)")}<input required type="number" min="0" max="240" className={control} value={form.lateToleranceMinutes} onChange={event=>setForm({...form,lateToleranceMinutes:event.target.value})}/></label>
    <label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><input type="checkbox" className="mt-1" checked={form.overtimePreapproved} onChange={event=>setForm({...form,overtimePreapproved:event.target.checked})}/><span><strong>{translateUI("Setujui lembur dari jadwal")}</strong><small className="mt-1 block">{translateUI("Jika tidak dicentang, lembur tetap menunggu keputusan admin.")}</small></span></label>
    <button disabled={busy||form.startTime===form.endTime||!form.workDays.length||(scope==='SELECTED'&&!selectedIds.length)} className={primary+' sm:col-span-2'}>{busy?'Membuat jadwal...':translateUI("Buat Jadwal Shift")}</button>

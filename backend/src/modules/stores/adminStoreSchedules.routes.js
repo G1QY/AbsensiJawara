@@ -1,4 +1,5 @@
 const {shiftNumber,adjacentDate,overlaps}=require('../../utils/workShift');
+const {breakFields}=require('../../utils/workBreak');
 const router = require('express').Router();
 const db = require('../../config/supabaseClient');
 const requireRole = require('../../middlewares/requireRole');
@@ -55,12 +56,13 @@ function datesBetween(startDate, endDate) {
   return result;
 }
 
-async function createRange({ crewIds, storeId, startDate, endDate, startTime, endTime, shiftNumber: shift, lateToleranceMinutes, overtimePreapproved, workDays }, actorUserId) {
+async function createRange({ crewIds, storeId, startDate, endDate, startTime, endTime, shiftNumber: shift, lateToleranceMinutes, overtimePreapproved, workDays, breakStartTime, breakEndTime }, actorUserId) {
   const dates = datesBetween(startDate, endDate);
   const start = dates[0], end = dates[dates.length - 1];
   const startClock = time(startTime), endClock = time(endTime);
   if (startClock === endClock) throw fail('Jam masuk dan pulang tidak boleh sama.');
   const selectedShift=shiftNumber(shift);
+  const rest=breakFields(startClock,endClock,breakStartTime,breakEndTime);
   const tolerance = Number(lateToleranceMinutes ?? 0);
   if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 240) throw fail('Toleransi keterlambatan harus 0 sampai 240 menit.');
   if (typeof overtimePreapproved !== 'boolean') throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
@@ -122,12 +124,12 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
       const existingRow = existingMap.get(`${assignment.id}:${scheduleDate}`);
       if (existingRow) {
         // Sudah ada jadwal — masukkan ke antrian update (attendance dicek saat eksekusi)
-        toUpdate.push({ existingId: existingRow.id, payload: { shift_number: selectedShift, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved } });
+        toUpdate.push({ existingId: existingRow.id, payload: { ...rest, shift_number: selectedShift, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved } });
       } else {
         // Periksa tumpang tindih hanya untuk jadwal baru
         if ((existingResult.data||[]).some(row=>row.store_assignment?.crew_id===assignment.crew_id&&row.store_assignment?.status==='ACTIVE'&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
         if (eventSchedules.some(row=>eventCrewByAssignment.get(row.event_assignment_id)===assignment.crew_id&&row.start_time&&overlaps(candidate,row))) { skippedOverlap++; continue; }
-        toInsert.push({ shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
+        toInsert.push({ ...rest, shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startClock, end_time: endClock, late_tolerance_minutes: tolerance, overtime_preapproved: overtimePreapproved });
       }
     }
   }
@@ -136,7 +138,7 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
   if (toInsert.length) {
     for (let offset = 0; offset < toInsert.length; offset += 500) {
       const batch = toInsert.slice(offset, offset + 500);
-      const result = await db.from('store_schedules').insert(batch).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved');
+      const result = await db.from('store_schedules').insert(batch).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,break_start_time,break_end_time,late_tolerance_minutes,overtime_preapproved');
       check(result.error);
       saved.push(...(result.data || []));
     }
@@ -155,7 +157,7 @@ async function createRange({ crewIds, storeId, startDate, endDate, startTime, en
     }
     for (const item of toUpdate) {
       if (attendedSet.has(item.existingId)) { lockedByAttendance += 1; continue; }
-      const { data: updatedRow, error: updateError } = await db.from('store_schedules').update(item.payload).eq('id', item.existingId).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').single();
+      const { data: updatedRow, error: updateError } = await db.from('store_schedules').update(item.payload).eq('id', item.existingId).select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,break_start_time,break_end_time,late_tolerance_minutes,overtime_preapproved').single();
       check(updateError);
       saved.push(updatedRow);
       updatedCount += 1;
@@ -171,7 +173,7 @@ router.post('/day-status', async (req,res,next)=>{
   try {
     const crewId=uuid(req.body.crewId), start=date(req.body.startDate), end=date(req.body.endDate);
     if(start>end || (Date.parse(end)-Date.parse(start))/86400000>365) throw fail('Pilih rentang maksimal 366 hari.');
-    if(!['DAY_OFF','PERMIT','WORK'].includes(req.body.type)) throw fail('Status hari tidak valid.');
+    if(!['DAY_OFF','PERMIT','SICK','WORK'].includes(req.body.type)) throw fail('Status hari tidak valid.');
     if(typeof req.body.reason!=='string' || req.body.reason.trim().length<3 || req.body.reason.length>1000) throw fail('Isi keterangan 3 sampai 1000 karakter.');
     const {data,error}=await db.rpc('set_crew_day_status',{p_actor:req.user.id,p_crew:crewId,p_start:start,p_end:end,p_type:req.body.type,p_reason:req.body.reason.trim()});
     if(error) throw fail(['40001','23P01'].includes(error.code)?error.message:error.code==='P0001'?error.message:'Status hari tidak dapat disimpan. Pastikan migrasi libur/izin sudah terpasang.', ['40001','23P01'].includes(error.code)?409:422);
@@ -238,7 +240,7 @@ router.get('/crew/:crewId', async (req, res, next) => {
     check(assignmentError, 'Penugasan Store crew tidak dapat dibaca.');
     const assignment = (assignments || []).find(a => a.start_date <= end && (!a.end_date || a.end_date >= start)) || null;
     if (!assignment) return res.json({ assignment: null, schedules: [] });
-    const { data: schedules, error } = await db.from('store_schedules').select('id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).gte('schedule_date', start).lte('schedule_date', end).order('schedule_date');
+    const { data: schedules, error } = await db.from('store_schedules').select('id,schedule_date,start_time,end_time,shift_number,break_start_time,break_end_time,late_tolerance_minutes,overtime_preapproved').eq('store_assignment_id', assignment.id).gte('schedule_date', start).lte('schedule_date', end).order('schedule_date');
     check(error, 'Jadwal Store tidak dapat dibaca.');
     const {data: permissions,error: permissionError}=await db.from('permissions').select('start_date,end_date,type,reason').eq('crew_id',req.params.crewId).eq('status','APPROVED').lte('start_date',end).gte('end_date',start);
     check(permissionError,'Libur dan izin crew tidak dapat dibaca.');
@@ -257,6 +259,7 @@ router.post('/', async (req, res, next) => {
     const endTime = time(req.body.endTime);
     if (startTime === endTime) throw fail('Jam masuk dan pulang tidak boleh sama.');
     const selectedShift = shiftNumber(req.body.shiftNumber);
+    const rest=breakFields(startTime,endTime,req.body.breakStartTime,req.body.breakEndTime);
     const tolerance = Number(req.body.lateToleranceMinutes ?? 0);
     if (!Number.isInteger(tolerance) || tolerance < 0 || tolerance > 240) throw fail('Toleransi keterlambatan harus 0 sampai 240 menit.');
     if (typeof req.body.overtimePreapproved !== 'boolean') throw fail('Pilihan persetujuan lembur wajib berupa ya atau tidak.');
@@ -273,7 +276,7 @@ router.post('/', async (req, res, next) => {
     if (scheduleId) {
       uuid(scheduleId);
       const { data: byId, error: byIdError } = await db.from('store_schedules')
-        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
+        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,break_start_time,break_end_time,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
         .eq('id', scheduleId)
         .single();
       check(byIdError, 'Jadwal tidak ditemukan.');
@@ -283,7 +286,7 @@ router.post('/', async (req, res, next) => {
       existing = byId;
     } else {
       const { data: byCrew, error: byCrewError } = await db.from('store_schedules')
-        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
+        .select('id,store_assignment_id,schedule_date,start_time,end_time,shift_number,break_start_time,break_end_time,late_tolerance_minutes,overtime_preapproved,store_assignment:store_assignments!inner(crew_id)')
         .eq('store_assignment.crew_id', req.body.crewId)
         .eq('schedule_date', scheduleDate)
         .limit(2);
@@ -293,7 +296,7 @@ router.post('/', async (req, res, next) => {
         existing = byCrew[0];
       } else {
         const assignment = await assignmentFor(req.body.crewId, scheduleDate);
-        const payload = { shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
+        const payload = { ...rest, shift_number: selectedShift, store_assignment_id: assignment.id, schedule_date: scheduleDate, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
         const { data, error } = await db.from('store_schedules').insert(payload).select().single();
         check(error);
         await logAudit({ actorUserId: req.user.id, action: 'STORE_SCHEDULE_CREATED', entityType: 'store_schedules', entityId: data.id, oldData: null, newData: data });
@@ -305,7 +308,7 @@ router.post('/', async (req, res, next) => {
     const { data: attendance, error: attendanceError } = await db.from('attendance_logs').select('id').eq('store_schedule_id', existing.id).limit(1);
     check(attendanceError, 'Pemakaian jadwal tidak dapat diperiksa.');
     if (attendance?.length) throw fail('Jadwal sudah dipakai untuk absensi dan tidak dapat diubah.', 409);
-    const updatePayload = { shift_number: selectedShift, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
+    const updatePayload = { ...rest, shift_number: selectedShift, start_time: startTime, end_time: endTime, late_tolerance_minutes: tolerance, overtime_preapproved: req.body.overtimePreapproved };
     const { data: saved, error: updateError } = await db.from('store_schedules').update(updatePayload).eq('id', existing.id).select().single();
     check(updateError);
     await logAudit({ actorUserId: req.user.id, action: 'STORE_SCHEDULE_UPDATED', entityType: 'store_schedules', entityId: saved.id, oldData: existing, newData: saved });

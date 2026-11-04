@@ -2,6 +2,8 @@
 
 Panduan aktif, 5 Oktober 2026. Menggambarkan source baseline `805c40b`, menggantikan palet Indigo dan ketentuan bentuk dari mockup awal.
 
+Pembaruan 24 Oktober 2026: Kartu istirahat, foto mulai/selesai, dan formulir pengajuan izin/sakit memakai tombol lebar serta susunan satu kolom pada layar kecil. Detail alur tersedia di [Istirahat dan izin/sakit](ISTIRAHAT_IZIN_JADWAL.md).
+
 ## Sumber tampilan
 
 - [index.css](../frontend/src/index.css): Tailwind CSS 4, token, tema, class bersama dan responsivitas.

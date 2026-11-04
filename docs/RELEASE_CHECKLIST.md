@@ -2,6 +2,16 @@
 
 Panduan aktif, 5 Oktober 2026. Ini kriteria pemeriksaan, bukan klaim seluruh item sudah lulus pada setiap environment.
 
+## Tambahan rilis istirahat dan izin/sakit (24 Oktober 2026)
+
+- Periksa prasyarat skema, lalu terapkan `20261023150118_shift_breaks_permissions.sql` sebelum backend/frontend yang memakainya. Jangan reset data production.
+- Buat jadwal uji dengan istirahat di Shift 1/2/3; sertakan shift melewati tengah malam. Pastikan rentang di luar shift ditolak.
+- Uji Clock In → foto mulai istirahat → foto selesai istirahat → Clock Out. Saat istirahat aktif, Clock Out ditolak; foto/waktu/GPS dapat ditinjau lewat detail admin.
+- Uji izin/sakit crew → persetujuan/penolakan Super Admin serta penetapan sakit manual. Akun crew tidak dapat menyetujui pengajuan sendiri atau membaca pengajuan crew lain.
+- Uji tanggal libur nasional dengan jadwal aktif: tetap terjadwal dan bisa absen. Periksa tanggal tanpa jadwal secara terpisah; buat jadwal tanggal tersebut sesuai penugasan jika diperlukan.
+- Periksa login, formulir jadwal, kamera, dan tombol istirahat pada desktop serta perangkat mobile dengan izin kamera/GPS yang sebenarnya. Tes browser lokal memakai perangkat simulasi.
+- Pastikan backend, frontend, dan skema versi terbaru sudah tersedia sebelum menyatakan pembaruan live. Panduan penggunaan: [Istirahat dan izin/sakit](ISTIRAHAT_IZIN_JADWAL.md).
+
 ## Persiapan
 
 - Catat commit frontend/backend dan scope perubahan.

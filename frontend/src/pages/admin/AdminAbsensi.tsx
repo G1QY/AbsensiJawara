@@ -1,3 +1,5 @@
+import PermissionRequests from '../../components/attendance/PermissionRequests';
+import {useAuth} from '../../lib/AuthContext';
 import {t as translateUI} from '../../lib/i18n';
 import { removeGuestRecord } from '../guest/GuestCrewPortal';
 import { gpsLink } from './attendanceData';
@@ -15,6 +17,7 @@ function ApprovalBadge({value}:{value:string}) {
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${tone}`}>{translateUI(label)}</span>;
 }
 export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
+  const {auth}=useAuth();
   const [deleting,setDeleting]=useState<AttendanceRow|null>(null);
   const [deleteReason,setDeleteReason]=useState('');
   const [rows,setRows]=useState<AttendanceRow[]>([]);
@@ -95,12 +98,17 @@ export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
     })}</div>;
   }
   function photos(a:AttendanceRow) {
-    return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{(['in','out'] as const).map(side=>{
-      const photo=side==='in'?a.inPhoto:a.outPhoto,time=side==='in'?a.clockIn:a.clockOut,comment=side==='in'?a.inNote:a.outNote;
+    const hasBreak=a.source==='registered'&&(a.schedule?.break_start_time||a.breakStartedAt||a.breakEndedAt);
+    return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{(['in','out',...(hasBreak?['breakStart','breakEnd']:[])] as string[]).map(side=>{
+      const photo=side==='in'?a.inPhoto:side==='out'?a.outPhoto:side==='breakStart'?a.breakStartPhoto:a.breakEndPhoto,time=side==='in'?a.clockIn:side==='out'?a.clockOut:side==='breakStart'?a.breakStartedAt||null:a.breakEndedAt||null,comment=side==='in'?a.inNote:side==='out'?a.outNote:'';
+      const label=side==='in'?'Clock In':side==='out'?'Clock Out':side==='breakStart'?'Mulai istirahat':'Selesai istirahat';
+      const point=side==='breakStart'?a.breakStartGPS:side==='breakEnd'?a.breakEndGPS:null;
       return <section key={side} className="p-4 rounded-xl bg-slate-50 space-y-3">
-        <h3 className="font-semibold text-sm text-slate-900">{side==='in'?'Clock In':'Clock Out'}</h3>
-        {photo?<a href={photo} target="_blank" rel="noopener noreferrer" aria-label={side==='in'?'Buka Foto Clock In':'Buka Foto Clock Out'}><img src={photo} alt={side==='in'?translateUI("Foto Clock In"):translateUI("Foto Clock Out")} className="w-full rounded-xl object-contain max-h-80" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.insertAdjacentText('afterend',translateUI('Foto gagal dimuat. Tutup dan buka ulang detail.'));}}/></a>:<p className="text-sm text-slate-500 border border-dashed border-slate-300 rounded-xl p-5">{time?translateUI("Foto tidak tersedia untuk catatan ini."):translateUI(side==='in'?'Belum ada foto Clock In.':'Belum ada foto Clock Out.')}</p>}
+        <h3 className="font-semibold text-sm text-slate-900">{label}</h3>
+        {(side==='breakStart'||side==='breakEnd')&&a.schedule?.break_start_time&&a.schedule.break_end_time&&<p className="text-xs text-slate-600">Jadwal istirahat {a.schedule.break_start_time.slice(0,5)} – {a.schedule.break_end_time.slice(0,5)} WIB</p>}
+        {photo?<a href={photo} target="_blank" rel="noopener noreferrer" aria-label={'Buka Foto '+label}><img src={photo} alt={'Foto '+label} className="w-full rounded-xl object-contain max-h-80" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.insertAdjacentText('afterend',translateUI('Foto gagal dimuat. Tutup dan buka ulang detail.'));}}/></a>:<p className="text-sm text-slate-500 border border-dashed border-slate-300 rounded-xl p-5">{time?translateUI("Foto tidak tersedia untuk catatan ini."):'Belum ada foto '+label.toLowerCase()+'.'}</p>}
         <p className="text-sm font-semibold text-slate-900">{translateUI(stamp(time))}</p>
+        {point&&<a className="text-xs text-blue-700 underline" href={gpsLink(point)} target="_blank" rel="noopener noreferrer">Buka titik GPS istirahat</a>}
         {comment&&<div className="text-sm text-slate-700 whitespace-pre-wrap break-words"><p className="font-semibold">{translateUI("Catatan") + " "}{side==='in'?translateUI('Clock In'):translateUI('Clock Out')}</p><p>{comment}</p></div>}
       </section>;
     })}</div>;
@@ -116,6 +124,7 @@ export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
 
   return <div className="p-4 sm:p-6 space-y-5">
     <div className="flex flex-wrap justify-between gap-3 items-center"><div><h2 className="font-bold text-lg text-slate-900">{translateUI(eventOnly?"Absensi Event":"Rekap Absensi")}</h2><p className="text-sm text-slate-600">{translateUI(eventOnly?"Tinjau kehadiran crew dan guest pada penugasan event.":"Kehadiran, catatan crew, dan persetujuan lembur.")}</p></div><div className="flex flex-wrap gap-2"><button className={button} disabled={loading||busy} onClick={()=>void load()}>{translateUI("Muat ulang")}</button><ExportButtons filename="Rekap-Absensi" title={translateUI(eventOnly?"Absensi Event":"Rekap Absensi")} subtitle={translateUI("Sesuai filter aktif, waktu WIB")} headers={recap(filtered)[0] as string[]} rows={recap(filtered).slice(1)} /></div></div>
+    {auth?.role==='SUPER_ADMIN'&&<PermissionRequests admin onChanged={()=>void load()}/>}
     {error&&<p role="alert" className="text-sm bg-red-50 text-red-700 rounded-xl p-4">{translateUI(error)}{" " + translateUI("Data belum lengkap. Muat ulang sebelum mengekspor.")}</p>}
     {notice&&<p role="status" className="text-sm bg-emerald-50 text-emerald-700 rounded-xl p-4">{translateUI(notice)}</p>}
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{metrics.map(([label,n])=><div key={label} className="rounded-xl p-4 bg-blue-50 text-blue-700"><p className="text-2xl font-bold">{loading?'...':n}</p><p className="text-xs mt-1">{translateUI(label)}</p></div>)}</div>

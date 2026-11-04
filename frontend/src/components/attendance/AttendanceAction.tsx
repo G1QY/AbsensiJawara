@@ -1,3 +1,4 @@
+import BreakAttendance from './BreakAttendance';
 import LocationPolicyNotice from "./LocationPolicyNotice";
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import CameraCapture from './CameraCapture';
 type Mode = 'IN' | 'OUT';
 
 interface AttendanceState {
+  break_started_at?:string|null;break_ended_at?:string|null;
   id: string;
   check_in: string | null;
   check_out: string | null;
@@ -24,6 +26,7 @@ interface TodayResponse {
   hasSchedule: boolean;
   context: {
     type: 'STORE' | 'EVENT';
+    breakStart?:string|null;breakEnd?:string|null;breakOpensAt?:string|null;
     storeAssignmentId: string | null;
     storeScheduleId: string | null;
     eventAssignmentId: string | null;
@@ -138,6 +141,8 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
   if (mode === 'OUT' && !today.attendance?.check_in) {
     return <State text={translateUI('Clock In belum tercatat. Lakukan Clock In melalui menu Absensi atau langkah Clock In pada Event Saya.')} error />;
   }
+
+  if(mode==='OUT'&&today.attendance?.break_started_at&&!today.attendance.break_ended_at&&context.breakStart&&context.breakEnd) return <BreakAttendance attendanceId={today.attendance.id} start={context.breakStart} end={context.breakEnd} startedAt={today.attendance.break_started_at} endedAt={today.attendance.break_ended_at} opensAt={context.breakOpensAt} locationName={context.locationName} onSaved={async()=>{await load();onRecorded?.();}}/>;
 
   if (submitting) return <State text={translateUI('Mengambil lokasi dan menyimpan absensi...')} />;
 

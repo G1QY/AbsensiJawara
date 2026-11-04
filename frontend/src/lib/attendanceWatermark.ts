@@ -21,7 +21,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number, limit:
 }
 
 export function drawAttendanceWatermark(ctx: CanvasRenderingContext2D, capturedAt: Date,
-  assignment: string | null | undefined, position?: DevicePosition, address?: AddressResult | null) {
+  assignment: string | null | undefined, position?: DevicePosition, address?: AddressResult | null, activity?: string) {
   const { width, height } = ctx.canvas;
   const padding = Math.max(8, Math.round(width / 45));
   const timestamp = capturedAt.toLocaleString(getLocale(), {
@@ -29,6 +29,7 @@ export function drawAttendanceWatermark(ctx: CanvasRenderingContext2D, capturedA
     hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
   }) + ' WIB';
   const sections: [string, number][] = [[timestamp, 2]];
+  if (activity) sections.push([activity, 1]);
   if (position) {
     sections.push([`Lokasi GPS: ${address?.address || 'Alamat belum tersedia; lihat koordinat GPS'}`, 3]);
     sections.push([`GPS saat foto: ${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} (±${position.accuracy} m)`, 2]);

@@ -18,6 +18,7 @@ const { DEFAULT_GEOFENCE_RADIUS_METERS, ROLES } = require('../../config/constant
 const {adjacentDate,canClockIn}=require('../../utils/workShift');
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN_STORE, ROLES.EVENT_MANAGER];
 const { wibDate, combineDateTime, scheduledEnd, overtimeMinutes: calculateOvertime, lateMinutes: calculateLate } = require('../../utils/attendanceTime');
+const { breakWindow } = require('../../utils/workBreak');
 const { uuid } = require('../crew/crew.validation');
 const { ensureHolidayYears } = require('../../services/nationalHolidaySync');
 function attendanceNote(body) {
@@ -243,7 +244,7 @@ async function checkOut(req, res, next) {
 
     const { data: existing } = await supabase
       .from('attendance_logs')
-      .select('crew_id, check_in, check_out, attendance_date, store_assignment_id, event_assignment_id, store_schedule_id, event_schedule_id, crew:crew(user_id)')
+      .select('crew_id, check_in, check_out, break_started_at, break_ended_at, attendance_date, store_assignment_id, event_assignment_id, store_schedule_id, event_schedule_id, crew:crew(user_id)')
       .eq('id', id)
       .maybeSingle();
 
@@ -251,6 +252,7 @@ async function checkOut(req, res, next) {
     if (existing.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
     if (!existing.check_in) return res.status(422).json({ message: 'Check-out tidak dapat dilakukan sebelum check-in.' });
     if (existing.check_out) return res.status(422).json({ message: 'Sudah melakukan check-out sebelumnya.' });
+    if (existing.break_started_at && !existing.break_ended_at) return res.status(409).json({ message: 'Selesaikan istirahat dengan foto sebelum Clock Out.' });
     if (!req.file) return res.status(422).json({ message: 'Foto live-capture wajib disertakan.' });
 
     let refLocation = null;
@@ -296,10 +298,10 @@ async function checkOut(req, res, next) {
     let scheduleEnd = null;
     let overtimePreapproved = false;
     if (existing.store_schedule_id) {
-      const { data: sch } = await supabase.from('store_schedules').select('schedule_date,start_time,end_time,overtime_preapproved').eq('id', existing.store_schedule_id).single();
+      const { data: sch } = await supabase.from('store_schedules').select('schedule_date,start_time,end_time,break_start_time,break_end_time,overtime_preapproved').eq('id', existing.store_schedule_id).single();
       if (sch) { scheduleEnd = scheduledEnd(sch); overtimePreapproved = !!sch.overtime_preapproved; }
     } else if (existing.event_schedule_id) {
-      const { data: sch } = await supabase.from('event_schedules').select('schedule_date,start_time,end_time,overtime_preapproved').eq('id', existing.event_schedule_id).single();
+      const { data: sch } = await supabase.from('event_schedules').select('schedule_date,start_time,end_time,break_start_time,break_end_time,overtime_preapproved').eq('id', existing.event_schedule_id).single();
       if (sch) { scheduleEnd = scheduledEnd(sch); overtimePreapproved = !!sch.overtime_preapproved; }
     }
 
@@ -355,8 +357,8 @@ async function list(req, res, next) {
   try {
     const { crewId, from, to } = req.query;
     let query = supabase.from('attendance_logs').select(`*, crew:crew(company_name,job_title,employee_code, user:users(full_name)),
-      store_schedule:store_schedules(schedule_date,start_time,end_time,shift_number,overtime_preapproved),
-      event_schedule:event_schedules(schedule_date,start_time,end_time,overtime_preapproved),
+      store_schedule:store_schedules(schedule_date,start_time,end_time,break_start_time,break_end_time,shift_number,overtime_preapproved),
+      event_schedule:event_schedules(schedule_date,start_time,end_time,break_start_time,break_end_time,overtime_preapproved),
       store_assignment:store_assignments(store:stores(name)),
       event_assignment:event_assignments(event:events(event_name))`);
 
@@ -431,28 +433,30 @@ async function calendar(req, res, next) {
     const monthEnd = monthEndDate.toISOString().slice(0, 10);
 
     // Jadwal Store: lewat store_assignments crew ini
-    const { data: storeSchedules } = await supabase
+    const { data: storeSchedules, error: storeError } = await supabase
       .from('store_schedules')
-      .select('id, schedule_date, start_time, end_time, shift_number, overtime_preapproved, store_assignment:store_assignments!inner(crew_id,status,start_date,end_date,store:stores(name))')
+      .select('id, schedule_date, start_time, end_time, break_start_time, break_end_time, shift_number, overtime_preapproved, store_assignment:store_assignments!inner(crew_id,status,start_date,end_date,store:stores(name))')
       .eq('store_assignment.crew_id', crewId)
       .gte('schedule_date', monthStart)
       .lt('schedule_date', monthEnd);
 
     // Jadwal Event: lewat event_assignments crew ini
-    const { data: eventSchedules } = await supabase
+    const { data: eventSchedules, error: eventError } = await supabase
       .from('event_schedules')
-      .select('id, schedule_date, start_time, end_time, overtime_preapproved,status, event_assignment:event_assignments!inner(crew_id,status,event:events(event_name,status))')
+      .select('id, schedule_date, start_time, end_time, break_start_time, break_end_time, overtime_preapproved,status, event_assignment:event_assignments!inner(crew_id,status,event:events(event_name,status))')
       .eq('event_assignment.crew_id', crewId)
       .gte('schedule_date', monthStart)
       .lt('schedule_date', monthEnd);
 
     // Attendance sebulan ini
-    const { data: attendanceRows } = await supabase
+    const { data: attendanceRows, error: attendanceError } = await supabase
       .from('attendance_logs')
       .select('*')
       .eq('crew_id', crewId)
       .gte('attendance_date', monthStart)
       .lt('attendance_date', monthEnd);
+
+    if (storeError || eventError || attendanceError) throw Object.assign(new Error('Jadwal atau absensi tidak dapat dimuat. Muat ulang kalender.'), { status: 503 });
 
     // Permission (SICK/PERMISSION) yang approved, overlap bulan ini
     const { data: approvedPermissions, error:permissionError } = await supabase
@@ -474,7 +478,7 @@ async function calendar(req, res, next) {
 
     const today = wibDate(new Date());
 
-    const buildDay = (scheduleDate, startTime, endTime, sourceType, sourceName, overtimePreapproved, scheduleId, shiftNumber=null) => {
+    const buildDay = (scheduleDate, startTime, endTime, sourceType, sourceName, overtimePreapproved, scheduleId, shiftNumber=null, breakStart=null, breakEnd=null) => {
       const attendance = attendanceRows?.find(a => sourceType==='STORE'?a.store_schedule_id===scheduleId:a.event_schedule_id===scheduleId);
       const permission = approvedPermissions?.find(p => scheduleDate >= p.start_date && scheduleDate <= p.end_date);
 
@@ -487,6 +491,7 @@ async function calendar(req, res, next) {
       return {
         scheduleId: sourceType === 'STORE' ? scheduleId : null,
         shiftNumber,
+        breakStart, breakEnd,
         date: scheduleDate,
         type: sourceType,
         source: sourceName,
@@ -498,6 +503,8 @@ async function calendar(req, res, next) {
         adminManaged: !!permission?.admin_managed,
         checkIn: attendance?.check_in ?? null,
         checkOut: attendance?.check_out ?? null,
+        breakStartedAt: attendance?.break_started_at ?? null,
+        breakEndedAt: attendance?.break_ended_at ?? null,
         lateMinutes: attendance?.late_minutes ?? 0,
         overtimeMinutes: attendance?.overtime_minutes ?? 0,
         reviewStatus: attendance?.review_status ?? 'PENDING',
@@ -507,8 +514,8 @@ async function calendar(req, res, next) {
     };
 
     const scheduledDays = [
-      ...(storeSchedules || []).filter(s=>attendanceRows?.some(a=>a.store_schedule_id===s.id)||(s.schedule_date<today)||(s.store_assignment?.status==='ACTIVE'&&s.store_assignment.start_date<=s.schedule_date&&(!s.store_assignment.end_date||s.store_assignment.end_date>=s.schedule_date))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'STORE', s.store_assignment?.store?.name, s.overtime_preapproved,s.id,s.shift_number)),
-      ...(eventSchedules || []).filter(s=>attendanceRows?.some(a=>a.event_schedule_id===s.id)||(s.schedule_date<today)||(s.status==='ACTIVE'&&s.event_assignment?.status==='ACTIVE'&&['SCHEDULED','ONGOING'].includes(s.event_assignment?.event?.status))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'EVENT', s.event_assignment?.event?.event_name, s.overtime_preapproved,s.id)),
+      ...(storeSchedules || []).filter(s=>attendanceRows?.some(a=>a.store_schedule_id===s.id)||(s.schedule_date<today)||(s.store_assignment?.status==='ACTIVE'&&s.store_assignment.start_date<=s.schedule_date&&(!s.store_assignment.end_date||s.store_assignment.end_date>=s.schedule_date))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'STORE', s.store_assignment?.store?.name, s.overtime_preapproved,s.id,s.shift_number,s.break_start_time,s.break_end_time)),
+      ...(eventSchedules || []).filter(s=>attendanceRows?.some(a=>a.event_schedule_id===s.id)||(s.schedule_date<today)||(s.status==='ACTIVE'&&s.event_assignment?.status==='ACTIVE'&&['SCHEDULED','ONGOING'].includes(s.event_assignment?.event?.status))).map(s => buildDay(s.schedule_date, s.start_time, s.end_time, 'EVENT', s.event_assignment?.event?.event_name, s.overtime_preapproved,s.id,null,s.break_start_time,s.break_end_time)),
     ];
     const dayByDate = new Map(scheduledDays.map(day => [day.date, day]));
     const holidayByDate = new Map((holidays || []).map(row => [row.holiday_date, row]));
@@ -528,13 +535,13 @@ async function calendar(req, res, next) {
       }
       dayByDate.set(dateValue, {
         date: dateValue,
-        type: 'HOLIDAY',
-        source: holiday.name,
+        type: 'NONE',
+        source: 'Belum ada jadwal dari admin untuk tanggal ini.',
         holidayKind: holiday.kind,
         holidayName: holiday.name,
         startTime: null,
         endTime: null,
-        status: 'HOLIDAY',
+        status: 'NO_SCHEDULE',
         checkIn: null,
         checkOut: null,
         lateMinutes: 0,
@@ -564,20 +571,20 @@ async function today(req, res, next) {
     const todayStr = wibDate(new Date());
 
     const {data:open,error:openError}=await supabase.from('attendance_logs')
-      .select('id,check_in,check_out,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,shift_number,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
+      .select('id,check_in,check_out,break_started_at,break_ended_at,attendance_date,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,break_start_time,break_end_time,shift_number,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,break_start_time,break_end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
       .eq('crew_id',crew.id).not('check_in','is',null).is('check_out',null).order('check_in',{ascending:false}).limit(1).maybeSingle();
     if(openError)throw Object.assign(new Error('Absensi yang belum clock out tidak dapat dibaca.'),{status:503});
     if(open){
       const isStore=!!open.store_assignment_id,sch=isStore?open.store_schedule:open.event_schedule;
       if(!sch)throw Object.assign(new Error('Jadwal absensi terbuka tidak ditemukan. Hubungi admin.'),{status:422});
-      return res.json({crewId:crew.id,locationMode:crew.attendance_location_mode || 'ASSIGNED',date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,shiftNumber:sch.shift_number||null,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
+      return res.json({crewId:crew.id,locationMode:crew.attendance_location_mode || 'ASSIGNED',date:todayStr,hasSchedule:true,context:{type:isStore?'STORE':'EVENT',storeAssignmentId:open.store_assignment_id,storeScheduleId:open.store_schedule_id,eventAssignmentId:open.event_assignment_id,eventScheduleId:open.event_schedule_id,eventId:open.event_assignment?.event?.id||null,shiftNumber:sch.shift_number||null,scheduleDate:open.attendance_date,scheduledStart:sch.start_time,scheduledEnd:sch.end_time,breakStart:sch.break_start_time,breakEnd:sch.break_end_time,breakOpensAt:breakWindow({...sch,schedule_date:open.attendance_date})?.start.toISOString()||null,overtimePreapproved:!!sch.overtime_preapproved,locationName:isStore?open.store_assignment?.store?.name:open.event_assignment?.event?.event_name},attendance:open});
     }
 
     let storeSchedule = null;
     if (crew.crew_type === 'CREW_STORE') {
       const now=new Date();
       const {data,error}=await supabase.from('store_schedules')
-        .select('id,schedule_date,start_time,end_time,shift_number,overtime_preapproved,store_assignment:store_assignments!inner(id,crew_id,status,start_date,end_date,store:stores(name,status))')
+        .select('id,schedule_date,start_time,end_time,break_start_time,break_end_time,shift_number,overtime_preapproved,store_assignment:store_assignments!inner(id,crew_id,status,start_date,end_date,store:stores(name,status))')
         .eq('store_assignment.crew_id',crew.id).eq('store_assignment.status','ACTIVE')
         .gte('schedule_date',adjacentDate(todayStr,-1)).lte('schedule_date',todayStr).order('schedule_date');
       if(error)throw Object.assign(new Error('Jadwal kerja tidak dapat dimuat.'),{status:503});
@@ -610,6 +617,8 @@ async function today(req, res, next) {
         eventAssignmentId: null,
         eventScheduleId: null,
         eventId: null,
+        breakStart: storeSchedule.break_start_time,
+        breakEnd: storeSchedule.break_end_time,
         scheduledStart: storeSchedule.start_time,
           scheduledEnd: storeSchedule.end_time,
           overtimePreapproved: !!storeSchedule.overtime_preapproved,
@@ -618,7 +627,7 @@ async function today(req, res, next) {
     } else if (crew.crew_type === 'CREW_EVENT') {
       const { data: eventSchedule, error: eventScheduleError } = await supabase
         .from('event_schedules')
-        .select('id, schedule_date, start_time, end_time, overtime_preapproved, event_assignment:event_assignments!inner(id, crew_id, status, event:events!inner(id,event_name,status))')
+        .select('id, schedule_date, start_time, end_time, break_start_time, break_end_time, overtime_preapproved, event_assignment:event_assignments!inner(id, crew_id, status, event:events!inner(id,event_name,status))')
         .eq('event_assignment.crew_id', crew.id)
         .eq('event_assignment.status', 'ACTIVE')
         .in('event_assignment.event.status', ['SCHEDULED','ONGOING'])
@@ -630,6 +639,9 @@ async function today(req, res, next) {
       if (eventSchedule) {
         context = {
           type: 'EVENT',
+          scheduleDate: eventSchedule.schedule_date,
+          breakStart: eventSchedule.break_start_time,
+          breakEnd: eventSchedule.break_end_time,
           storeAssignmentId: null,
           storeScheduleId: null,
           eventAssignmentId: eventSchedule.event_assignment.id,
@@ -649,7 +661,7 @@ async function today(req, res, next) {
     if (context) {
       const { data, error: attendanceError } = await supabase
         .from('attendance_logs')
-        .select('id, check_in, check_out, status, review_status, late_minutes, overtime_minutes, overtime_status')
+        .select('id, check_in, check_out, break_started_at, break_ended_at, status, review_status, late_minutes, overtime_minutes, overtime_status')
         .eq('crew_id', crew.id)
         .eq(context.type==='STORE'?'store_schedule_id':'event_schedule_id',context.type==='STORE'?context.storeScheduleId:context.eventScheduleId)
         .maybeSingle();
@@ -663,4 +675,4 @@ async function today(req, res, next) {
   }
 }
 
-module.exports = { checkIn, checkOut, list, getOne, update, calendar, today };
+module.exports = { checkIn, checkOut, list, getOne, update, calendar, today, resolveCrewId, validateCoordinates };

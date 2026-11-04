@@ -1,6 +1,6 @@
 # Dokumentasi JAWARA
 
-Panduan terbaru: [GPS dan watermark foto absensi](ABSENSI_GPS_WATERMARK.md) — perubahan 15 Oktober 2026 untuk crew terdaftar, guest, dan tampilan mobile. Lihat juga [Payroll, jadwal, libur dan izin](PAYROLL_JADWAL.md).
+Panduan terbaru: [Istirahat shift, izin/sakit, dan kalender kerja](ISTIRAHAT_IZIN_JADWAL.md) — perubahan lokal 24 Oktober 2026. Lihat juga [GPS dan watermark foto absensi](ABSENSI_GPS_WATERMARK.md) dan [Payroll, jadwal, libur dan izin](PAYROLL_JADWAL.md).
 
 Panduan umum diperbarui 5 Oktober 2026 berdasarkan source baseline `805c40b`; panduan payroll/jadwal diperbarui 6 Oktober 2026 mengikuti perubahan lokal terbaru.
 
@@ -13,6 +13,7 @@ Panduan umum diperbarui 5 Oktober 2026 berdasarkan source baseline `805c40b`; pa
 | [Setup](SETUP.md) | Environment lokal, integrasi dan deployment. |
 | [Akun dan role](ADMIN_CREW_ACCOUNTS.md) | Bootstrap, hak akses dan pemulihan password. |
 | [GPS dan watermark foto](ABSENSI_GPS_WATERMARK.md) | Lokasi aktual pada foto, tampilan mobile, dan layanan alamat. |
+| [Istirahat dan izin/sakit](ISTIRAHAT_IZIN_JADWAL.md) | Foto awal/akhir istirahat, pengajuan crew, persetujuan admin, dan kalender hari nasional. |
 | [Aliran data](MIGRATING_FROM_DUMMY_TO_REAL_DATA.md) | Pengganti panduan migrasi dummy lama. |
 | [Desain](DESIGN.md) | Tema, komponen dan perilaku UI aktual. |
 | [Checklist rilis](RELEASE_CHECKLIST.md) | Verifikasi dan penerapan perubahan. |
