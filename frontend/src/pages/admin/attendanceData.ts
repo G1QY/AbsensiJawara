@@ -77,10 +77,11 @@ export function fromLocal(g:GuestAttendanceRecord):AttendanceRow {
   const time=legacyTime(g);
   return {...fromGuest({latitude:g.latitude,longitude:g.longitude,accuracy:g.accuracy,company_name:g.companyName,job_title:g.jobTitle,id:g.id,legacy_id:g.id,full_name:g.nama,phone:g.hp,crew_type:g.jenis==='Crew Event'?'CREW_EVENT':'CREW_STORE',location_name:g.lokasi,position:g.posisi,clock_type:g.tipe==='Clock In'?'IN':'OUT',occurred_at:time||'',received_at:'',time_source:'LEGACY_DEVICE',note:g.catatan||'',review_status:'PENDING',review_note:'',inPhoto:g.tipe==='Clock In'?g.foto:'',outPhoto:g.tipe==='Clock Out'?g.foto:''}),kind:g.jenis,source:'local',legacy:g};
 }
-export interface Filters {search:string;date:string;kind:string;status:string;review:string;source:string;sort:string}
+export interface Filters {search:string;dateFrom:string;dateTo:string;kind:string;status:string;review:string;source:string;sort:string}
 export function filterAttendance(rows:AttendanceRow[],f:Filters) {
   const search=f.search.trim().toLocaleLowerCase('id-ID');
-  const filtered=rows.filter(a=>(!f.date||a.date===f.date)&&(!f.kind||a.kind===f.kind)&&(!f.status||a.status===f.status)&&(!f.review||a.review===f.review)&&(!f.source||a.source===f.source)&&[a.name,a.phone,a.email,a.companyName,a.jobTitle,a.location].join(' ').toLocaleLowerCase('id-ID').includes(search));
+  const validDateRange=!f.dateFrom||!f.dateTo||f.dateFrom<=f.dateTo;
+  const filtered=rows.filter(a=>validDateRange&&(!f.dateFrom||a.date>=f.dateFrom)&&(!f.dateTo||a.date<=f.dateTo)&&(!f.kind||a.kind===f.kind)&&(!f.status||a.status===f.status)&&(!f.review||a.review===f.review)&&(!f.source||a.source===f.source)&&[a.name,a.phone,a.email,a.companyName,a.jobTitle,a.location].join(' ').toLocaleLowerCase('id-ID').includes(search));
   return [...filtered].sort((a,b)=>f.sort==='name'?a.name.localeCompare(b.name,'id-ID'):f.sort==='oldest'?(a.clockIn||a.clockOut||'').localeCompare(b.clockIn||b.clockOut||''):f.sort==='status'?a.status.localeCompare(b.status,'id-ID'):(b.clockIn||b.clockOut||'').localeCompare(a.clockIn||a.clockOut||''));
 }
 export function recap(rows:AttendanceRow[]):(string|number|null)[][] {
