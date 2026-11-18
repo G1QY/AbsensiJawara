@@ -141,12 +141,16 @@ export default function AdminPages({
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">{" " + translateUI("Data dibaca dari server JAWARA.") + " "}</p>
+        <p className="text-xs sm:text-sm text-slate-500 leading-snug">
+          {translateUI("Data dibaca dari server JAWARA.")}
+        </p>
         <button
           disabled={loading}
-          className={button}
+          className={`${button} flex-shrink-0 text-xs sm:text-sm py-2 px-3 sm:px-4`}
           onClick={() => void load()}
-        >{" " + translateUI("Muat ulang") + " "}</button>
+        >
+          {translateUI("Muat ulang")}
+        </button>
       </div>
       {page === "admin-laporan" && (
         <form
@@ -154,23 +158,32 @@ export default function AdminPages({
             e.preventDefault()
             void load()
           }}
-          className="flex flex-wrap items-end gap-3"
+          className="grid grid-cols-2 sm:flex sm:items-end gap-3"
         >
-          <label className="text-sm text-slate-700">{" " + translateUI("Dari") + " "}<input
+          <label className="text-xs sm:text-sm font-medium text-slate-700 block w-full sm:w-auto">
+            <span className="block mb-1">{translateUI("Dari")}</span>
+            <input
               type="date"
-              className={control}
+              className={control + " sm:w-44 !py-2 !text-xs sm:!text-sm"}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">{" " + translateUI("Sampai") + " "}<input
+          <label className="text-xs sm:text-sm font-medium text-slate-700 block w-full sm:w-auto">
+            <span className="block mb-1">{translateUI("Sampai")}</span>
+            <input
               type="date"
-              className={control}
+              className={control + " sm:w-44 !py-2 !text-xs sm:!text-sm"}
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
           </label>
-          <button disabled={loading} className={primary}>{translateUI("Terapkan")}</button>
+          <button
+            disabled={loading}
+            className={`${primary} col-span-2 sm:col-span-1 w-full sm:w-auto py-2 px-4 text-xs sm:text-sm font-semibold flex items-center justify-center`}
+          >
+            {translateUI("Terapkan")}
+          </button>
         </form>
       )}
       {loading ? (
@@ -245,8 +258,16 @@ export default function AdminPages({
           )}
           {page === "admin-laporan" && (
             <>
-              <p className="text-xs text-slate-500">{" " + translateUI("Menampilkan") + " "}{attendance.length}{" " + translateUI("catatan. Maksimal 1.000 catatan terbaru per rentang; persempit tanggal bila mencapai batas.") + " "}</p>
-              <p className="text-sm text-slate-600">{translateUI('Status masuk mengikuti jadwal dan toleransi. Telat dibulatkan ke atas. Lembur dihitung per jam penuh setelah jadwal selesai dan memerlukan persetujuan atau jadwal prapersetujuan.')}</p>
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-1 text-xs">
+                <p className="font-medium text-slate-700">
+                  {translateUI("Menampilkan")}{" "}
+                  <span className="font-bold text-blue-600">{attendance.length}</span>{" "}
+                  {translateUI("catatan. Maksimal 1.000 catatan terbaru per rentang; persempit tanggal bila mencapai batas.")}
+                </p>
+                <p className="text-slate-500 leading-relaxed">
+                  {translateUI("Status masuk mengikuti jadwal dan toleransi. Telat dibulatkan ke atas. Lembur dihitung per jam penuh setelah jadwal selesai dan memerlukan persetujuan atau jadwal prapersetujuan.")}
+                </p>
+              </div>
               <ExportButtons filename="Laporan_Absensi" title="Laporan Absensi" subtitle={`${from || 'Semua tanggal'} - ${to || 'Sekarang'}`} headers={reportHeaders} rows={reportRows}/>
               <Table headers={['Tanggal','Crew','Jadwal (WIB)','Check-in (WIB)','Check-out (WIB)','Status lembur']} rows={attendance.map(a => {
                 const schedule = a.store_schedule || a.event_schedule;

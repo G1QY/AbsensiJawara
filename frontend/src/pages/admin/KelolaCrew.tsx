@@ -269,32 +269,61 @@ export default function KelolaCrew() {
           <button onClick={() => void load()} className={button + " ml-3"}>{" " + translateUI("Coba lagi") + " "}</button>
         </div>
       )}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          aria-label={translateUI("Cari crew")}
-          placeholder={translateUI("Cari nama, perusahaan, jabatan, atau lokasi...")}
-          className={control + " flex-1 min-w-52"}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          disabled={loading || busy || !!error}
-          className={button}
-          onClick={() => setShowDirectory(true)}
-        >{" " + translateUI("Cabang, Store & Kantor") + " "}</button>
-        <button
-          disabled={loading || busy || !!error}
-          className={button}
-          onClick={() => setShowBulkSchedule(true)}
-        >{" " + translateUI("Jadwal Massal") + " "}</button>
-        <button disabled={loading || busy || !!error} className={button} onClick={()=>setShowImport(true)}>{translateUI("Impor CSV")}</button>
-        <button
-          disabled={loading || busy || !!error}
-          className={primary}
-          onClick={() => openForm()}
-        >{" " + translateUI("+ Tambah Crew") + " "}</button>
+      <div className="space-y-2.5">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            aria-label={translateUI("Cari crew")}
+            placeholder={translateUI("Cari nama, perusahaan, jabatan, atau lokasi...")}
+            className={control + " flex-1"}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button
+            disabled={loading || busy || !!error}
+            className={`${primary} w-full sm:w-auto flex items-center justify-center gap-1.5 whitespace-nowrap`}
+            onClick={() => openForm()}
+          >
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{translateUI("Tambah Crew")}</span>
+          </button>
+        </div>
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2">
+          <button
+            disabled={loading || busy || !!error}
+            className={`${button} flex items-center justify-center text-center text-xs sm:text-sm py-2 px-3`}
+            onClick={() => setShowDirectory(true)}
+          >
+            {translateUI("Cabang, Store & Kantor")}
+          </button>
+          <button
+            disabled={loading || busy || !!error}
+            className={`${button} flex items-center justify-center text-center text-xs sm:text-sm py-2 px-3`}
+            onClick={() => setShowBulkSchedule(true)}
+          >
+            {translateUI("Jadwal Massal")}
+          </button>
+          <button
+            disabled={loading || busy || !!error}
+            className={`${button} col-span-2 sm:col-auto flex items-center justify-center text-center text-xs sm:text-sm py-2 px-3`}
+            onClick={() => setShowImport(true)}
+          >
+            {translateUI("Impor CSV")}
+          </button>
+          {!loading && !error && (
+            <div className="col-span-2 sm:col-auto w-full sm:w-auto">
+              <ExportButtons
+                filename="Daftar-Crew"
+                title={translateUI("Daftar Crew")}
+                subtitle={translateUI("Mengikuti pencarian dan filter Kelola Crew")}
+                headers={['Nama','HP','Email','Perusahaan','Jabatan','Divisi','Cabang','Penempatan','Role','Status']}
+                rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'',c.division||'',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])}
+              />
+            </div>
+          )}
+        </div>
       </div>
-      {!loading && !error && <ExportButtons filename="Daftar-Crew" title={translateUI("Daftar Crew")} subtitle={translateUI("Mengikuti pencarian dan filter Kelola Crew")} headers={['Nama','HP','Email','Perusahaan','Jabatan','Divisi','Cabang','Penempatan','Role','Status']} rows={filtered.map(c=>[c.user.full_name,c.user.phone_number||'',c.user.email,c.company_name||'Belum diisi',c.job_title||'',c.division||'',branchLabel(c.branch)||'Belum ditetapkan',sources(c).join(', ')||'Belum ditugaskan',crewKind(c),c.status==='ACTIVE'?'Aktif':'Non-Aktif'])} />}
       {showImport && <CrewCsvImport onClose={()=>setShowImport(false)} onSaved={reload} existingEmails={crew.map(c=>c.user.email)} />}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <select
@@ -330,25 +359,28 @@ export default function KelolaCrew() {
           <option value="INACTIVE">{translateUI("Non-Aktif")}</option>
         </select>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          ["Total Personel", crew.length],
+          ["Total Personel", crew.length, "bg-blue-50 text-blue-800 border-blue-200/80"],
           [
             "Crew Event",
             crew.filter((c) => (c.user.user_roles?.[0]?.role.code || c.crew_type) === "CREW_EVENT").length,
+            "bg-purple-50 text-purple-800 border-purple-200/80",
           ],
           [
             "Crew Store",
             crew.filter((c) => (c.user.user_roles?.[0]?.role.code || c.crew_type) === "CREW_STORE").length,
+            "bg-emerald-50 text-emerald-800 border-emerald-200/80",
           ],
-          ["Non-Aktif", crew.filter((c) => c.status === "INACTIVE").length],
-        ].map(([label, n]) => (
-          <span
-            key={label}
-            className="rounded-lg px-3 py-2 bg-blue-50 text-blue-700 text-xs font-semibold"
+          ["Non-Aktif", crew.filter((c) => c.status === "INACTIVE").length, "bg-slate-100 text-slate-700 border-slate-200"],
+        ].map(([label, n, colorClass]) => (
+          <div
+            key={label as string}
+            className={`rounded-xl border p-2.5 sm:p-3 flex flex-col justify-between ${colorClass}`}
           >
-            {translateUI(label)}: {loading ? "..." : n}
-          </span>
+            <span className="text-[11px] font-medium opacity-80 leading-tight">{translateUI(label as string)}</span>
+            <span className="text-xl sm:text-2xl font-bold mt-1 tracking-tight">{loading ? "..." : (n as number)}</span>
+          </div>
         ))}
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">

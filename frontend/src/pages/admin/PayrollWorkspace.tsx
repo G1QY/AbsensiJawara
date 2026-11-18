@@ -132,16 +132,16 @@ export default function PayrollWorkspace({
             pembayaran.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button
-            className={button}
+            className={`${button} w-full sm:w-auto text-center justify-center`}
             disabled={loading || busy}
             onClick={() => void reload()}
           >
             Muat ulang
           </button>
           <button
-            className={primary}
+            className={`${primary} w-full sm:w-auto text-center justify-center`}
             disabled={!data || busy || loading}
             onClick={() => {
               setActionError("")
@@ -166,9 +166,9 @@ export default function PayrollWorkspace({
         </p>
       )}
       <section className={panel + " space-y-4"}>
-        <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
           <div
-            className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1"
+            className="grid grid-cols-3 w-full sm:w-auto sm:flex sm:flex-wrap gap-1 rounded-2xl bg-slate-100 p-1"
             role="tablist"
             aria-label="Sistem payroll"
           >
@@ -181,8 +181,10 @@ export default function PayrollWorkspace({
                 role="tab"
                 aria-selected={kind === value}
                 key={value}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                  kind === value ? "bg-blue-600 text-white" : "text-slate-600"
+                className={`rounded-xl sm:rounded-full px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-center transition-colors ${
+                  kind === value
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
                 onClick={() => {
                   setKind(value)
@@ -194,12 +196,12 @@ export default function PayrollWorkspace({
               </button>
             ))}
           </div>
-          <label className="text-sm text-slate-500 flex items-center gap-2">
-            Periode
+          <label className="text-sm text-slate-500 flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2">
+            <span>Periode</span>
             <input
               aria-label="Periode payroll"
               type="month"
-              className={control + " !w-auto"}
+              className={control + " !w-auto flex-1 sm:flex-initial"}
               value={month}
               onChange={(e) => {
                 if (e.target.value) {

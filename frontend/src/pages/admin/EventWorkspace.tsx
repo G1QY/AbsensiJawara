@@ -785,96 +785,183 @@ export default function EventWorkspace({
         </>
       ) : (
         <>
-          <div className="flex flex-wrap justify-between gap-3 items-center">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                {translateUI("Kelola Event")}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {translateUI("Event, lokasi, PIC, crew, dan jadwal absensi.")}
-              </p>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {translateUI("Kelola Event")}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500">
+                  {translateUI("Event, lokasi, PIC, crew, dan jadwal absensi.")}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                <button
+                  className={`${button} text-center justify-center flex items-center text-xs sm:text-sm py-2 px-3`}
+                  disabled={loading}
+                  onClick={() => void load()}
+                >
+                  {translateUI("Muat ulang")}
+                </button>
+                <button
+                  className={`${primary} text-center justify-center flex items-center text-xs sm:text-sm py-2 px-3.5`}
+                  onClick={() => openForm()}
+                >
+                  {translateUI("+ Tambah Event")}
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                className={button}
-                disabled={loading}
-                onClick={() => void load()}
-              >
-                {translateUI("Muat ulang")}
-              </button>
-              <button className={primary} onClick={() => openForm()}>
-                {translateUI("+ Tambah Event")}
-              </button>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                className={`${control} flex-1`}
+                aria-label={translateUI("Cari event")}
+                placeholder={translateUI("Cari nama, perusahaan, cabang, lokasi...")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                <select
+                  className={`${control} sm:!w-auto`}
+                  aria-label={translateUI("Filter status event")}
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">{translateUI("Semua status")}</option>
+                  {["DRAFT", "SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"].map(
+                    (s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <button
+                  className={`${button} flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 px-3`}
+                  disabled={loading || !!error || !list.length}
+                  onClick={() => exportEvents(list)}
+                >
+                  <svg className="w-4 h-4 flex-shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  </svg>
+                  <span>{translateUI("Export Excel")}</span>
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <input
-              className={control + " flex-1 min-w-48"}
-              aria-label={translateUI("Cari event")}
-              placeholder={translateUI(
-                "Cari nama, perusahaan, cabang, lokasi...",
-              )}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select
-              className={control + " !w-auto"}
-              aria-label={translateUI("Filter status event")}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">{translateUI("Semua status")}</option>
-              {["DRAFT", "SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"].map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ),
-              )}
-            </select>
-            <button
-              className={button}
-              disabled={loading || !!error || !list.length}
-              onClick={() => exportEvents(list)}
-            >
-              {translateUI("Export Excel")}
-            </button>
           </div>
           {loading ? (
-            <p>{translateUI("Memuat event...")}</p>
+            <p className="text-sm text-slate-500 py-6 text-center">{translateUI("Memuat event...")}</p>
+          ) : !list.length ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              {translateUI("Belum ada data yang sesuai.")}
+            </div>
           ) : (
-            <DataTable
-              headers={[
-                "Perusahaan",
-                "Nama Event",
-                "Tanggal",
-                "Jam",
-                "Lokasi",
-                "PIC",
-                "Crew",
-                "Status",
-                "Aksi",
-              ]}
-              rows={list.map((e) => [
-                <span className="text-blue-700 text-xs">
-                  {e.company_name || translateUI("Belum diisi")}
-                </span>,
-                <strong>{e.event_name}</strong>,
-                e.event_date,
-                eventHours(e),
-                e.event_locations[0]?.address || "Belum diisi",
-                e.pic?.user.full_name || "Belum ditetapkan",
-                new Set(e.event_assignments.filter((a) => e.status === "COMPLETED" || a.status === "ACTIVE").map(a => a.crew_id)).size,
-                <EventBadge status={e.status} />,
-                <button
-                  disabled={busy}
-                  className="text-blue-700"
-                  onClick={() => void openDetail(e)}
-                >
-                  {translateUI("Detail")}
-                </button>,
-              ])}
-            />
+            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+              {/* Mobile Card List (< sm) */}
+              <div className="divide-y divide-slate-100 sm:hidden">
+                {list.map((e) => {
+                  const assignedCount = new Set(
+                    e.event_assignments
+                      .filter((a) => e.status === "COMPLETED" || a.status === "ACTIVE")
+                      .map((a) => a.crew_id)
+                  ).size;
+                  return (
+                    <article key={e.id} className="p-4 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-blue-700 truncate">
+                            {e.company_name || translateUI("Belum diisi")}
+                          </p>
+                          <h3 className="text-base font-bold text-slate-900 mt-0.5 break-words">
+                            {e.event_name}
+                          </h3>
+                        </div>
+                        <EventBadge status={e.status} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+                        <div>
+                          <span className="block text-[10px] text-slate-500 uppercase tracking-wider">{translateUI("Tanggal & Jam")}</span>
+                          <span className="font-medium text-slate-900">{e.event_date}</span>
+                          <span className="block text-slate-600 font-mono mt-0.5">{eventHours(e)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-slate-500 uppercase tracking-wider">{translateUI("PIC & Crew")}</span>
+                          <span className="font-medium text-slate-900 truncate block">{e.pic?.user.full_name || translateUI("Belum ada PIC")}</span>
+                          <span className="text-slate-600 mt-0.5 block">{assignedCount} {translateUI("crew")}</span>
+                        </div>
+                      </div>
+
+                      {e.event_locations[0]?.address && (
+                        <p className="text-xs text-slate-500 truncate">
+                          📍 {e.event_locations[0].address}
+                        </p>
+                      )}
+
+                      <div className="pt-1">
+                        <button
+                          disabled={busy}
+                          className="w-full py-2 px-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 text-center"
+                          onClick={() => void openDetail(e)}
+                        >
+                          {translateUI("Lihat Detail & Absensi →")}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table (>= sm) */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs bg-slate-50 text-slate-500">
+                    <tr>
+                      {["Perusahaan", "Nama Event", "Tanggal", "Jam", "Lokasi", "PIC", "Crew", "Status", "Aksi"].map(
+                        (h) => (
+                          <th key={h} className="text-left p-4 whitespace-nowrap">
+                            {translateUI(h)}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {list.map((e) => (
+                      <tr key={e.id} className="hover:bg-slate-50/60">
+                        <td className="p-4 text-slate-700">
+                          <span className="text-blue-700 text-xs font-medium">
+                            {e.company_name || translateUI("Belum diisi")}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-900 font-semibold">{e.event_name}</td>
+                        <td className="p-4 text-slate-700 whitespace-nowrap">{e.event_date}</td>
+                        <td className="p-4 text-slate-700 whitespace-nowrap font-mono text-xs">{eventHours(e)}</td>
+                        <td className="p-4 text-slate-700 max-w-48 truncate" title={e.event_locations[0]?.address || "Belum diisi"}>
+                          {e.event_locations[0]?.address || "Belum diisi"}
+                        </td>
+                        <td className="p-4 text-slate-700 whitespace-nowrap">{e.pic?.user.full_name || "Belum ditetapkan"}</td>
+                        <td className="p-4 text-slate-700 text-center font-semibold">
+                          {new Set(e.event_assignments.filter((a) => e.status === "COMPLETED" || a.status === "ACTIVE").map(a => a.crew_id)).size}
+                        </td>
+                        <td className="p-4 whitespace-nowrap">
+                          <EventBadge status={e.status} />
+                        </td>
+                        <td className="p-4 whitespace-nowrap">
+                          <button
+                            disabled={busy}
+                            className="text-blue-700 font-semibold hover:underline"
+                            onClick={() => void openDetail(e)}
+                          >
+                            {translateUI("Detail")}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </>
       )}
