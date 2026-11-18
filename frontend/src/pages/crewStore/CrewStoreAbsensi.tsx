@@ -9,7 +9,7 @@ import AttendanceCalendar from '../../components/attendance/AttendanceCalendar';
 import type { DevicePosition } from '../../lib/deviceLocation';
 import { api, ApiError } from '../../lib/apiClient';
 
-type Step = 'loading' | 'no-schedule' | 'menu' | 'clockin-camera' | 'submitting-in' | 'clockin-result' | 'working' | 'clockout-camera' | 'submitting-out' | 'clockout-result' | 'completed';
+type Step = 'loading' | 'no-schedule' | 'menu' | 'clockin-camera' | 'submitting-in' | 'clockin-result' | 'working' | 'dead-device-photo' | 'clockout-camera' | 'submitting-out' | 'clockout-result' | 'completed';
 
 interface TodayContext {
   type: 'STORE' | 'EVENT';
@@ -69,7 +69,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
       const unchanged=revision===contextRevision.current;contextRevision.current=revision;
       setToday(data);
       const target:Step=!data.hasSchedule?'no-schedule':data.attendance?.check_out?'completed':data.attendance?.check_in?'working':'menu';
-      setStep(previous=>unchanged&&['clockin-camera','clockout-camera','submitting-in','submitting-out','clockin-result','clockout-result'].includes(previous)?previous:target);
+      setStep(previous=>unchanged&&['clockin-camera','dead-device-photo','clockout-camera','submitting-in','submitting-out','clockin-result','clockout-result'].includes(previous)?previous:target);
     } catch (err) {
       setErrorMsg(err instanceof ApiError ? err.message : 'Gagal memuat jadwal hari ini.');
       setStep(previous=>previous==='loading'?'no-schedule':previous);
@@ -292,6 +292,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
 
         {ctx?.breakStart&&ctx.breakEnd&&today?.attendance&&<BreakAttendance attendanceId={today.attendance.id} start={ctx.breakStart} end={ctx.breakEnd} opensAt={ctx.breakOpensAt} startedAt={today.attendance.break_started_at} endedAt={today.attendance.break_ended_at} locationName={ctx.locationName} onSaved={async()=>{await loadToday();onAttendanceChanged?.();}}/>}
+        {today?.attendance&&<DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} onOpen={()=>setStep('dead-device-photo')} />}
         <button
           disabled={!!today?.attendance?.break_started_at&&!today.attendance.break_ended_at}
           onClick={() => setStep('clockout-camera')}
@@ -303,6 +304,10 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
     );
   }
 
+  if (step === 'dead-device-photo' && today?.attendance) {
+    return <DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} page onBack={()=>setStep('working')} onUploaded={async()=>{await loadToday();onAttendanceChanged?.();setStep('working');}} />;
+  }
+
   if (step === 'clockout-camera') {
     return (
       <div className="p-3 sm:p-6 space-y-4 max-w-lg mx-auto">
@@ -311,7 +316,6 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock Out")}</h3>
         </div>
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
-        {today?.attendance && <DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} />}
         <label className="block text-sm text-slate-700">{translateUI("Catatan Clock Out")}<textarea maxLength={2000} value={outNote} onChange={e=>setOutNote(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl bg-white" placeholder={translateUI("Catatan atau alasan lembur (opsional)")}/></label>
         <CameraCapture accentColor="amber" locationName={ctx?.locationName} captureLocation onCapture={submitCheckOut} />
         <button onClick={() => setStep('working')} className="w-full text-center text-sm text-slate-400 hover:text-slate-600">{translateUI("Batal")}</button>
