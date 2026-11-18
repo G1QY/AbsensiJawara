@@ -571,7 +571,7 @@ async function today(req, res, next) {
     const todayStr = wibDate(new Date());
 
     const {data:open,error:openError}=await supabase.from('attendance_logs')
-      .select('id,check_in,check_out,break_started_at,break_ended_at,attendance_date,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,break_start_time,break_end_time,shift_number,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,break_start_time,break_end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
+      .select('id,check_in,check_out,break_started_at,break_ended_at,dead_device_photo_url,dead_device_note,attendance_date,status,review_status,late_minutes,overtime_minutes,overtime_status,store_assignment_id,event_assignment_id,store_schedule_id,event_schedule_id,store_schedule:store_schedules(start_time,end_time,break_start_time,break_end_time,shift_number,overtime_preapproved),event_schedule:event_schedules(start_time,end_time,break_start_time,break_end_time,overtime_preapproved),store_assignment:store_assignments(store:stores(name)),event_assignment:event_assignments(event:events(id,event_name))')
       .eq('crew_id',crew.id).not('check_in','is',null).is('check_out',null).order('check_in',{ascending:false}).limit(1).maybeSingle();
     if(openError)throw Object.assign(new Error('Absensi yang belum clock out tidak dapat dibaca.'),{status:503});
     if(open){
@@ -661,7 +661,7 @@ async function today(req, res, next) {
     if (context) {
       const { data, error: attendanceError } = await supabase
         .from('attendance_logs')
-        .select('id, check_in, check_out, break_started_at, break_ended_at, status, review_status, late_minutes, overtime_minutes, overtime_status')
+        .select('id, check_in, check_out, break_started_at, break_ended_at, dead_device_photo_url, dead_device_note, status, review_status, late_minutes, overtime_minutes, overtime_status')
         .eq('crew_id', crew.id)
         .eq(context.type==='STORE'?'store_schedule_id':'event_schedule_id',context.type==='STORE'?context.storeScheduleId:context.eventScheduleId)
         .maybeSingle();
@@ -675,4 +675,51 @@ async function today(req, res, next) {
   }
 }
 
-module.exports = { checkIn, checkOut, list, getOne, update, calendar, today, resolveCrewId, validateCoordinates };
+// POST /attendance/{id}/dead-device-photo
+// Upload foto device mati sebelum clock out pakai device crew lain.
+// Crew yang device-nya mati tetap clock out dari akunnya sendiri,
+// tapi foto device mati disimpan sebagai bukti tambahan.
+async function uploadDeadDevicePhoto(req, res, next) {
+  try {
+    const { id } = req.params;
+    uuid(id);
+    const ownCrewId = await resolveCrewId(req);
+
+    const { data: existing } = await supabase
+      .from('attendance_logs')
+      .select('crew_id, check_in, check_out, dead_device_photo_url')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) return res.status(404).json({ message: 'Data absensi tidak ditemukan.' });
+    if (existing.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
+    if (!existing.check_in) return res.status(422).json({ message: 'Clock In belum tercatat.' });
+    if (existing.check_out) return res.status(422).json({ message: 'Clock Out sudah tercatat. Foto device mati harus diunggah sebelum clock out.' });
+    if (!req.file) return res.status(422).json({ message: 'Foto device mati wajib disertakan.' });
+
+    const compressedPhoto = await compressAttendancePhoto(req.file.buffer);
+    const photoKey = buildAttendanceKey(req.user.id + '_dead_device');
+    await uploadPrivateObject(photoKey, compressedPhoto, 'image/jpeg');
+
+    const note = attendanceNote(req.body);
+    const { data, error } = await supabase
+      .from('attendance_logs')
+      .update({
+        dead_device_photo_url: photoKey,
+        dead_device_note: note || null,
+      })
+      .eq('id', id)
+      .is('check_out', null)
+      .select('id, dead_device_photo_url, dead_device_note')
+      .maybeSingle();
+
+    if (error) throw Object.assign(new Error(error.message), { status: 400 });
+    if (!data) return res.status(409).json({ message: 'Clock out sudah tercatat dari halaman lain.' });
+
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { checkIn, checkOut, list, getOne, update, calendar, today, resolveCrewId, validateCoordinates, uploadDeadDevicePhoto };

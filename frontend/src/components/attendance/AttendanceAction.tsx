@@ -1,5 +1,6 @@
 import BreakAttendance from './BreakAttendance';
 import LocationPolicyNotice from "./LocationPolicyNotice";
+import DeadDevicePhoto from './DeadDevicePhoto';
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/apiClient';
@@ -159,6 +160,7 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
     {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{translateUI(error)}</p> : null}
 
     {camera ? <>
+      {mode === 'OUT' && today?.attendance && <DeadDevicePhoto attendanceId={today.attendance.id} locationName={context.locationName} />}
       <label className="block text-sm text-slate-700">{translateUI("Catatan") + " "}{mode === 'IN' ? 'Clock In' : 'Clock Out'}
         <textarea maxLength={2000} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder={translateUI("Catatan kehadiran, opsional")} />
       </label>

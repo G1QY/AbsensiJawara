@@ -72,6 +72,7 @@ export interface ManagedEvent extends Event {
     check_out: string | null;
     check_in_photo_url?: string | null;
     check_out_photo_url?: string | null;
+    dead_device_photo_url?: string | null;
     status: string;
     review_status: string;
     late_minutes: number;
@@ -722,6 +723,7 @@ export default function EventWorkspace({
                                 `event_finished_photo_${a.id}`
                               ],
                             ],
+                            ...(log?.dead_device_photo_url ? [["Foto Device Mati", log.dead_device_photo_url]] : []),
                             ["Clock Out", log?.check_out_photo_url],
                           ].map(([label, value]) => (
                             <EventPhoto

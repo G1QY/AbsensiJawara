@@ -22,8 +22,8 @@ async function all(table,select,order) {
   }
 }
 function hideKeys(row) {
-  const {check_in_photo_url,check_out_photo_url,break_start_photo_url,break_end_photo_url,photo_key,...rest}=row;
-  return {...rest,hasInPhoto:!!(row.check_in&&check_in_photo_url),hasOutPhoto:!!(row.check_out&&check_out_photo_url),hasPhoto:!!photo_key};
+  const {check_in_photo_url,check_out_photo_url,break_start_photo_url,break_end_photo_url,photo_key,dead_device_photo_url,...rest}=row;
+  return {...rest,hasInPhoto:!!(row.check_in&&check_in_photo_url),hasOutPhoto:!!(row.check_out&&check_out_photo_url),hasPhoto:!!photo_key,hasDeadDevicePhoto:!!dead_device_photo_url};
 }
 async function assertEventScope(req) {
   if (req.role !== 'EVENT_MANAGER') return;
@@ -52,8 +52,8 @@ router.get('/:kind/:id',async(req,res,next)=>{
     const sign=key=>typeof key==='string'&&/^(attendance|guest-attendance)\/[a-zA-Z0-9_./-]+$/.test(key)&&!key.includes('..')?getSignedDownloadUrl(key,600):Promise.resolve('');
     const photoIn=kind==='guest'?(data.clock_type==='IN'?data.photo_key:null):(data.check_in?data.check_in_photo_url:null);
     const photoOut=kind==='guest'?(data.clock_type==='OUT'?data.photo_key:null):(data.check_out?data.check_out_photo_url:null);
-    const [inPhoto,outPhoto,breakStartPhoto,breakEndPhoto]=await Promise.all([sign(photoIn),sign(photoOut),sign(data.break_start_photo_url),sign(data.break_end_photo_url)]);
-    res.json({...hideKeys(data),inPhoto,outPhoto,breakStartPhoto,breakEndPhoto});
+    const [inPhoto,outPhoto,breakStartPhoto,breakEndPhoto,deadDevicePhoto]=await Promise.all([sign(photoIn),sign(photoOut),sign(data.break_start_photo_url),sign(data.break_end_photo_url),sign(data.dead_device_photo_url)]);
+    res.json({...hideKeys(data),inPhoto,outPhoto,breakStartPhoto,breakEndPhoto,deadDevicePhoto});
   }catch(error){next(error);}
 });
 router.patch('/:kind/:id/review',async(req,res,next)=>{

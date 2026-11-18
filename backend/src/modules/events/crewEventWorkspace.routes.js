@@ -80,7 +80,7 @@ router.get('/workspace', async (req, res, next) => {
     if (assignmentIds.length) {
       const result = await db
         .from('attendance_logs')
-        .select('id,event_assignment_id,attendance_date,check_in,check_out,check_in_photo_url,check_out_photo_url,status,review_status,late_minutes,overtime_minutes,overtime_status')
+        .select('id,event_assignment_id,attendance_date,check_in,check_out,check_in_photo_url,check_out_photo_url,dead_device_photo_url,status,review_status,late_minutes,overtime_minutes,overtime_status')
         .in('event_assignment_id', assignmentIds)
         .order('attendance_date', { ascending: false });
       if (result.error) throw fail(result.error.message, 422);
@@ -224,9 +224,9 @@ router.get('/events/:eventId/photos/url', async (req, res, next) => {
     const key = String(req.query.key || '');
     if (!key.startsWith(`event-workflows/${req.params.eventId}/`)) {
       const { data, error } = await db.from('attendance_logs')
-        .select('check_in_photo_url,check_out_photo_url').eq('event_assignment_id', own.assignment.id);
+        .select('check_in_photo_url,check_out_photo_url,dead_device_photo_url').eq('event_assignment_id', own.assignment.id);
       if (error) throw fail('Foto absensi tidak dapat diperiksa.', 422);
-      const allowed = new Set((data || []).flatMap(row => [row.check_in_photo_url, row.check_out_photo_url]).filter(Boolean));
+      const allowed = new Set((data || []).flatMap(row => [row.check_in_photo_url, row.check_out_photo_url, row.dead_device_photo_url]).filter(Boolean));
       if (!allowed.has(key)) throw fail('Lokasi foto tidak valid.', 422);
     }
     res.json({ url: await getSignedDownloadUrl(key) });

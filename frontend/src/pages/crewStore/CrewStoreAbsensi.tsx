@@ -1,6 +1,7 @@
 import BreakAttendance from '../../components/attendance/BreakAttendance';
 import PermissionRequests from '../../components/attendance/PermissionRequests';
 import LocationPolicyNotice from "../../components/attendance/LocationPolicyNotice";
+import DeadDevicePhoto from '../../components/attendance/DeadDevicePhoto';
 import {t as translateUI,getLocale} from '../../lib/i18n';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import CameraCapture from '../../components/attendance/CameraCapture';
@@ -310,6 +311,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
           <h3 className="font-semibold text-slate-900">{translateUI("Ambil Foto untuk Clock Out")}</h3>
         </div>
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
+        {today?.attendance && <DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} />}
         <label className="block text-sm text-slate-700">{translateUI("Catatan Clock Out")}<textarea maxLength={2000} value={outNote} onChange={e=>setOutNote(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl bg-white" placeholder={translateUI("Catatan atau alasan lembur (opsional)")}/></label>
         <CameraCapture accentColor="amber" locationName={ctx?.locationName} captureLocation onCapture={submitCheckOut} />
         <button onClick={() => setStep('working')} className="w-full text-center text-sm text-slate-400 hover:text-slate-600">{translateUI("Batal")}</button>

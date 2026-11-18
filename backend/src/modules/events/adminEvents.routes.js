@@ -12,7 +12,7 @@ router.get('/',async(req,res,next)=>{try{
 }catch(e){next(e);}});
 router.get('/:id',async(req,res,next)=>{try{
   uuid(req.params.id);const {data:event,error}=await db.from('events').select(select).eq('id',req.params.id).maybeSingle();check(error);if(!event)throw fail('Event tidak ditemukan.',404);
-  const attendance=[];for(let start=0;;start+=500){const {data,error}=await db.from('attendance_logs').select('id,crew_id,attendance_date,check_in,check_out,check_in_photo_url,check_out_photo_url,status,review_status,late_minutes,overtime_minutes,overtime_status,check_in_note,check_out_note,event_assignment:event_assignments!inner(event_id)').eq('event_assignment.event_id',req.params.id).order('id').range(start,start+499);check(error);attendance.push(...data);if(data.length<500)break;}
+  const attendance=[];for(let start=0;;start+=500){const {data,error}=await db.from('attendance_logs').select('id,crew_id,attendance_date,check_in,check_out,check_in_photo_url,check_out_photo_url,dead_device_photo_url,dead_device_note,status,review_status,late_minutes,overtime_minutes,overtime_status,check_in_note,check_out_note,event_assignment:event_assignments!inner(event_id)').eq('event_assignment.event_id',req.params.id).order('id').range(start,start+499);check(error);attendance.push(...data);if(data.length<500)break;}
   const {data:audit,error:auditError}=await db.from('audit_logs').select('id,action,created_at,actor_user_id,new_data,old_data,actor:users(full_name)').eq('entity_type','events').eq('entity_id',req.params.id).order('created_at',{ascending:false}).limit(100);check(auditError);
   const {data:workflow,error:workflowError}=await db.from('event_workflows').select('event_id,data,current_step,max_reached,updated_at').eq('event_id',event.id).maybeSingle();check(workflowError);
   const crewIds = [...new Set((audit || []).map(row=>row.new_data?.crew_id || row.old_data?.crew_id).filter(Boolean))];
@@ -28,7 +28,7 @@ router.get('/:id/photos/url',async(req,res,next)=>{try{
  uuid(req.params.id);const key=String(req.query.key||'');
  const {data:event,error}=await db.from('events').select('id').eq('id',req.params.id).maybeSingle();check(error);if(!event)throw fail('Event tidak ditemukan.',404);
  if(!key.startsWith(`event-workflows/${event.id}/`)){
- const {data,error}=await db.from('attendance_logs').select('id,event_assignment:event_assignments!inner(event_id)').eq('event_assignment.event_id',event.id).or(`check_in_photo_url.eq.${key.replace(/[^a-zA-Z0-9/_.-]/g,'')},check_out_photo_url.eq.${key.replace(/[^a-zA-Z0-9/_.-]/g,'')}`).limit(1);check(error);
+ const {data,error}=await db.from('attendance_logs').select('id,event_assignment:event_assignments!inner(event_id)').eq('event_assignment.event_id',event.id).or(`check_in_photo_url.eq.${key.replace(/[^a-zA-Z0-9/_.-]/g,'')},check_out_photo_url.eq.${key.replace(/[^a-zA-Z0-9/_.-]/g,'')},dead_device_photo_url.eq.${key.replace(/[^a-zA-Z0-9/_.-]/g,'')}`).limit(1);check(error);
  if(!/^[a-zA-Z0-9/_.-]+$/.test(key)||!data?.length)throw fail('Foto bukan milik event ini.',403);
  }
  res.json({url:await require('../../utils/signedUrl').getSignedDownloadUrl(key)});

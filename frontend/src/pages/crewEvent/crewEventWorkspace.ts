@@ -31,7 +31,7 @@ export interface CrewEventAssignment {
   workflow: WorkflowState;
   team: string[];
   members?:Array<{id:string;crew_id:string;name:string;company_name?:string;job_title?:string;position:string|null;status:string}>;
-  attendance: Array<{ id: string; attendance_date: string; check_in: string | null; check_out: string | null; check_in_photo_url?: string | null; check_out_photo_url?: string | null; status: string; review_status: string; late_minutes: number; overtime_minutes: number; overtime_status: string }>;
+  attendance: Array<{ id: string; attendance_date: string; check_in: string | null; check_out: string | null; check_in_photo_url?: string | null; check_out_photo_url?: string | null; dead_device_photo_url?: string | null; status: string; review_status: string; late_minutes: number; overtime_minutes: number; overtime_status: string }>;
 }
 
 export interface CrewEventWorkspaceData {
