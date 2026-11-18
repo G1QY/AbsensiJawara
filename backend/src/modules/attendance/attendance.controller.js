@@ -676,9 +676,7 @@ async function today(req, res, next) {
 }
 
 // POST /attendance/{id}/dead-device-photo
-// Upload foto device mati sebelum clock out pakai device crew lain.
-// Crew yang device-nya mati tetap clock out dari akunnya sendiri,
-// tapi foto device mati disimpan sebagai bukti tambahan.
+// Upload foto bukti mematikan perangkat kerja sebelum clock out.
 async function uploadDeadDevicePhoto(req, res, next) {
   try {
     const { id } = req.params;
@@ -694,8 +692,8 @@ async function uploadDeadDevicePhoto(req, res, next) {
     if (!existing) return res.status(404).json({ message: 'Data absensi tidak ditemukan.' });
     if (existing.crew_id !== ownCrewId) return res.status(403).json({ message: 'Akses ditolak.' });
     if (!existing.check_in) return res.status(422).json({ message: 'Clock In belum tercatat.' });
-    if (existing.check_out) return res.status(422).json({ message: 'Clock Out sudah tercatat. Foto device mati harus diunggah sebelum clock out.' });
-    if (!req.file) return res.status(422).json({ message: 'Foto device mati wajib disertakan.' });
+    if (existing.check_out) return res.status(422).json({ message: 'Clock Out sudah tercatat. Foto bukti matikan device harus diunggah sebelum clock out.' });
+    if (!req.file) return res.status(422).json({ message: 'Foto bukti matikan device wajib disertakan.' });
 
     const compressedPhoto = await compressAttendancePhoto(req.file.buffer);
     const photoKey = buildAttendanceKey(req.user.id + '_dead_device');

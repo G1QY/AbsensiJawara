@@ -109,16 +109,16 @@ export default function AdminAbsensi({eventOnly=false}:{eventOnly?:boolean}) {
       const photo=side==='in'?a.inPhoto:side==='out'?a.outPhoto:side==='breakStart'?a.breakStartPhoto:side==='breakEnd'?a.breakEndPhoto:a.deadDevicePhoto;
       const time=side==='in'?a.clockIn:side==='out'?a.clockOut:side==='breakStart'?a.breakStartedAt||null:side==='breakEnd'?a.breakEndedAt||null:null;
       const comment=side==='in'?a.inNote:side==='out'?a.outNote:side==='deadDevice'?a.deadDeviceNote||'':'';
-      const label=side==='in'?'Clock In':side==='out'?'Clock Out':side==='breakStart'?'Mulai istirahat':side==='breakEnd'?'Selesai istirahat':'Device Mati';
+      const label=side==='in'?'Clock In':side==='out'?'Clock Out':side==='breakStart'?'Mulai istirahat':side==='breakEnd'?'Selesai istirahat':'Matikan Device';
       const point=side==='breakStart'?a.breakStartGPS:side==='breakEnd'?a.breakEndGPS:null;
       return <section key={side} className="p-4 rounded-xl bg-slate-50 space-y-3">
         <h3 className="font-semibold text-sm text-slate-900">{label}</h3>
         {(side==='breakStart'||side==='breakEnd')&&a.schedule?.break_start_time&&a.schedule.break_end_time&&<p className="text-xs text-slate-600">Jadwal istirahat {a.schedule.break_start_time.slice(0,5)} – {a.schedule.break_end_time.slice(0,5)} WIB</p>}
-        {side==='deadDevice'&&<p className="text-xs text-amber-700 font-medium">Foto bukti device mati sebelum clock out via perangkat lain</p>}
+        {side==='deadDevice'&&<p className="text-xs text-amber-700 font-medium">{translateUI('Foto bukti perangkat sudah dimatikan sebelum clock out')}</p>}
         {photo?<a href={photo} target="_blank" rel="noopener noreferrer" aria-label={'Buka Foto '+label}><img src={photo} alt={'Foto '+label} className="w-full rounded-xl object-contain max-h-80" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.insertAdjacentText('afterend',translateUI('Foto gagal dimuat. Tutup dan buka ulang detail.'));}}/></a>:<p className="text-sm text-slate-500 border border-dashed border-slate-300 rounded-xl p-5">{time?translateUI("Foto tidak tersedia untuk catatan ini."):'Belum ada foto '+label.toLowerCase()+'.'}</p>}
         {time&&<p className="text-sm font-semibold text-slate-900">{translateUI(stamp(time))}</p>}
         {point&&<a className="text-xs text-blue-700 underline" href={gpsLink(point)} target="_blank" rel="noopener noreferrer">Buka titik GPS istirahat</a>}
-        {comment&&<div className="text-sm text-slate-700 whitespace-pre-wrap break-words"><p className="font-semibold">{translateUI("Catatan") + " "}{side==='in'?translateUI('Clock In'):side==='out'?translateUI('Clock Out'):translateUI('Device Mati')}</p><p>{comment}</p></div>}
+        {comment&&<div className="text-sm text-slate-700 whitespace-pre-wrap break-words"><p className="font-semibold">{translateUI("Catatan") + " "}{side==='in'?translateUI('Clock In'):side==='out'?translateUI('Clock Out'):translateUI('Matikan Device')}</p><p>{comment}</p></div>}
       </section>;
     })}</div>;
   }

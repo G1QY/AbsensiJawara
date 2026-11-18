@@ -37,6 +37,7 @@ interface AttendanceState {
   late_minutes: number;
   overtime_minutes: number;
   overtime_status: string;
+  dead_device_photo_url?: string | null;
 }
 
 interface TodayResponse {
@@ -292,7 +293,7 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
         {errorMsg && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{errorMsg}</div>}
 
         {ctx?.breakStart&&ctx.breakEnd&&today?.attendance&&<BreakAttendance attendanceId={today.attendance.id} start={ctx.breakStart} end={ctx.breakEnd} opensAt={ctx.breakOpensAt} startedAt={today.attendance.break_started_at} endedAt={today.attendance.break_ended_at} locationName={ctx.locationName} onSaved={async()=>{await loadToday();onAttendanceChanged?.();}}/>}
-        {today?.attendance&&<DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} onOpen={()=>setStep('dead-device-photo')} />}
+        {today?.attendance&&<DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} uploaded={!!today.attendance.dead_device_photo_url} onOpen={()=>setStep('dead-device-photo')} />}
         <button
           disabled={!!today?.attendance?.break_started_at&&!today.attendance.break_ended_at}
           onClick={() => setStep('clockout-camera')}

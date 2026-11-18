@@ -68,7 +68,7 @@ function reportPhotoKeys(assignment: CrewEventAssignment, data: Record<string, a
   add('Bukti Omset', data.omset_nominal_photo);
   (data.inventory_after_items || []).forEach((item: any, index: number) => add(`Inventory After - ${item.nama || `Item ${index + 1}`}`, item.foto_after));
   assignment.attendance.forEach((row, index) => {
-    if (row.dead_device_photo_url) add(`Foto Device Mati ${row.attendance_date || index + 1}`, row.dead_device_photo_url);
+    if (row.dead_device_photo_url) add(`Bukti Matikan Device ${row.attendance_date || index + 1}`, row.dead_device_photo_url);
     add(`Clock Out ${row.attendance_date || index + 1}`, row.check_out_photo_url);
   });
   return [...new Map(photos.map(photo => [photo.key, photo])).values()];

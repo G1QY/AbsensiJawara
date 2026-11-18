@@ -723,7 +723,7 @@ export default function EventWorkspace({
                                 `event_finished_photo_${a.id}`
                               ],
                             ],
-                            ...(log?.dead_device_photo_url ? [["Foto Device Mati", log.dead_device_photo_url]] : []),
+                            ...(log?.dead_device_photo_url ? [["Bukti Matikan Device", log.dead_device_photo_url]] : []),
                             ["Clock Out", log?.check_out_photo_url],
                           ].map(([label, value]) => (
                             <EventPhoto
