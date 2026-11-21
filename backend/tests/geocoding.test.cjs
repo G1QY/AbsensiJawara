@@ -91,7 +91,7 @@ test('guest route exposes reverse only, admin search requires an allowed role, m
   const supabasePath = require.resolve('../src/config/supabaseClient');
   const previousController = require.cache[controllerPath];
   const previousSupabase = require.cache[supabasePath];
-  require.cache[controllerPath] = { exports: Object.fromEntries(['checkIn','checkOut','today','calendar','list','getOne','update'].map(name => [name, (req,res) => res.sendStatus(204)])) };
+  require.cache[controllerPath] = { exports: Object.fromEntries(['checkIn','checkOut','uploadDeadDevicePhoto','today','calendar','list','getOne','update'].map(name => [name, (req,res) => res.sendStatus(204)])) };
   require.cache[supabasePath] = { id: supabasePath, filename: supabasePath, loaded: true, exports: {} };
   let attendance;
   try { attendance = require('../src/modules/attendance/attendance.routes'); }
