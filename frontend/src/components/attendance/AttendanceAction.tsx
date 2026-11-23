@@ -162,10 +162,22 @@ export default function AttendanceAction({ mode, eventId, onContinue, onRecorded
 
     {camera ? <>
       {mode === 'OUT' && today?.attendance && <DeadDevicePhoto attendanceId={today.attendance.id} locationName={context.locationName} uploaded={!!today.attendance.dead_device_photo_url} onUploaded={async () => { await load(); onRecorded?.(); }} />}
+      {mode === 'OUT' && today?.attendance && !today.attendance.dead_device_photo_url && (
+        <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+          {translateUI('Foto bukti matikan device wajib sebelum Clock Out')}
+        </p>
+      )}
       <label className="block text-sm text-slate-700">{translateUI("Catatan") + " "}{mode === 'IN' ? 'Clock In' : 'Clock Out'}
         <textarea maxLength={2000} value={note} onChange={event => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder={translateUI("Catatan kehadiran, opsional")} />
       </label>
-      <CameraCapture accentColor={mode === 'IN' ? 'emerald' : 'amber'} locationName={context.locationName} captureLocation onCapture={submit} />
+      {mode === 'OUT' && today?.attendance && !today.attendance.dead_device_photo_url
+        ? null
+        : <CameraCapture accentColor={mode === 'IN' ? 'emerald' : 'amber'} locationName={context.locationName} captureLocation onCapture={submit} />
+      }
+      {mode === 'OUT' && today?.attendance && !today.attendance.dead_device_photo_url && (
+        <p className="text-center text-xs text-slate-400">{translateUI('Upload foto bukti matikan device di atas terlebih dahulu')}</p>
+      )}
       <button type="button" onClick={() => setCamera(false)} className="w-full text-sm text-slate-500">{translateUI("Batal")}</button>
     </> : <button type="button" onClick={() => setCamera(true)} className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white ${mode === 'IN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
       {mode === 'IN' ? translateUI("Clock In Sekarang") : translateUI("Clock Out Sekarang")}

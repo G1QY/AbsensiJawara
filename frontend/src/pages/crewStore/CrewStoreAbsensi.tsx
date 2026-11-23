@@ -294,8 +294,14 @@ export default function CrewStoreAbsensi({ showCalendar = true, onAttendanceChan
 
         {ctx?.breakStart&&ctx.breakEnd&&today?.attendance&&<BreakAttendance attendanceId={today.attendance.id} start={ctx.breakStart} end={ctx.breakEnd} opensAt={ctx.breakOpensAt} startedAt={today.attendance.break_started_at} endedAt={today.attendance.break_ended_at} locationName={ctx.locationName} onSaved={async()=>{await loadToday();onAttendanceChanged?.();}}/>}
         {today?.attendance&&<DeadDevicePhoto attendanceId={today.attendance.id} locationName={ctx?.locationName} uploaded={!!today.attendance.dead_device_photo_url} onOpen={()=>setStep('dead-device-photo')} />}
+        {today?.attendance && !today.attendance.dead_device_photo_url && (
+          <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+            {translateUI('Foto bukti matikan device wajib sebelum Clock Out')}
+          </p>
+        )}
         <button
-          disabled={!!today?.attendance?.break_started_at&&!today.attendance.break_ended_at}
+          disabled={(!!today?.attendance?.break_started_at&&!today.attendance.break_ended_at) || !today?.attendance?.dead_device_photo_url}
           onClick={() => setStep('clockout-camera')}
           className="w-full py-4 rounded-2xl bg-amber-600 text-white font-bold text-lg hover:bg-amber-700 disabled:opacity-40 flex items-center justify-center gap-3"
         >
